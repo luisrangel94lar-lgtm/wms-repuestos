@@ -32,7 +32,15 @@ export function SearchResults({ query, onSelect }: SearchResultsProps) {
       </div>
     )
   }
-  if (results.length === 0) return null
+  if (results.length === 0) {
+    return (
+      <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 p-4">
+        <p className="text-sm text-muted-foreground text-center">
+          Sin resultados para "{query}"
+        </p>
+      </div>
+    )
+  }
 
   const products = results.filter((r) => r.type === 'product')
   const equipment = results.filter((r) => r.type === 'equipment')

@@ -18,7 +18,7 @@ import { SettingsPage } from '@/components/wms/SettingsPage'
 import { Toaster } from '@/components/ui/sonner'
 import type { WmsPage } from '@/types/wms'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, useMemo } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
 
@@ -48,15 +48,14 @@ export default function Home() {
   }))
   const { currentPage } = useWmsStore()
   const { theme } = useTheme()
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const PageComponent = pageComponents[currentPage]
-  const dateStr = useMemo(() =>
-    new Date().toLocaleDateString('es-MX', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }),
-  [])
+  const dateStr = new Date().toLocaleDateString('es-MX', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -73,8 +72,12 @@ export default function Home() {
               <span className="flex items-center gap-2">
                 <span className="hidden sm:inline capitalize">{dateStr}</span>
                 <span className="flex items-center gap-1">
-                  {theme === 'dark' ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
-                  {theme === 'dark' ? 'Oscuro' : 'Claro'}
+                  {mounted && (
+                    <>
+                      {theme === 'dark' ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+                      {theme === 'dark' ? 'Oscuro' : 'Claro'}
+                    </>
+                  )}
                 </span>
               </span>
             </footer>

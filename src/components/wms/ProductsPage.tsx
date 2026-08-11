@@ -130,11 +130,12 @@ export function ProductsPage() {
 
   const { data: categorias = [] } = useQuery({
     queryKey: ['categorias-list'],
-    queryFn: async () => {
-      const res = await fetch('/api/wms/productos?pageSize=1')
-      const data = await res.json()
-      return data.items
-    },
+    queryFn: () => fetch('/api/wms/categorias').then((r) => r.json()),
+  })
+
+  const { data: marcas = [] } = useQuery({
+    queryKey: ['marcas-list'],
+    queryFn: () => fetch('/api/wms/marcas').then((r) => r.json()),
   })
 
   const form = useForm<ProductFormData>({
@@ -267,7 +268,7 @@ export function ProductsPage() {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-2 flex-1">
+        <div className="flex gap-2 flex-1 flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -288,6 +289,28 @@ export function ProductsPage() {
             <Filter className="h-4 w-4 mr-1" />
             Bajo Stock
           </Button>
+          <Select value={idCategoria} onValueChange={(v) => { setIdCategoria(v === '_all' ? '' : v); setPage(1) }}>
+            <SelectTrigger className="w-[140px] h-9 text-xs">
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all">Todas</SelectItem>
+              {categorias.map((c: any) => (
+                <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={idMarca} onValueChange={(v) => { setIdMarca(v === '_all' ? '' : v); setPage(1) }}>
+            <SelectTrigger className="w-[140px] h-9 text-xs">
+              <SelectValue placeholder="Marca" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all">Todas</SelectItem>
+              {marcas.map((m: any) => (
+                <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button onClick={() => { form.reset(); setShowCreate(true) }}>
           <Plus className="h-4 w-4 mr-1" />
@@ -457,6 +480,16 @@ export function ProductsPage() {
                 <Input {...form.register('fotoUrl')} />
               </div>
             </div>
+            {form.watch('fotoUrl') && (
+              <div className="mt-2">
+                <img
+                  src={form.watch('fotoUrl')}
+                  alt="Preview"
+                  className="w-24 h-24 object-cover rounded-lg border"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Costo Unitario</Label>
@@ -496,6 +529,16 @@ export function ProductsPage() {
           </DialogHeader>
           {viewProduct && (
             <div className="space-y-4">
+              {viewProduct.fotoUrl && (
+                <div className="flex justify-center">
+                  <img
+                    src={viewProduct.fotoUrl}
+                    alt={viewProduct.nombre}
+                    className="w-32 h-32 object-cover rounded-lg border"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono font-medium">{viewProduct.sku}</span></div>
                 <div><span className="text-muted-foreground">Nombre:</span> <span className="font-medium">{viewProduct.nombre}</span></div>

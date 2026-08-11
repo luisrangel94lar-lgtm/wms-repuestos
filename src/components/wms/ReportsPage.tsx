@@ -20,7 +20,7 @@ import {
 import { formatCurrency, formatDate } from './lib/format'
 import { exportToCSV } from './lib/export-csv'
 
-const CHART_COLORS = ['#171717', '#404040', '#737373', '#a3a3a3', '#d4d4d4', '#e5e5e5']
+const CHART_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
 
 export function ReportsPage() {
   const [fechaDesde, setFechaDesde] = useState('')
@@ -44,13 +44,20 @@ export function ReportsPage() {
     queryFn: () => fetch('/api/wms/stock').then((r) => r.json()),
   })
 
+  const isLoadingReports = !allProducts.length && !stockEntries.length
+
+  // Build stock Map for O(n+m) lookup
+  const stockByProduct = new Map<number, number>()
+  stockEntries.forEach((s: any) => {
+    stockByProduct.set(s.idProducto, (stockByProduct.get(s.idProducto) ?? 0) + s.cantidad)
+  })
+
   // Group value by category
   const categoryData = (() => {
     const map = new Map<string, number>()
     allProducts.forEach((p: any) => {
       const cat = p.categoria?.nombre ?? 'Sin categoría'
-      const stocks = stockEntries.filter((s: any) => s.idProducto === p.id)
-      const total = stocks.reduce((sum: number, s: any) => sum + s.cantidad, 0)
+      const total = stockByProduct.get(p.id) ?? 0
       const value = total * p.costoUnitario
       map.set(cat, (map.get(cat) ?? 0) + value)
     })
@@ -59,8 +66,7 @@ export function ReportsPage() {
 
   // Inventory table
   const inventoryTable = allProducts.map((p: any) => {
-    const stocks = stockEntries.filter((s: any) => s.idProducto === p.id)
-    const totalStock = stocks.reduce((sum: number, s: any) => sum + s.cantidad, 0)
+    const totalStock = stockByProduct.get(p.id) ?? 0
     return { ...p, totalStock, valorTotal: totalStock * p.costoUnitario }
   }).sort((a: any, b: any) => b.valorTotal - a.valorTotal)
 
@@ -214,6 +220,19 @@ export function ReportsPage() {
         { key: 'stockPromedio', label: 'Stock Promedio' },
         { key: 'rotacion', label: 'Rotación' },
       ],
+    )
+  }
+
+  if (isLoadingReports) {
+    return (
+      <div className="space-y-4">
+        <Card className="rounded-xl shadow-sm"><CardContent className="p-4"><div className="flex gap-3"><Skeleton className="h-9 w-32" /><Skeleton className="h-9 w-32" /><Skeleton className="h-9 w-24" /></div></CardContent></Card>
+        <Skeleton className="h-10 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-72 rounded-xl" />
+          <Skeleton className="h-72 rounded-xl" />
+        </div>
+      </div>
     )
   }
 

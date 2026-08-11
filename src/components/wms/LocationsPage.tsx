@@ -14,10 +14,14 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const locationSchema = z.object({
@@ -55,6 +59,8 @@ function getMaxStockInPasillo(locations: Ubicacion[], stockMap: Map<number, numb
 export function LocationsPage() {
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
+  const [editId, setEditId] = useState<number | null>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<Ubicacion | null>(null)
 
   const { data: ubicaciones = [], isLoading } = useQuery<Ubicacion[]>({
@@ -69,9 +75,7 @@ export function LocationsPage() {
 
   const { data: locationStock = [] } = useQuery<StockEntry[]>({
     queryKey: ['location-stock', selectedLocation?.id],
-    queryFn: () => fetch('/api/wms/stock?idProducto=').then((r) => r.json()).then((items: StockEntry[]) =>
-      items.filter((s) => s.idUbicacion === selectedLocation!.id)
-    ),
+    queryFn: () => fetch(`/api/wms/stock?idUbicacion=${selectedLocation!.id}`).then((r) => r.json()),
     enabled: !!selectedLocation,
   })
 
@@ -84,6 +88,27 @@ export function LocationsPage() {
     onSuccess: () => { toast.success('Ubicación creada'); queryClient.invalidateQueries({ queryKey: ['ubicaciones'] }); setShowCreate(false); form.reset() },
     onError: (err: any) => toast.error(err.error ?? 'Error al crear ubicación'),
   })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: number; values: LocationFormData }) =>
+      fetch('/api/wms/ubicaciones', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) })
+        .then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: () => { toast.success('Ubicación actualizada'); queryClient.invalidateQueries({ queryKey: ['ubicaciones'] }); setEditId(null); form.reset() },
+    onError: (err: any) => toast.error(err.error ?? 'Error al actualizar ubicación'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/wms/ubicaciones?id=${id}`, { method: 'DELETE' })
+        .then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: () => { toast.success('Ubicación eliminada'); queryClient.invalidateQueries({ queryKey: ['ubicaciones'] }); setDeleteId(null) },
+    onError: (err: any) => toast.error(err.error ?? 'Error al eliminar ubicación'),
+  })
+
+  function openEdit(loc: Ubicacion) {
+    setEditId(loc.id)
+    form.reset({ pasillo: loc.pasillo, estante: loc.estante, nivel: loc.nivel })
+  }
 
   // Build a map of location id -> total stock
   const stockMap = new Map<number, number>()
@@ -143,35 +168,51 @@ export function LocationsPage() {
                         const hasStock = qty > 0
                         const barWidth = maxStock > 0 ? (qty / maxStock) * 100 : 0
                         return (
-                          <button
-                            key={loc.id}
-                            onClick={() => setSelectedLocation(loc)}
-                            className={cn(
-                              'rounded-lg border p-3 text-left transition-all duration-200 hover:ring-2 hover:ring-primary/50 hover:scale-[1.02]',
-                              hasStock
-                                ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/50 dark:border-emerald-800'
-                                : 'bg-muted/50 border-border'
-                            )}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-[11px] font-semibold text-foreground">{loc.pasillo}-{loc.estante}-{loc.nivel}</p>
-                              <span className={cn(
-                                'text-[11px] font-bold font-mono',
-                                hasStock ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'
-                              )}>
-                                {qty}
-                              </span>
+                          <div key={loc.id} className="relative group">
+                            <button
+                              onClick={() => setSelectedLocation(loc)}
+                              className={cn(
+                                'w-full rounded-lg border p-3 text-left transition-all duration-200 hover:ring-2 hover:ring-primary/50 hover:scale-[1.02]',
+                                hasStock
+                                  ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/50 dark:border-emerald-800'
+                                  : 'bg-muted/50 border-border'
+                              )}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-[11px] font-semibold text-foreground">{loc.pasillo}-{loc.estante}-{loc.nivel}</p>
+                                <span className={cn(
+                                  'text-[11px] font-bold font-mono',
+                                  hasStock ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'
+                                )}>
+                                  {qty}
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-foreground/5 overflow-hidden">
+                                <div
+                                  className={cn(
+                                    'h-full rounded-full transition-all duration-300',
+                                    hasStock ? 'bg-emerald-500' : 'bg-muted-foreground/15'
+                                  )}
+                                  style={{ width: `${barWidth}%` }}
+                                />
+                              </div>
+                            </button>
+                            {/* Edit & Delete buttons on hover */}
+                            <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                className="h-5 w-5 rounded bg-background border shadow-sm flex items-center justify-center hover:bg-accent"
+                                onClick={(e) => { e.stopPropagation(); openEdit(loc) }}
+                              >
+                                <Pencil className="h-2.5 w-2.5" />
+                              </button>
+                              <button
+                                className="h-5 w-5 rounded bg-background border shadow-sm flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground"
+                                onClick={(e) => { e.stopPropagation(); setDeleteId(loc.id) }}
+                              >
+                                <Trash2 className="h-2.5 w-2.5" />
+                              </button>
                             </div>
-                            <div className="h-1.5 w-full rounded-full bg-foreground/5 overflow-hidden">
-                              <div
-                                className={cn(
-                                  'h-full rounded-full transition-all duration-300',
-                                  hasStock ? 'bg-emerald-500' : 'bg-muted-foreground/15'
-                                )}
-                                style={{ width: `${barWidth}%` }}
-                              />
-                            </div>
-                          </button>
+                          </div>
                         )
                       })
                     ))}
@@ -239,6 +280,40 @@ export function LocationsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editId} onOpenChange={(open) => { if (!open) { setEditId(null); form.reset() } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Editar Ubicación</DialogTitle><DialogDescription className="sr-only">Formulario para editar una ubicación de almacenamiento</DialogDescription></DialogHeader>
+          <form onSubmit={form.handleSubmit((values) => editId && updateMutation.mutate({ id: editId, values }))} className="space-y-4">
+            <div className="space-y-2"><Label>Pasillo *</Label><Input {...form.register('pasillo')} placeholder="Ej: A" />{form.formState.errors.pasillo && <p className="text-xs text-destructive">{form.formState.errors.pasillo.message}</p>}</div>
+            <div className="space-y-2"><Label>Estante *</Label><Input {...form.register('estante')} placeholder="Ej: 1" />{form.formState.errors.estante && <p className="text-xs text-destructive">{form.formState.errors.estante.message}</p>}</div>
+            <div className="space-y-2"><Label>Nivel *</Label><Input {...form.register('nivel')} placeholder="Ej: 1" />{form.formState.errors.nivel && <p className="text-xs text-destructive">{form.formState.errors.nivel.message}</p>}</div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setEditId(null); form.reset() }}>Cancelar</Button>
+              <Button type="submit" disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Actualizando...' : 'Actualizar'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar ubicación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción desactivará la ubicación. Si tiene stock asociado, no se podrá eliminar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -210,47 +210,20 @@ export function InventoryPage() {
 
     setTrasladoLoading(true)
     try {
-      // 1. Record the TRASLADO movement
-      const res = await fetch('/api/wms/movimientos', {
+      const res = await fetch('/api/wms/stock/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idProducto: trasladoProduct.id,
-          idUbicacion: parseInt(trasladoOrigen, 10),
-          idTipo: 4, // TRASLADO
+          idUbicacionOrigen: parseInt(trasladoOrigen, 10),
+          idUbicacionDestino: parseInt(trasladoDestino, 10),
           cantidad: qty,
-          referencia: `Traslado a ubicación ${trasladoDestino}`,
         }),
       })
       if (!res.ok) {
         const err = await res.json()
         throw new Error(err.error || 'Error en traslado')
       }
-
-      // 2. Decrease stock at origin
-      await fetch('/api/wms/stock', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idProducto: trasladoProduct.id,
-          idUbicacion: parseInt(trasladoOrigen, 10),
-          cantidad: origenStock - qty,
-        }),
-      })
-
-      // 3. Increase stock at destination
-      const destStock = trasladoProduct.stocks.find((s) => String(s.idUbicacion) === trasladoDestino)
-      const newDestStock = (destStock?.cantidad ?? 0) + qty
-      await fetch('/api/wms/stock', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idProducto: trasladoProduct.id,
-          idUbicacion: parseInt(trasladoDestino, 10),
-          cantidad: newDestStock,
-        }),
-      })
-
       toast.success('Traslado realizado correctamente')
       setTrasladoProduct(null)
       invalidateInventory()

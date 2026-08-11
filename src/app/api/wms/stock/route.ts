@@ -5,9 +5,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const idProducto = searchParams.get('idProducto')
+    const idUbicacion = searchParams.get('idUbicacion')
 
     const where: Record<string, unknown> = {}
     if (idProducto) where.idProducto = parseInt(idProducto, 10)
+    if (idUbicacion) where.idUbicacion = parseInt(idUbicacion, 10)
 
     const stocks = await db.stock.findMany({
       where,

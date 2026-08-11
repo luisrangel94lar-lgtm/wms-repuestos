@@ -45,6 +45,7 @@ export function MovementsPage() {
   const [applied, setApplied] = useState(false)
   const [kardexProduct, setKardexProduct] = useState<{id: number; nombre: string; sku: string} | null>(null)
   const [showKardex, setShowKardex] = useState(false)
+  const [kardexTipo, setKardexTipo] = useState('')
 
   const { data: tiposMov = [] } = useQuery({
     queryKey: ['tipos-mov-movements'],
@@ -210,7 +211,7 @@ export function MovementsPage() {
                           size="icon"
                           variant="ghost"
                           className="h-7 w-7"
-                          onClick={(e) => { e.stopPropagation(); setKardexProduct({ id: m.idProducto, nombre: m.producto?.nombre, sku: m.producto?.sku }); setShowKardex(true) }}
+                          onClick={(e) => { e.stopPropagation(); setKardexProduct({ id: m.idProducto, nombre: m.producto?.nombre, sku: m.producto?.sku }); setShowKardex(true); setKardexTipo('') }}
                         >
                           <BookOpen className="h-3.5 w-3.5" />
                         </Button>
@@ -231,8 +232,26 @@ export function MovementsPage() {
             <DialogTitle>Kardex - {kardexProduct?.nombre}</DialogTitle>
             <DialogDescription className="sr-only">Historial de movimientos del producto</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">SKU: {kardexProduct?.sku} | Historial completo de movimientos</p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-muted-foreground">SKU: {kardexProduct?.sku} | Historial completo de movimientos</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label className="text-xs">Filtrar tipo:</Label>
+              <Select value={kardexTipo} onValueChange={setKardexTipo}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="1">Entrada</SelectItem>
+                  <SelectItem value="2">Salida</SelectItem>
+                  <SelectItem value="3">Ajuste</SelectItem>
+                  <SelectItem value="4">Traslado</SelectItem>
+                  <SelectItem value="5">Devolución</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="max-h-96 overflow-y-auto">
               <Table>
                 <TableHeader>
@@ -246,25 +265,34 @@ export function MovementsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {kardexLoading && <TableRow><TableCell colSpan={7}><Skeleton className="h-8" /></TableCell></TableRow>}
-                  {(kardexData as any)?.kardex?.map((entry: any, idx: number) => (
-                    <TableRow key={idx} className="hover:bg-muted/50">
-                      <TableCell className="text-xs py-2">{formatDateTime(entry.fecha)}</TableCell>
-                      <TableCell className="text-xs py-2">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${tipoMovColors[entry.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800'}`}>
-                          {entry.tipoMovimiento?.nombre}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-xs py-2 text-center text-emerald-600 font-mono">
-                        {entry.tipoMovimiento?.nombre === 'ENTRADA' ? `+${entry.cantidad}` : '-'}
-                      </TableCell>
-                      <TableCell className="text-xs py-2 text-center text-red-600 font-mono">
-                        {entry.tipoMovimiento?.nombre === 'SALIDA' ? `-${entry.cantidad}` : '-'}
-                      </TableCell>
-                      <TableCell className="text-xs py-2 text-center font-bold">{entry.saldo}</TableCell>
-                      <TableCell className="text-xs py-2 text-muted-foreground">{entry.referencia ?? '-'}</TableCell>
-                    </TableRow>
-                  ))}
+                  {kardexLoading && <TableRow><TableCell colSpan={6}><Skeleton className="h-8" /></TableCell></TableRow>}
+                  {(() => {
+                    let kardexEntries = (kardexData as any)?.kardex ?? []
+                    if (kardexTipo && kardexTipo !== 'all') {
+                      kardexEntries = kardexEntries.filter((entry: any) => String(entry.idTipo) === kardexTipo)
+                    }
+                    if (kardexEntries.length === 0 && !kardexLoading) {
+                      return <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-4">Sin movimientos</TableCell></TableRow>
+                    }
+                    return kardexEntries.map((entry: any, idx: number) => (
+                      <TableRow key={idx} className="hover:bg-muted/50">
+                        <TableCell className="text-xs py-2">{formatDateTime(entry.fecha)}</TableCell>
+                        <TableCell className="text-xs py-2">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${tipoMovColors[entry.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800'}`}>
+                            {entry.tipoMovimiento?.nombre}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-center text-emerald-600 font-mono">
+                          {entry.tipoMovimiento?.nombre === 'ENTRADA' || entry.tipoMovimiento?.nombre === 'DEVOLUCION' ? `+${entry.cantidad}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-center text-red-600 font-mono">
+                          {entry.tipoMovimiento?.nombre === 'SALIDA' ? `-${entry.cantidad}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-center font-bold">{entry.saldo}</TableCell>
+                        <TableCell className="text-xs py-2 text-muted-foreground">{entry.referencia ?? '-'}</TableCell>
+                      </TableRow>
+                    ))
+                  })()}
                 </TableBody>
               </Table>
             </div>

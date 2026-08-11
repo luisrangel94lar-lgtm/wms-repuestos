@@ -17,8 +17,12 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Trash2, ShoppingCart, Eye, Printer } from 'lucide-react'
+import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from './lib/format'
 
 interface SaleLine {
@@ -47,6 +51,7 @@ export function SalesPage() {
   const [lineQty, setLineQty] = useState(1)
   const [lines, setLines] = useState<SaleLine[]>([])
   const [viewId, setViewId] = useState<number | null>(null)
+  const [cancelId, setCancelId] = useState<number | null>(null)
 
   const { data: clientes = [] } = useQuery({
     queryKey: ['clientes-sales'],
@@ -93,6 +98,25 @@ export function SalesPage() {
       setLines([])
     },
     onError: (err: any) => toast.error(err.error ?? 'Error al registrar venta'),
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/wms/ventas/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'CANCELADA' }),
+      }).then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: () => {
+      toast.success('Venta cancelada correctamente')
+      queryClient.invalidateQueries({ queryKey: ['ventas'] })
+      queryClient.invalidateQueries({ queryKey: ['venta-detail', viewId] })
+      queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+      queryClient.invalidateQueries({ queryKey: ['movimientos'] })
+      setCancelId(null)
+      setViewId(null)
+    },
+    onError: (err: any) => toast.error(err.error ?? 'Error al cancelar venta'),
   })
 
   function addLine() {
@@ -273,7 +297,16 @@ export function SalesPage() {
                 <span>Total:</span>
                 <span>{formatCurrency(viewVenta.total ?? 0)}</span>
               </div>
-              <div className="flex justify-end pt-3">
+              <div className="flex justify-end gap-2 pt-3">
+                {viewVenta.estado === 'COMPLETADA' && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setCancelId(viewVenta.id)}
+                  >
+                    <XCircle className="h-3.5 w-3.5 mr-1" /> Cancelar Venta
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -306,6 +339,27 @@ export function SalesPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Cancel sale confirmation dialog */}
+      <AlertDialog open={!!cancelId} onOpenChange={(open) => { if (!open) setCancelId(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cancelar venta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se revertirá el stock y se cambiará el estado a CANCELADA.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => cancelId && cancelMutation.mutate(cancelId)}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending ? 'Cancelando...' : 'Sí, cancelar venta'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

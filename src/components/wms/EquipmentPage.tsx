@@ -73,7 +73,7 @@ export function EquipmentPage() {
   const { data: allProducts = [] } = useQuery({
     queryKey: ['all-products-link'],
     queryFn: () => fetch('/api/wms/productos?pageSize=100').then((r) => r.json()).then((d: any) => d.items ?? []),
-    enabled: !!linkDialog,
+    enabled: !!linkDialog && linkDialog.mode === 'link',
   })
 
   const { data: marcas = [] } = useQuery({
@@ -179,7 +179,7 @@ export function EquipmentPage() {
                       <TableCell className="text-xs py-2 hidden md:table-cell">{eq.tipoEquipo ?? '-'}</TableCell>
                       <TableCell className="text-xs text-center py-2">
                         <Badge variant="outline" className="text-[10px]">
-                          {expandedEquipo?.productoEquipo?.length ?? '?'}
+                          {(eq as any).repuestosCount ?? 0}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-right py-2" onClick={(e) => e.stopPropagation()}>
@@ -205,8 +205,11 @@ export function EquipmentPage() {
                                   >
                                     {pe.producto?.sku} - {pe.producto?.nombre}
                                   </Badge>
-                                  <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" onClick={() => setLinkDialog({ equipoId: eq.id, mode: 'unlink' })}>
-                                    <Trash2 className="h-3 w-3" />
+                                  <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" title="Desvincular repuesto" onClick={() => {
+                                    setLinkDialog({ equipoId: eq.id, mode: 'unlink' })
+                                    setLinkProductId(String(pe.idProducto))
+                                  }}>
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               ))}
@@ -259,11 +262,33 @@ export function EquipmentPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Link Product Dialog */}
-      <Dialog open={!!linkDialog} onOpenChange={(open) => { if (!open) setLinkDialog(null) }}>
+      {/* Link/Unlink Product Dialog */}
+      <Dialog open={!!linkDialog} onOpenChange={(open) => { if (!open) { setLinkDialog(null); setLinkProductId('') } }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{linkDialog?.mode === 'link' ? 'Vincular Repuesto' : 'Desvincular Repuesto'}</DialogTitle><DialogDescription className="sr-only">{linkDialog?.mode === 'link' ? 'Selecciona un producto para vincular como repuesto compatible' : 'Selecciona un producto para desvincular como repuesto compatible'}</DialogDescription></DialogHeader>
-          {linkDialog?.mode === 'link' ? (
+          {linkDialog?.mode === 'unlink' ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Producto a desvincular</Label>
+                <Select value={linkProductId} onValueChange={setLinkProductId}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                  <SelectContent>
+                    {expandedEquipo?.productoEquipo?.map((pe: any) => (
+                      <SelectItem key={pe.idProducto} value={String(pe.idProducto)}>
+                        {pe.producto?.sku} - {pe.producto?.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setLinkDialog(null)}>Cancelar</Button>
+                <Button variant="destructive" onClick={() => linkProductId && unlinkMutation.mutate({ idProducto: Number(linkProductId), idEquipo: linkDialog!.equipoId })} disabled={unlinkMutation.isPending || !linkProductId}>
+                  {unlinkMutation.isPending ? 'Desvinculando...' : 'Desvincular'}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Producto</Label>
@@ -280,26 +305,6 @@ export function EquipmentPage() {
                 <Button variant="outline" onClick={() => setLinkDialog(null)}>Cancelar</Button>
                 <Button onClick={() => linkProductId && linkMutation.mutate({ idProducto: Number(linkProductId), idEquipo: linkDialog.equipoId })} disabled={linkMutation.isPending || !linkProductId}>
                   {linkMutation.isPending ? 'Vinculando...' : 'Vincular'}
-                </Button>
-              </DialogFooter>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Producto a desvincular</Label>
-                <Select value={linkProductId} onValueChange={setLinkProductId}>
-                  <SelectTrigger><SelectValue placeholder="Buscar producto..." /></SelectTrigger>
-                  <SelectContent>
-                    {allProducts.map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>{p.sku} - {p.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setLinkDialog(null)}>Cancelar</Button>
-                <Button variant="destructive" onClick={() => linkProductId && unlinkMutation.mutate({ idProducto: Number(linkProductId), idEquipo: linkDialog!.equipoId })} disabled={unlinkMutation.isPending || !linkProductId}>
-                  {unlinkMutation.isPending ? 'Desvinculando...' : 'Desvincular'}
                 </Button>
               </DialogFooter>
             </div>

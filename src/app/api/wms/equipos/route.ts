@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
 
     const equipos = await db.equipo.findMany({
       where,
-      include: { marca: true },
+      include: {
+        marca: true,
+        _count: { select: { productoEquipo: true } },
+      },
       orderBy: { modelo: 'asc' },
     })
     return NextResponse.json(equipos)

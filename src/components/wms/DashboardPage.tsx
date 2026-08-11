@@ -21,8 +21,6 @@ import {
   ArrowLeftRight,
   Package,
   Users,
-  TrendingUp,
-  TrendingDown,
   Download,
   BarChart3,
 } from 'lucide-react'
@@ -45,16 +43,6 @@ interface DashboardData {
   movimientosHoy: number
   totalProductos: number
   totalClientes: number
-}
-
-function TrendIndicator({ value, suffix = '%' }: { value: number; suffix?: string }) {
-  const isUp = value >= 0
-  return (
-    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-      {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-      {isUp ? '+' : ''}{value}{suffix}
-    </span>
-  )
 }
 
 export function DashboardPage() {
@@ -122,9 +110,6 @@ export function DashboardPage() {
                 <p className="text-2xl font-bold mt-1">
                   {formatCurrency(data?.valorTotalStock ?? 0)}
                 </p>
-                <div className="mt-1">
-                  <TrendIndicator value={3.2} />
-                </div>
               </div>
               <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                 <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -150,9 +135,6 @@ export function DashboardPage() {
                   <p className="text-2xl font-bold text-destructive">
                     {data?.productosBajoStock?.count ?? 0}
                   </p>
-                </div>
-                <div className="mt-1">
-                  <TrendIndicator value={-2} />
                 </div>
               </div>
               <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
@@ -190,9 +172,6 @@ export function DashboardPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Movimientos del Día</p>
                 <p className="text-2xl font-bold mt-1">{data?.movimientosHoy ?? 0}</p>
-                <div className="mt-1">
-                  <TrendIndicator value={8.5} />
-                </div>
               </div>
               <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
                 <ArrowLeftRight className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -208,9 +187,6 @@ export function DashboardPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Productos</p>
                 <p className="text-2xl font-bold mt-1">{data?.totalProductos ?? 0}</p>
-                <div className="mt-1">
-                  <TrendIndicator value={1.2} />
-                </div>
               </div>
               <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                 <Package className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -226,9 +202,6 @@ export function DashboardPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Clientes</p>
                 <p className="text-2xl font-bold mt-1">{data?.totalClientes ?? 0}</p>
-                <div className="mt-1">
-                  <TrendIndicator value={5.0} />
-                </div>
               </div>
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Users className="h-5 w-5 text-primary" />

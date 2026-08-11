@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState, useCallback, useSyncExternalStore } from 'react'
 import { useWmsStore } from '@/store/wms'
 import { pageTitles } from './WmsSidebar'
 import { SearchResults } from './SearchResults'
@@ -8,6 +8,7 @@ import { Menu, Search, User, X, Sun, Moon, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTheme } from 'next-themes'
+import { toast } from 'sonner'
 import type { WmsPage } from '@/types/wms'
 
 const breadcrumbs: Record<WmsPage, { path: string; description: string }> = {
@@ -26,10 +27,11 @@ const breadcrumbs: Record<WmsPage, { path: string; description: string }> = {
 }
 
 export function WmsHeader() {
-  const { currentPage, toggleSidebar, searchQuery, setSearchQuery } = useWmsStore()
+  const { currentPage, toggleSidebar, searchQuery, setSearchQuery, setCurrentPage } = useWmsStore()
   const [localQuery, setLocalQuery] = useState(searchQuery)
   const [showResults, setShowResults] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const avatarRef = useRef<HTMLDivElement>(null)
@@ -144,8 +146,13 @@ export function WmsHeader() {
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           aria-label="Cambiar tema"
         >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          {mounted && (
+            <>
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </>
+          )}
+          {!mounted && <div className="h-4 w-4" />}
         </Button>
 
         {/* User avatar with dropdown */}
@@ -166,10 +173,16 @@ export function WmsHeader() {
                 <p className="text-sm font-medium">Admin</p>
                 <p className="text-xs text-muted-foreground">admin@wms.local</p>
               </div>
-              <button className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors">
+              <button
+                className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors"
+                onClick={() => { setCurrentPage('settings'); setAvatarOpen(false) }}
+              >
                 Configuración
               </button>
-              <button className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors">
+              <button
+                className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors"
+                onClick={() => { toast.info('Sesión cerrada (demo)'); setAvatarOpen(false) }}
+              >
                 Cerrar Sesión
               </button>
             </div>
