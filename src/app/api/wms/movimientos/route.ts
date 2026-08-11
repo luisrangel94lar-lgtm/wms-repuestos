@@ -1,0 +1,94 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const idProducto = searchParams.get('idProducto')
+    const idTipo = searchParams.get('idTipo')
+    const fechaDesde = searchParams.get('fechaDesde')
+    const fechaHasta = searchParams.get('fechaHasta')
+
+    const where: Record<string, unknown> = {}
+    if (idProducto) where.idProducto = parseInt(idProducto, 10)
+    if (idTipo) where.idTipo = parseInt(idTipo, 10)
+    if (fechaDesde || fechaHasta) {
+      where.fecha = {} as Record<string, unknown>
+      if (fechaDesde) (where.fecha as Record<string, unknown>).gte = new Date(fechaDesde)
+      if (fechaHasta) (where.fecha as Record<string, unknown>).lte = new Date(fechaHasta)
+    }
+
+    const movimientos = await db.movimiento.findMany({
+      where,
+      include: { producto: true, ubicacion: true, tipoMovimiento: true },
+      orderBy: { fecha: 'desc' },
+    })
+    return NextResponse.json(movimientos)
+  } catch (error) {
+    console.error('Movimientos GET error:', error)
+    return NextResponse.json({ error: 'Error al obtener movimientos' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { idProducto, idUbicacion, idTipo, cantidad, costoUnitario, referencia, usuario, observacion } = body
+
+    // Look up the movement type to determine action
+    const tipo = await db.tipoMovimiento.findUnique({ where: { id: idTipo } })
+    if (!tipo) {
+      return NextResponse.json({ error: 'Tipo de movimiento no encontrado' }, { status: 400 })
+    }
+
+    const mov = await db.movimiento.create({
+      data: {
+        idProducto,
+        idUbicacion: idUbicacion ?? null,
+        idTipo,
+        cantidad,
+        costoUnitario: costoUnitario ?? null,
+        referencia: referencia ?? null,
+        usuario: usuario ?? null,
+        observacion: observacion ?? null,
+      },
+    })
+
+    // Update stock based on movement type
+    if (idUbicacion) {
+      if (tipo.nombre === 'ENTRADA') {
+        await db.stock.upsert({
+          where: { idProducto_idUbicacion: { idProducto, idUbicacion } },
+          create: { idProducto, idUbicacion, cantidad },
+          update: { cantidad: { increment: cantidad } },
+        })
+      } else if (tipo.nombre === 'SALIDA') {
+        const existing = await db.stock.findUnique({
+          where: { idProducto_idUbicacion: { idProducto, idUbicacion } },
+        })
+        if (!existing || existing.cantidad < cantidad) {
+          return NextResponse.json(
+            { error: 'Stock insuficiente para la salida' },
+            { status: 400 }
+          )
+        }
+        await db.stock.update({
+          where: { idProducto_idUbicacion: { idProducto, idUbicacion } },
+          data: { cantidad: { decrement: cantidad } },
+        })
+      } else if (tipo.nombre === 'AJUSTE') {
+        await db.stock.upsert({
+          where: { idProducto_idUbicacion: { idProducto, idUbicacion } },
+          create: { idProducto, idUbicacion, cantidad },
+          update: { cantidad },
+        })
+      }
+    }
+
+    return NextResponse.json(mov, { status: 201 })
+  } catch (error: unknown) {
+    console.error('Movimientos POST error:', error)
+    const msg = error instanceof Error ? error.message : 'Error al crear movimiento'
+    return NextResponse.json({ error: msg }, { status: 400 })
+  }
+}

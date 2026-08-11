@@ -1,0 +1,144 @@
+'use client'
+
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Search, ArrowLeftRight } from 'lucide-react'
+import { formatDateTime, tipoMovColors } from './lib/format'
+
+export function MovementsPage() {
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
+  const [idTipo, setIdTipo] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [applied, setApplied] = useState(false)
+
+  const { data: tiposMov = [] } = useQuery({
+    queryKey: ['tipos-mov-movements'],
+    queryFn: () => fetch('/api/wms/tipos-movimiento').then((r) => r.json()),
+  })
+
+  const queryParams = new URLSearchParams()
+  if (fechaDesde) queryParams.set('fechaDesde', fechaDesde)
+  if (fechaHasta) queryParams.set('fechaHasta', fechaHasta)
+  if (idTipo) queryParams.set('idTipo', idTipo)
+  const queryStr = queryParams.toString()
+
+  const { data: movimientos = [], isLoading } = useQuery({
+    queryKey: ['movimientos', queryStr],
+    queryFn: () => fetch(`/api/wms/movimientos${queryStr ? `?${queryStr}` : ''}`).then((r) => r.json()),
+  })
+
+  const filtered = search
+    ? movimientos.filter((m: any) =>
+        m.producto?.nombre?.toLowerCase().includes(search.toLowerCase()) ||
+        m.producto?.sku?.toLowerCase().includes(search.toLowerCase())
+      )
+    : movimientos
+
+  function applyFilters() {
+    setSearch(searchInput)
+    setApplied(true)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <Card className="rounded-xl shadow-sm">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+            <div className="space-y-1">
+              <Label className="text-xs">Fecha Desde</Label>
+              <Input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Fecha Hasta</Label>
+              <Input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Tipo</Label>
+              <Select value={idTipo} onValueChange={setIdTipo}>
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  {tiposMov.map((t: any) => (
+                    <SelectItem key={t.id} value={String(t.id)}>{t.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Producto</Label>
+              <Input placeholder="Nombre o SKU" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyFilters()} />
+            </div>
+            <Button onClick={applyFilters}><Search className="h-4 w-4 mr-1" /> Filtrar</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <p className="text-sm text-muted-foreground">
+        <ArrowLeftRight className="h-4 w-4 inline mr-1" />
+        {filtered.length} movimientos encontrados
+      </p>
+
+      {/* Table */}
+      <Card className="rounded-xl shadow-sm">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Fecha</TableHead>
+                  <TableHead className="text-xs">Producto</TableHead>
+                  <TableHead className="text-xs">Tipo</TableHead>
+                  <TableHead className="text-xs text-center">Cantidad</TableHead>
+                  <TableHead className="text-xs hidden md:table-cell">Ubicación</TableHead>
+                  <TableHead className="text-xs hidden lg:table-cell">Usuario</TableHead>
+                  <TableHead className="text-xs hidden sm:table-cell">Referencia</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+                ))}
+                {!isLoading && filtered.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Sin movimientos</TableCell></TableRow>
+                )}
+                {!isLoading && filtered.slice(0, 100).map((m: any) => (
+                  <TableRow key={m.id} className="hover:bg-muted/50">
+                    <TableCell className="text-xs py-2 whitespace-nowrap">{formatDateTime(m.fecha)}</TableCell>
+                    <TableCell className="text-xs py-2">
+                      <span className="font-medium">{m.producto?.nombre?.substring(0, 25)}</span>
+                      <span className="text-muted-foreground ml-1 font-mono">({m.producto?.sku})</span>
+                    </TableCell>
+                    <TableCell className="text-xs py-2">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${tipoMovColors[m.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800'}`}>
+                        {m.tipoMovimiento?.nombre}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs text-center font-mono py-2">{m.cantidad}</TableCell>
+                    <TableCell className="text-xs py-2 hidden md:table-cell">
+                      {m.ubicacion ? `${m.ubicacion.pasillo}-${m.ubicacion.estante}-${m.ubicacion.nivel}` : '-'}
+                    </TableCell>
+                    <TableCell className="text-xs py-2 hidden lg:table-cell">{m.usuario ?? '-'}</TableCell>
+                    <TableCell className="text-xs py-2 hidden sm:table-cell text-muted-foreground">{m.referencia ?? '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
