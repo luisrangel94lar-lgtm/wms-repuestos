@@ -157,7 +157,7 @@ export function ClientsPage() {
                     <TableCell className="text-xs py-2 hidden lg:table-cell">{c.email ?? '-'}</TableCell>
                     <TableCell className="text-xs py-2 hidden sm:table-cell">{c.tipoCliente}</TableCell>
                     <TableCell className="text-xs text-center py-2">
-                      <span className="font-mono">{c.ventas?.length ?? 0}</span>
+                      <span className="font-mono">{(c as any)._count?.ventas ?? 0}</span>
                     </TableCell>
                     <TableCell className="text-xs text-right py-2">
                       <div className="flex justify-end gap-1">

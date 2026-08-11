@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
 
     const clientes = await db.cliente.findMany({
       where,
+      include: {
+        _count: { select: { ventas: true } },
+      },
       orderBy: { nombre: 'asc' },
     })
     return NextResponse.json(clientes)

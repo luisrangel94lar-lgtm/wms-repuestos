@@ -23,24 +23,41 @@ export async function GET(request: NextRequest) {
     if (idCategoria) where.idCategoria = parseInt(idCategoria, 10)
     if (idMarca) where.idMarca = parseInt(idMarca, 10)
 
-    const [productos, total] = await Promise.all([
-      db.producto.findMany({
-        where,
-        include: { categoria: true, marca: true, stocks: true },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { nombre: 'asc' },
-      }),
-      db.producto.count({ where }),
-    ])
-
-    let items = productos.map((p) => ({
-      ...p,
-      totalStock: p.stocks.reduce((sum, s) => sum + s.cantidad, 0),
-    }))
+    // For bajoStock, we need to find products where total stock < stockMinimo
+    // We do this with a subquery approach: fetch all matching products with stocks,
+    // then filter and paginate on the application side for bajoStock mode
+    let items: any[]
+    let total: number
 
     if (bajoStock) {
-      items = items.filter((p) => p.totalStock < p.stockMinimo)
+      // Fetch all products matching other filters with their stocks
+      const productos = await db.producto.findMany({
+        where,
+        include: { categoria: true, marca: true, stocks: true },
+        orderBy: { nombre: 'asc' },
+      })
+      const mapped = productos.map((p) => ({
+        ...p,
+        totalStock: p.stocks.reduce((sum: number, s: any) => sum + s.cantidad, 0),
+      })).filter((p) => p.totalStock < p.stockMinimo)
+      total = mapped.length
+      items = mapped.slice((page - 1) * pageSize, page * pageSize)
+    } else {
+      const [productos, count] = await Promise.all([
+        db.producto.findMany({
+          where,
+          include: { categoria: true, marca: true, stocks: true },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          orderBy: { nombre: 'asc' },
+        }),
+        db.producto.count({ where }),
+      ])
+      total = count
+      items = productos.map((p) => ({
+        ...p,
+        totalStock: p.stocks.reduce((sum: number, s: any) => sum + s.cantidad, 0),
+      }))
     }
 
     return NextResponse.json({ items, total, page, pageSize })

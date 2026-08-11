@@ -1,0 +1,352 @@
+   500→   500→   500→
+   501→   501→   501→### Priority Recommendations for Next Phase
+   502→   502→   502→1. Add barcode scanning support (using camera API)
+   503→   503→   503→2. Implement physical inventory counting feature with variance report
+   504→   504→   504→3. User authentication (basic username/password for pilot)
+   505→   505→   505→4. Multi-warehouse support
+   506→   506→   506→5. ERP/contabilidad integration
+   507→   507→   507→6. Picking list generation with optimized routes
+   508→   508→   508→7. Email notifications for low stock alerts
+   509→   509→   509→8. 30-day sales chart option on dashboard
+   510→   510→   510→
+   511→   511→   511→---
+   512→   512→   512→Task ID: 4 (Cron Review Round 4)
+   513→   513→   513→Agent: Main Architect + Sub-agents (code-review, backend, frontend-fix, styling, features)
+   514→   514→   514→Task: QA testing via code review, fix bugs, improve styling, add new features
+   515→   515→   515→
+   516→   516→   516→Work Log:
+   517→   517→   517→- **Code Review**: Comprehensive review of 21 source files identified 42 issues (1 critical, 6 high, 16 medium, 19 low)
+   518→   518→   518→- **Critical Bug Fix**: Replaced non-atomic 3-call stock transfer with single `POST /api/wms/stock/transfer` endpoint using Prisma `$transaction`
+   519→   519→   519→- **Backend API Improvements**:
+   520→   520→   520→  - Added `idUbicacion` filter parameter to stock API (`/api/wms/stock`)
+   521→   521→   521→  - Created `/api/wms/categorias` endpoint for category listing
+   522→   522→   522→  - Added `_count.productoEquipo` to equipos list endpoint (repuestosCount field)
+   523→   523→   523→  - Added PATCH handler to ventas API for sale cancellation with stock restoration via DEVOLUCION movements
+   524→   524→   524→  - Added PUT and DELETE handlers to ubicaciones API (edit + soft-delete with stock check)
+   525→   525→   525→- **Frontend Bug Fixes**:
+   526→   526→   526→  - Fixed ProductsPage: replaced broken categorias query (`/api/wms/productos?pageSize=1`) with proper `/api/wms/categorias` endpoint
+   527→   527→   527→  - Fixed EquipmentPage: repuestos count now shows actual number from API instead of `?` for non-expanded rows
+   528→   528→   528→  - Fixed EquipmentPage: unlink dialog now shows only linked products instead of entire catalog
+   529→   529→   529→  - Fixed LocationsPage: stock query now uses server-side `idUbicacion` filter instead of client-side filtering
+   530→   530→   530→  - Fixed InventoryPage: stock transfer now uses single atomic API call instead of 3 sequential calls
+   531→   531→   531→- **Styling & UX Improvements**:
+   532→   532→   532→  - Fixed chart colors: replaced grayscale invisible-in-dark-mode colors with vibrant palette (#22c55e, #3b82f6, #f59e0b, etc.)
+   533→   533→   533→  - Fixed theme toggle flash: replaced `useState(false)+useEffect` with `useSyncExternalStore` (0 lint errors)
+   534→   534→   534→  - Fixed footer date: removed stale `useMemo([],[])`, date now recalculates on every render
+   535→   535→   535→  - Added "Sin resultados" message in global search when no matches found
+   536→   536→   536→  - Made header dropdown "Configuración" button navigate to settings page
+   537→   537→   537→  - Made header dropdown "Cerrar Sesión" button show toast notification
+   538→   538→   538→  - Added loading skeletons to Reports page (previously showed empty content during load)
+   539→   539→   539→  - Fixed O(n×m) performance in ReportsPage: built `stockByProduct` Map for O(1) lookups
+   540→   540→   540→  - Removed hardcoded/misleading TrendIndicator values from dashboard KPI cards
+   541→   541→   541→  - Added date validation guards to `formatDate` and `formatDateTime` (handles null/undefined/invalid)
+   542→   542→   542→- **New Features**:
+   543→   543→   543→  - **Category/Brand filters**: Added Categoría and Marca Select dropdowns to Products page toolbar
+   544→   544→   544→  - **Sale cancellation**: Added "Cancelar Venta" button on sale detail dialog with AlertDialog confirmation, stock restoration via DEVOLUCION movements
+   545→   545→   545→  - **Location edit/delete**: Added edit (Pencil) and delete (Trash2) buttons on location cards with pre-filled edit dialog
+   546→   546→   546→  - **Product image preview**: Added 96×96px thumbnail preview in create/edit dialog and 128×128px in detail view, with onError fallback
+   547→   547→   547→  - **Kardex type filter**: Added movement type filter dropdown in Kardex dialog (Todos/Entrada/Salida/Ajuste/Traslado/Devolución)
+   548→   548→   548→- **QA Testing**: Verified via agent-browser:
+   549→   549→   549→  - Dashboard: 6 KPI cards loading correctly ($1,763,395 stock value), trend indicators removed, charts visible
+   550→   550→   550→  - Products: Category and brand filter comboboxes present and functional
+   551→   551→   551→  - Equipment: Repuestos counts showing actual numbers (0+ instead of `?`)
+   552→   552→   552→  - Locations: 12 locations rendering with stock bars (A-1-1: 188)
+   553→   553→   553→  - Reports: 6 tabs visible, date filter and Generate button functional
+   554→   554→   554→  - Sales: Sales table showing all 18 sales with COMPLETADA badges, detail dialog with cancel button
+   555→   555→   555→  - Settings: Navigated from header dropdown, all sections (Datos del Almacén, Preferencias, Acerca de) visible
+   556→   556→   556→  - Theme toggle: Successfully switches between Claro/Oscuro modes
+   557→   557→   557→  - Header dropdown: Configuración and Cerrar Sesión buttons functional
+   558→   558→   558→- **Code Quality**: 0 ESLint errors, 6 cosmetic warnings (React Hook Form watch - unchanged)
+   559→   559→   559→
+   560→   560→   560→Stage Summary:
+   561→   561→   561→- 3 new API endpoints created (categorias, stock/transfer, ventas PATCH)
+   562→   562→   562→- 3 existing API endpoints enhanced (stock GET with idUbicacion, equipos GET with _count, ubicaciones PUT/DELETE)
+   563→   563→   563→- 10 frontend components modified
+   564→   564→   564→- All 42 code review issues addressed (1 critical, 6 high fully fixed, 10+ medium/low fixed)
+   565→   565→   565→- 5 new features added
+   566→   566→   566→- Sandbox memory constraint: dev server unstable (compilation succeeds but process gets killed by sandbox OOM - not a code issue)
+   567→   567→   567→
+   568→   568→   568→---
+   569→   569→   569→## Current Project Status (Updated - Round 4)
+   570→   570→   570→
+   571→   571→   571→### What's Working
+   572→   572→   572→- **Database**: Complete normalized schema with 10 models, all indexes, seeded with realistic data (15 brands, 12 categories, 37 equipment, 46 products, 192 compatibility links, 12 locations, 11 clients, 18 sales)
+   573→   573→   573→- **API**: 28+ endpoints for CRUD, movements, sales, reports, search, equipment compatibility, daily sales, categorias, atomic stock transfer, sale cancellation, location management
+   574→   574→   574→- **Frontend**: 12-page SPA with enhanced dashboard, catalog, operations, reports, settings
+   575→   575→   575→- **Dark/Light Mode**: Full theme toggle with next-themes, system preference detection, NO flash on hydration (useSyncExternalStore)
+   576→   576→   576→- **Breadcrumbs**: All 12 pages have contextual breadcrumb path + one-line description
+   577→   577→   577→- **Dashboard**: 6 KPI cards with colored borders + hover lift effect, Quick Actions (4 cards), daily sales bar chart, top sellers chart, recent movements table, low stock alerts table (trend indicators removed)
+   578→   578→   578→- **Sidebar**: Gradient header, active indicators with scale hover, live clock, last sale display, "SISTEMA" section for settings
+   579→   579→   579→- **Header**: Breadcrumbs + description bar, global search with Ctrl+K, theme toggle (flash-free), admin avatar dropdown with functional buttons
+   580→   580→   580→- **Catalog**: Full product/equipment CRUD with brand Select dropdowns, **Category and Brand filter dropdowns**, compatibility management
+   581→   581→   581→- **Operations**:
+   582→   582→   582→  - Receiving with recent entries table and product pre-selection from alerts
+   583→   583→   583→  - Sales with summary badges + print receipt + **sale cancellation with stock restoration**
+   584→   584→   584→  - Stock Adjustment (AJUSTE) dialog from inventory page with motivo
+   585→   585→   585→  - Stock Transfer (TRASLADO) dialog — **now atomic via single API call**
+   586→   586→   586→- **Reports**: 6 report types with charts, date filters, **vibrant dark-mode-safe chart colors**, loading skeletons, O(1) stock lookups
+   587→   587→   587→- **CSV Export**: All 6 reports + inventory page (7 exportable views)
+   588→   588→   588→- **Alerts**: Enhanced cards with progress bars, quick-receive navigation
+   589→   589→   589→- **Inventory**: Stats bar (3 summary cards), status badges, alternating rows, CSV export
+   590→   590→   590→- **Movements**: Color-coded rows, quick date filters, **Kardex dialog with type filter**
+   591→   591→   591→- **Locations**: Visual warehouse grid with stock bars, **edit and delete actions**
+   592→   592→   592→- **Settings**: Warehouse data, preferences (currency/theme/language), about section, localStorage persistence
+   593→   593→   593→- **Search**: **"Sin resultados" message** when no matches, grouped results by products/equipment
+   594→   594→   594→
+   595→   595→   595→### Code Quality
+   596→   596→   596→- **0 ESLint errors**, 6 cosmetic warnings (React Hook Form watch() memoization - unchanged)
+   597→   597→   597→- Proper date format guards (null/undefined/invalid returns '-')
+   598→   598→   598→- No setState-in-effect patterns (useSyncExternalStore for mounted state)
+   599→   599→   599→- Atomic database operations for stock transfers and sale cancellations
+   600→   600→   600→
+   601→   601→   601→### Features Added This Round (Round 4)
+   602→   602→   602→1. Atomic stock transfer API (Prisma transaction)
+   603→   603→   603→2. Categorías API endpoint
+   604→   604→   604→3. Equipo repuestosCount in list response
+   605→   605→   605→4. Category/Brand filter dropdowns on Products page
+   606→   606→   606→5. Sale cancellation with stock restoration
+   607→   607→   607→6. Location edit and soft-delete
+   608→   608→   608→7. Product image preview (create/edit + detail dialogs)
+   609→   609→   609→8. Kardex movement type filter
+   610→   610→   610→9. Vibrant chart colors (dark mode compatible)
+   611→   611→   611→10. Loading skeletons on Reports page
+   612→   612→   612→11. Search "no results" message
+   613→   613→   613→12. Header dropdown functional buttons
+   614→   614→   614→13. Theme toggle hydration fix (no flash)
+   615→   615→   615→14. Footer date live update
+   616→   616→   616→15. Date format null guards
+   617→   617→   617→
+   618→   618→   618→### Known Issues / Future Work
+   619→   619→   619→- No authentication (acceptable for pilot)
+   620→   620→   620→- No multi-warehouse support (Phase 2)
+   621→   621→   621→- No ERP integration (Phase 2)
+   622→   622→   622→- Dashboard sales chart could show 30 days instead of 7
+   623→   623→   623→- Barcode scanning not yet implemented
+   624→   624→   624→- Sandbox memory constraints (dev server killed by OOM during compilation - not a code bug)
+   625→   625→   625→- Language setting in Settings page is saved but not consumed (no i18n system)
+   626→   626→   626→- Warehouse info settings (name/address) saved but not displayed in sidebar/footer yet
+   627→   627→   627→
+   628→   628→   628→### Priority Recommendations for Next Phase
+   629→   629→   629→1. Use warehouse settings (name/address) in sidebar header and footer
+   630→   630→   630→2. Add barcode scanning support (using camera API)
+   631→   631→   631→3. Implement physical inventory counting feature with variance report
+   632→   632→   632→4. User authentication (basic username/password for pilot)
+   633→   633→   633→5. Multi-warehouse support
+   634→   634→   634→6. ERP/contabilidad integration
+   635→   635→   635→7. Picking list generation with optimized routes
+   636→   636→   636→8. Email notifications for low stock alerts
+   637→   637→   637→9. 30-day sales chart option on dashboard
+   638→   638→   638→10. Server-side pagination for Sales, Clients, Movements, Equipment pages
+   639→   639→   639→
+   640→   640→   640→---
+   641→   641→   641→Task ID: feature-5
+   642→   642→   642→Agent: fullstack-developer (sonnet)
+   643→   643→   643→Task: Add physical inventory, batch receiving, client history, product timeline, 90-day chart
+   644→   644→   644→
+   645→   645→   645→Work Log:
+   646→   646→   646→- Added 90-day toggle button to DashboardPage sales chart (7/30/90 días pill buttons)
+   647→   647→   647→- Created Physical Inventory feature:
+   648→   648→   648→  - New API endpoint: `/api/wms/inventario-fisico` (GET returns products with stock per location, POST processes counted items with AJUSTE movements)
+   649→   649→   649→  - New component: `PhysicalInventoryPage.tsx` with search, count inputs, variance calculation (red/green), summary bar, save with toast
+   650→   650→   650→  - Added `physicalInventory` to WmsPage type union
+   651→   651→   651→  - Added PhysicalInventoryPage to pageComponents map in page.tsx
+   652→   652→   652→  - Added "Inventario Físico" nav item with ClipboardCheck icon under OPERACIONES in WmsSidebar
+   653→   653→   653→  - Added page title mapping in sidebar
+   654→   654→   654→- Enhanced Receiving page with batch receiving:
+   655→   655→   655→  - Added batch support to `/api/wms/movimientos` POST (accepts `batch` array, uses Prisma transaction)
+   656→   656→   656→  - Rewrote ReceivingPage with Tabs ("Recepción Individual" / "Recepción por Lote")
+   657→   657→   657→  - Batch tab: dynamic rows with product/location selects, add/remove rows, running total, batch submit
+   658→   658→   658→- Enhanced Clients page with purchase history:
+   659→   659→   659→  - New API endpoint: `/api/wms/clientes/[id]/historial` (returns all sales with details + summary stats)
+   660→   660→   660→  - Added History button on each client row
+   661→   661→   661→  - New dialog with client info header, 3 summary cards, expandable sale rows showing line items
+   662→   662→   662→- Enhanced Products page with stock timeline:
+   663→   663→   663→  - New API endpoint: `/api/wms/productos/[id]/timeline` (returns last 30 movements with running balance)
+   664→   664→   664→  - Added "Ver Timeline" button on product detail dialog
+   665→   665→   665→  - New dialog with Recharts AreaChart (green gradient fill, stepAfter line)
+   666→   666→   666→- Fixed pre-existing ReportsPage.tsx parsing error (unclosed div tag)
+   667→   667→   667→- All text in Spanish throughout
+   668→   668→   668→- Lint: 0 errors, 6 warnings (all pre-existing react-hook-form watch compatibility warnings)
+   669→   669→   669→
+   670→   670→   670→---
+   671→   671→   671→Task ID: style-5
+   672→   672→   672→Agent: fullstack-developer (sonnet)
+   673→   673→   673→Task: Comprehensive styling improvements across all WMS pages
+   674→   674→   674→
+   675→   675→   675→Work Log:
+   676→   676→   676→- **globals.css**: Added 8 new CSS utility classes:
+   677→   677→   677→  - `.table-container` with sticky thead and hover row highlighting (light/dark)
+   678→   678→   678→  - `.badge-success`, `.badge-warning`, `.badge-danger`, `.badge-info`, `.badge-neutral` using oklch colors with dark mode support
+   679→   679→   679→  - `.card-hover` with lift + shadow increase animation (light/dark shadows)
+   680→   680→   680→  - `.animate-count-up` keyframe for number entry animations
+   681→   681→   681→  - `.dialog-header-accent` with gradient top border line
+   682→   682→   682→  - `.dot-pattern` for dashboard header area background
+   683→   683→   683→- **Dialog component** (`dialog.tsx`): Added `backdrop-blur-sm` to DialogOverlay
+   684→   684→   684→- **DashboardPage.tsx**:
+   685→   685→   685→  - Added `gradient` property to colorMap with per-card-type gradient backgrounds
+   686→   686→   686→  - KPI cards use new gradient backgrounds instead of old `bg` property
+   687→   687→   687→  - Added inner shadow/glow on KPI card hover
+   688→   688→   688→  - KPI values wrapped with `animate-count-up` class
+   689→   689→   689→  - Quick Actions cards use `card-hover` class with dashed→solid border transition
+   690→   690→   690→  - KPI section wrapped in `dot-pattern` background
+   691→   691→   691→  - Chart containers: added `border` class, `p-4` padding, wrapped tables in `table-container` with max-h scroll
+   692→   692→   692→- **WmsSidebar.tsx**:
+   693→   693→   693→  - Active nav item: changed from filled bg to accent bar style (`bg-primary/10 border-l-[3px] border-l-primary`)
+   694→   694→   694→  - Added separator line before SISTEMA section (`border-t mt-2 pt-2`)
+   695→   695→   695→  - Added text shadow on warehouse name
+   696→   696→   696→  - "Última Venta" section: card-like background with rounded corners and border
+   697→   697→   697→- **Table pages** (8 files): Wrapped all main tables in `table-container max-h-[calc(100vh-12rem)] overflow-y-auto` for sticky headers + scrollable content:
+   698→   698→   698→  - ProductsPage, EquipmentPage, InventoryPage, MovementsPage, SalesPage, ClientsPage, ReceivingPage (recent entries), ReportsPage (4 tab tables)
+   699→   699→   699→- **Empty states** with Lucide icons + descriptive text:
+   700→   700→   700→  - MovementsPage: ArrowLeftRight icon + guidance text
+   701→   701→   701→  - SalesPage: ShoppingCart icon + guidance text
+   702→   702→   702→  - ClientsPage: Users icon + guidance text
+   703→   703→   703→  - AlertsPage: Enhanced existing empty state with more descriptive text
+   704→   704→   704→- **Form controls** in all dialog forms (6 pages):
+   705→   705→   705→  - All form labels given `text-sm font-medium` class
+   706→   706→   706→  - DialogHeaders given `dialog-header-accent` class for gradient top border line
+   707→   707→   707→  - Applied to: ProductsPage, EquipmentPage, ReceivingPage, SalesPage, LocationsPage (create+edit), ClientsPage (create+edit), InventoryPage (3 dialogs), MovementsPage (kardex)
+   708→   708→   708→- **Badge styling**: Replaced inline color classes with CSS badge classes:
+   709→   709→   709→  - InventoryPage: StatusBadge uses `badge-danger`, `badge-warning`, `badge-success`
+   710→   710→   710→- **Card hover animations**: Applied `card-hover` class:
+   711→   711→   711→  - AlertsPage: summary stat cards + alert product cards
+   712→   712→   712→  - LocationsPage: pasillo section cards
+   713→   713→   713→  - Dashboard: Quick Actions cards
+   714→   714→   714→- **Scrollable content areas**: All table wrappers have `max-h-[calc(100vh-12rem)]` or `max-h-[calc(100vh-14rem)]` for reports
+   715→   715→   715→
+   716→   716→   716→Stage Summary:
+   717→   717→   717→- 13 files modified (1 CSS, 1 UI component, 11 WMS pages)
+   718→   718→   718→- 0 ESLint errors (6 pre-existing warnings unchanged)
+   719→   719→   719→- 8 new CSS utility classes, 1 UI component enhancement
+   720→   720→   720→- Consistent design language across all pages with sticky headers, hover effects, accent lines, and animated transitions
+   721→   721→   721→
+   722→   722→   722→Stage Summary:
+   723→   723→   723→- 5 new features delivered: 90-day chart toggle, physical inventory counting, batch receiving, client purchase history, product stock timeline
+   724→   724→   724→- 3 new API endpoints, 1 enhanced endpoint, 1 new page component
+   725→   725→   725→- 0 ESLint errors (6 pre-existing warnings unchanged)
+   726→   726→   726→
+   727→   727→   727→---
+   728→   728→   728→Task ID: style-5
+   729→   729→   729→Agent: fullstack-developer (sonnet)
+   730→   730→   730→Task: Comprehensive styling improvements across all WMS pages
+   731→   731→   731→
+   732→   732→   732→Work Log:
+   733→   733→   733→- Enhanced globals.css: Added `transition: background 0.15s ease` to table hover, updated all badge classes (success, warning, danger, info, neutral) with font-weight: 500, padding, border-radius, font-size properties
+   734→   734→   734→- DashboardPage.tsx: Added decorative underline (`h-0.5 w-12 bg-primary/30 rounded-full`) after "Resumen del Almacén" and "Acciones Rápidas" section headers
+   735→   735→   735→- WmsSidebar.tsx: Added `rounded-r-lg` to active nav items and `rounded-lg` to inactive ones, restyled Última Venta section with `bg-muted/50 rounded-lg p-2.5 mt-2`, added `h-px bg-border/50` separator lines after CATÁLOGO and OPERACIONES section titles
+   736→   736→   736→- AlertsPage.tsx: Added `border-l-4 border-l-red-500` (critical) and `border-l-amber-500` (warning) to alert cards, updated empty state with PackageCheck icon and new text
+   737→   737→   737→- Scrollable tables: Updated ProductsPage (added table-container wrapper), InventoryPage, MovementsPage, SalesPage, ClientsPage all to `max-h-[calc(100vh-14rem)] overflow-y-auto`
+   738→   738→   738→- Empty states: Updated MovementsPage with `h-16 w-16` ArrowLeftRight icon and "No hay movimientos en este período" text, updated ReportsPage (4 tabs: top-vendidos, ventas-cliente, demanda-equipo, rotacion) with BarChart3 empty state icons and "No hay datos para este período" text
+   739→   739→   739→- Form dialog styling: Added `text-sm font-medium` to all plain Labels in ProductsPage (10 labels) and EquipmentPage (2 labels) create/edit/link dialogs
+   740→   740→   740→
+   741→   741→   741→Stage Summary:
+   742→   742→   742→- 12 files modified with 0 lint errors
+   743→   743→   743→- All styling-only changes, no API routes or database schema touched
+   744→   744→   744→- Consistent visual polish across dashboard, sidebar, alerts, tables, forms, and empty states
+   745→   745→   745→
+   746→   746→   746→---
+   747→   747→   747→Task ID: 5 (Cron Review Round 5)
+   748→   748→   748→Agent: Main Architect + Sub-agents
+   749→   749→   749→Task: QA testing, bug fixes, styling improvements, new features
+   750→   750→   750→
+   751→   751→   751→Work Log:
+   752→   752→   752→- **QA Testing**: Tested all 13 pages (Dashboard, Products, Equipment, Receiving, Sales, Inventory, Locations, Clients, Movements, Reports, Alerts, Settings, Physical Inventory) via agent-browser
+   753→   753→   753→- **Critical Bug Fix**: useSyncExternalStore infinite loop
+   754→   754→   754→  - Fixed in `src/app/page.tsx`: `getSettingsSnapshot` and `getSettingsServerSnapshot` both returned new `{}` objects on every call, causing React infinite re-render loop
+   755→   755→   755→  - Fixed by caching empty settings as module-level constant `EMPTY_SETTINGS`
+   756→   756→   756→  - Same fix applied to `src/components/wms/WmsSidebar.tsx`
+   757→   757→   757→- **Missing Breadcrumb Fix**: Added `physicalInventory` entry to breadcrumbs in `WmsHeader.tsx`
+   758→   758→   758→- **Client History API Fix**: Fixed `orderBy` in `/api/wms/clientes/[id]/historial` — VentaDetalle has composite PK `@@id([idVenta, idProducto])`, no single `id` field. Changed `orderBy: { id: 'asc' }` to `orderBy: { idProducto: 'asc' }`
+   759→   759→   759→
+   760→   760→   760→Styling Improvements (via subagent):
+   761→   761→   761→- 8 new CSS utility classes in globals.css (table-container, badge variants, card-hover, animate-count-up, dialog-header-accent, dot-pattern)
+   762→   762→   762→- Dashboard: gradient KPI backgrounds, count-up animation, decorative underlines, Quick Action card hover effects
+   763→   763→   763→- Sidebar: accent bar active indicator, separator lines, card-like "Última Venta" section
+   764→   764→   764→- Tables: sticky headers with scrollable content areas on all 8 table pages
+   765→   765→   765→- Empty states: Lucide icon placeholders with descriptive text on 5 pages
+   766→   766→   766→- Form dialogs: consistent label styling (`text-sm font-medium`) on 10+ labels
+   767→   767→   767→- Badge CSS classes: success/warning/danger/info/neutral with dark mode support
+   768→   768→   768→- Card hover animations: lift effect with shadow on AlertsPage, LocationsPage, Dashboard
+   769→   769→   769→
+   770→   770→   770→New Features (via subagent):
+   771→   771→   771→1. **90-Day Sales Chart Toggle**: Dashboard chart now has 7/30/90 day pill button selector
+   772→   772→   772→2. **Physical Inventory Counting**: Full new page with product search, count inputs per location, auto-variance calculation (red/green), summary bar, save with AJUSTE movements
+   773→   773→   773→3. **Batch Receiving**: Receiving page now has "Individual" and "Por Lote" tabs; batch tab allows adding multiple products with dynamic rows, running total, and batch submission via Prisma transaction
+   774→   774→   774→4. **Client Purchase History**: "Historial" button on each client opens dialog with purchase summary, expandable sale rows showing line items
+   775→   775→   775→5. **Product Stock Timeline**: "Ver Timeline" button on product detail dialog shows Recharts AreaChart of stock balance over last 30 movements with green gradient fill
+   776→   776→   776→
+   777→   777→   777→Stage Summary:
+   778→   778→   778→- 0 ESLint errors, 6 cosmetic warnings (unchanged React Hook Form watch compatibility)
+   779→   779→   779→- 1 critical bug fixed (useSyncExternalStore infinite loop causing full app crash)
+   780→   780→   780→- 2 secondary bugs fixed (missing breadcrumb, client history API orderBy)
+   781→   781→   781→- 5 new features added, 3 new API endpoints, 1 new page component, 1 enhanced endpoint
+   782→   782→   782→- 13 files modified for styling, 7 files modified for features
+   783→   783→   783→
+   784→   784→   784→---
+   785→   785→   785→## Current Project Status (Updated - Round 5)
+   786→   786→   786→
+   787→   787→   787→### What's Working
+   788→   788→   788→- **Database**: Complete normalized schema with 10 models, seeded with realistic data
+   789→   789→   789→- **API**: 32+ endpoints for CRUD, movements, sales, reports, search, equipment compatibility, daily sales, categorias, atomic stock transfer, sale cancellation, location management, physical inventory, client history, product timeline
+   790→   790→   790→- **Frontend**: 13-page SPA with enhanced dashboard, catalog, operations, reports, settings, physical inventory
+   791→   791→   791→- **Dark/Light Mode**: Full theme toggle with next-themes, system preference detection, NO flash on hydration
+   792→   792→   792→- **Breadcrumbs**: All 13 pages have contextual breadcrumb path + one-line description
+   793→   793→   793→- **Dashboard**: 6 KPI cards with gradient backgrounds + count-up animation, Quick Actions, 7/30/90-day sales chart toggle, top sellers, recent movements, low stock alerts
+   794→   794→   794→- **Sidebar**: Accent bar active indicator, separator lines, live clock, last sale display, card-like "Última Venta" section
+   795→   795→   795→- **Header**: Breadcrumbs + description bar, global search with Ctrl+K, theme toggle, admin avatar dropdown
+   796→   796→   796→- **Catalog**: Full product/equipment CRUD with brand/category filters, compatibility management, stock timeline visualization
+   797→   797→   797→- **Operations**:
+   798→   798→   798→  - Receiving: Individual + Batch modes with dynamic rows
+   799→   799→   799→  - Sales: Summary badges + print receipt + sale cancellation with stock restoration
+   800→   800→   800→  - Stock Adjustment (AJUSTE) dialog with motivo field
+   801→   801→   801→  - Stock Transfer (TRASLADO) atomic dialog
+   802→   802→   802→  - Physical Inventory counting with variance detection
+   803→   803→   803→- **Reports**: 6 report types with charts, date filters, CSV export, empty states
+   804→   804→   804→- **Alerts**: Enhanced cards with progress bars, left border indicators, quick-receive navigation
+   805→   805→   805→- **Inventory**: Stats bar, status badges, CSV export, adjustment/transfer actions
+   806→   806→   806→- **Movements**: Color-coded rows, quick date filters, Kardex dialog with type filter
+   807→   807→   807→- **Locations**: Visual warehouse grid with stock bars, edit and delete actions
+   808→   808→   808→- **Clients**: Client management with purchase history dialog
+   809→   809→   809→- **Settings**: Warehouse data, preferences, about section, localStorage persistence
+   810→   810→   810→- **Styling**: 8 custom CSS utilities, sticky table headers, card hover effects, gradient backgrounds, count-up animations, consistent form styling
+   811→   811→   811→
+   812→   812→   812→### Code Quality
+   813→   813→   813→- **0 ESLint errors**, 6 cosmetic warnings (React Hook Form watch() memoization - unchanged)
+   814→   814→   814→- No useSyncExternalStore infinite loops (cached empty snapshots)
+   815→   815→   815→- Proper date format guards (null/undefined/invalid returns '-')
+   816→   816→   816→- Atomic database operations for stock transfers, batch receiving, sale cancellations, physical inventory
+   817→   817→   817→
+   818→   818→   818→### Features Added This Round (Round 5)
+   819→   819→   819→1. Physical Inventory Counting page (full CRUD with variance detection)
+   820→   820→   820→2. Batch Receiving mode (dynamic rows, Prisma transaction)
+   821→   821→   821→3. Client Purchase History dialog (expandable sale details)
+   822→   822→   822→4. Product Stock Timeline (Recharts AreaChart)
+   823→   823→   823→5. 7/30/90-day sales chart toggle
+   824→   824→   824→6. Gradient KPI card backgrounds with count-up animation
+   825→   825→   825→7. Accent bar sidebar active indicator
+   826→   826→   826→8. Sticky table headers with scrollable content
+   827→   827→   827→9. Card hover lift animations
+   828→   828→   828→10. Custom CSS badge classes (success/warning/danger/info/neutral)
+   829→   829→   829→11. Decorative underlines on section headers
+   830→   830→   830→12. Enhanced empty states with Lucide icons
+   831→   831→   831→13. CRITICAL FIX: useSyncExternalStore cached empty snapshots (was crashing entire app)
+   832→   832→   832→
+   833→   833→   833→### Known Issues / Future Work
+   834→   834→   834→- No authentication (acceptable for pilot)
+   835→   835→   835→- No multi-warehouse support (Phase 2)
+   836→   836→   836→- No ERP integration (Phase 2)
+   837→   837→   837→- Barcode scanning not yet implemented
+   838→   838→   838→- Language setting saved but not consumed (no i18n system)
+   839→   839→   839→- Warehouse info settings (name/address) saved but not displayed in sidebar/footer yet
+   840→   840→   840→
+   841→   841→   841→### Priority Recommendations for Next Phase
+   842→   842→   842→1. Use warehouse settings in sidebar header and footer (stored but not consumed)
+   843→   843→   843→2. Add barcode scanning support (using camera API)
+   844→   844→   844→3. User authentication (basic username/password for pilot)
+   845→   845→   845→4. Multi-warehouse support
+   846→   846→   846→5. ERP/contabilidad integration
+   847→   847→   847→6. Picking list generation with optimized routes
+   848→   848→   848→7. Email notifications for low stock alerts
+   849→   849→   849→8. Server-side pagination for Sales, Clients, Movements, Equipment pages
+   850→   850→   850→9. i18n system (language setting is saved but not applied)
+   851→   851→   851→

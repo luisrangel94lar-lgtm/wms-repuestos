@@ -1,0 +1,702 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { useForm } from 'react-hook-form'
+     6→import { zodResolver } from '@hookform/resolvers/zod'
+     7→import { z } from 'zod'
+     8→import { toast } from 'sonner'
+     9→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    10→import {
+    11→  Table,
+    12→  TableBody,
+    13→  TableCell,
+    14→  TableHead,
+    15→  TableHeader,
+    16→  TableRow,
+    17→} from '@/components/ui/table'
+    18→import { Badge } from '@/components/ui/badge'
+    19→import { Button } from '@/components/ui/button'
+    20→import { Input } from '@/components/ui/input'
+    21→import { Label } from '@/components/ui/label'
+    22→import { Textarea } from '@/components/ui/textarea'
+    23→import {
+    24→  Select,
+    25→  SelectContent,
+    26→  SelectItem,
+    27→  SelectTrigger,
+    28→  SelectValue,
+    29→} from '@/components/ui/select'
+    30→import {
+    31→  Dialog,
+    32→  DialogContent,
+    33→  DialogDescription,
+    34→  DialogHeader,
+    35→  DialogTitle,
+    36→  DialogFooter,
+    37→} from '@/components/ui/dialog'
+    38→import {
+    39→  AlertDialog,
+    40→  AlertDialogAction,
+    41→  AlertDialogCancel,
+    42→  AlertDialogContent,
+    43→  AlertDialogDescription,
+    44→  AlertDialogFooter,
+    45→  AlertDialogHeader,
+    46→  AlertDialogTitle,
+    47→} from '@/components/ui/alert-dialog'
+    48→import { Skeleton } from '@/components/ui/skeleton'
+    49→import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode } from 'lucide-react'
+    50→import { formatCurrency } from './lib/format'
+    51→import { BarcodeScanner } from './BarcodeScanner'
+    52→import {
+    53→  AreaChart,
+    54→  Area,
+    55→  XAxis,
+    56→  YAxis,
+    57→  CartesianGrid,
+    58→  Tooltip,
+    59→  ResponsiveContainer,
+    60→} from 'recharts'
+    61→
+    62→const productSchema = z.object({
+    63→  sku: z.string().min(1, 'SKU requerido'),
+    64→  nombre: z.string().min(1, 'Nombre requerido'),
+    65→  descripcion: z.string().optional(),
+    66→  idCategoria: z.coerce.number().nullable().optional(),
+    67→  idMarca: z.coerce.number().nullable().optional(),
+    68→  codigoBarras: z.string().optional(),
+    69→  unidadMedida: z.string().default('unidad'),
+    70→  costoUnitario: z.coerce.number().min(0),
+    71→  precioVenta: z.coerce.number().min(0),
+    72→  stockMinimo: z.coerce.number().min(0),
+    73→  stockMaximo: z.coerce.number().nullable().optional(),
+    74→  fotoUrl: z.string().optional(),
+    75→  activo: z.boolean().default(true),
+    76→})
+    77→
+    78→type ProductFormData = z.infer<typeof productSchema>
+    79→
+    80→interface Product {
+    81→  id: number
+    82→  sku: string
+    83→  nombre: string
+    84→  descripcion: string | null
+    85→  idCategoria: number | null
+    86→  idMarca: number | null
+    87→  codigoBarras: string | null
+    88→  unidadMedida: string
+    89→  costoUnitario: number
+    90→  precioVenta: number
+    91→  stockMinimo: number
+    92→  stockMaximo: number | null
+    93→  fotoUrl: string | null
+    94→  activo: boolean
+    95→  fechaCreacion: string
+    96→  categoria: { id: number; nombre: string } | null
+    97→  marca: { id: number; nombre: string } | null
+    98→  stocks: { idProducto: number; idUbicacion: number; cantidad: number }[]
+    99→  totalStock: number
+   100→}
+   101→
+   102→interface CategoriasResponse {
+   103→  items?: Product[]
+   104→  total: number
+   105→}
+   106→
+   107→export function ProductsPage() {
+   108→  const queryClient = useQueryClient()
+   109→  const [page, setPage] = useState(1)
+   110→  const [search, setSearch] = useState('')
+   111→  const [searchInput, setSearchInput] = useState('')
+   112→  const [idCategoria, setIdCategoria] = useState('')
+   113→  const [idMarca, setIdMarca] = useState('')
+   114→  const [bajoStock, setBajoStock] = useState(false)
+   115→  const [showCreate, setShowCreate] = useState(false)
+   116→  const [editId, setEditId] = useState<number | null>(null)
+   117→  const [deleteId, setDeleteId] = useState<number | null>(null)
+   118→  const [viewId, setViewId] = useState<number | null>(null)
+   119→  const [timelineId, setTimelineId] = useState<number | null>(null)
+   120→
+   121→  const { data, isLoading } = useQuery<CategoriasResponse>({
+   122→    queryKey: ['products', page, search, idCategoria, idMarca, bajoStock],
+   123→    queryFn: () => {
+   124→      const params = new URLSearchParams({
+   125→        page: String(page),
+   126→        pageSize: '20',
+   127→      })
+   128→      if (search) params.set('search', search)
+   129→      if (idCategoria) params.set('categoria', idCategoria)
+   130→      if (idMarca) params.set('marca', idMarca)
+   131→      if (bajoStock) params.set('bajoStock', 'true')
+   132→      return fetch(`/api/wms/productos?${params}`).then((r) => r.json())
+   133→    },
+   134→  })
+   135→
+   136→  const { data: viewProduct } = useQuery({
+   137→    queryKey: ['product-detail', viewId],
+   138→    queryFn: () => fetch(`/api/wms/productos/${viewId}`).then((r) => r.json()),
+   139→    enabled: !!viewId,
+   140→  })
+   141→
+   142→  const { data: timelineData } = useQuery({
+   143→    queryKey: ['product-timeline', timelineId],
+   144→    queryFn: () => fetch(`/api/wms/productos/${timelineId}/timeline`).then((r) => r.json()),
+   145→    enabled: !!timelineId,
+   146→  })
+   147→
+   148→  const { data: categorias = [] } = useQuery({
+   149→    queryKey: ['categorias-list'],
+   150→    queryFn: () => fetch('/api/wms/categorias').then((r) => r.json()),
+   151→  })
+   152→
+   153→  const { data: marcas = [] } = useQuery({
+   154→    queryKey: ['marcas-list'],
+   155→    queryFn: () => fetch('/api/wms/marcas').then((r) => r.json()),
+   156→  })
+   157→
+   158→  const form = useForm<ProductFormData>({
+   159→    resolver: zodResolver(productSchema) as any,
+   160→    defaultValues: {
+   161→      sku: '',
+   162→      nombre: '',
+   163→      descripcion: '',
+   164→      idCategoria: null,
+   165→      idMarca: null,
+   166→      codigoBarras: '',
+   167→      unidadMedida: 'unidad',
+   168→      costoUnitario: 0,
+   169→      precioVenta: 0,
+   170→      stockMinimo: 0,
+   171→      stockMaximo: null,
+   172→      fotoUrl: '',
+   173→      activo: true,
+   174→    },
+   175→  })
+   176→
+   177→  const createMutation = useMutation({
+   178→    mutationFn: (values: ProductFormData) =>
+   179→      fetch('/api/wms/productos', {
+   180→        method: 'POST',
+   181→        headers: { 'Content-Type': 'application/json' },
+   182→        body: JSON.stringify(values),
+   183→      }).then((r) => {
+   184→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   185→        return r.json()
+   186→      }),
+   187→    onSuccess: () => {
+   188→      toast.success('Producto creado correctamente')
+   189→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   190→      setShowCreate(false)
+   191→      form.reset()
+   192→    },
+   193→    onError: (err: any) => {
+   194→      toast.error(err.error ?? 'Error al crear producto')
+   195→    },
+   196→  })
+   197→
+   198→  const updateMutation = useMutation({
+   199→    mutationFn: ({ id, values }: { id: number; values: ProductFormData }) =>
+   200→      fetch(`/api/wms/productos/${id}`, {
+   201→        method: 'PUT',
+   202→        headers: { 'Content-Type': 'application/json' },
+   203→        body: JSON.stringify(values),
+   204→      }).then((r) => {
+   205→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   206→        return r.json()
+   207→      }),
+   208→    onSuccess: () => {
+   209→      toast.success('Producto actualizado correctamente')
+   210→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   211→      setEditId(null)
+   212→      form.reset()
+   213→    },
+   214→    onError: (err: any) => {
+   215→      toast.error(err.error ?? 'Error al actualizar producto')
+   216→    },
+   217→  })
+   218→
+   219→  const deleteMutation = useMutation({
+   220→    mutationFn: (id: number) =>
+   221→      fetch(`/api/wms/productos/${id}`, { method: 'DELETE' }).then((r) => {
+   222→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   223→        return r.json()
+   224→      }),
+   225→    onSuccess: () => {
+   226→      toast.success('Producto eliminado')
+   227→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   228→      setDeleteId(null)
+   229→    },
+   230→    onError: (err: any) => {
+   231→      toast.error(err.error ?? 'Error al eliminar producto')
+   232→    },
+   233→  })
+   234→
+   235→  function openEdit(product: Product) {
+   236→    setEditId(product.id)
+   237→    form.reset({
+   238→      sku: product.sku,
+   239→      nombre: product.nombre,
+   240→      descripcion: product.descripcion ?? '',
+   241→      idCategoria: product.idCategoria,
+   242→      idMarca: product.idMarca,
+   243→      codigoBarras: product.codigoBarras ?? '',
+   244→      unidadMedida: product.unidadMedida,
+   245→      costoUnitario: product.costoUnitario,
+   246→      precioVenta: product.precioVenta,
+   247→      stockMinimo: product.stockMinimo,
+   248→      stockMaximo: product.stockMaximo,
+   249→      fotoUrl: product.fotoUrl ?? '',
+   250→      activo: product.activo,
+   251→    })
+   252→  }
+   253→
+   254→  function handleSearch() {
+   255→    setSearch(searchInput)
+   256→    setPage(1)
+   257→  }
+   258→
+   259→  const items: Product[] = data?.items ?? []
+   260→  const totalPages = Math.ceil((data?.total ?? 0) / 20)
+   261→
+   262→  function getStockStatus(p: Product) {
+   263→    if (p.totalStock === 0) return 'out'
+   264→    if (p.totalStock < p.stockMinimo) return 'low'
+   265→    return 'ok'
+   266→  }
+   267→
+   268→  function StatusBadge({ status }: { status: string }) {
+   269→    if (status === 'out')
+   270→      return <Badge variant="destructive" className="text-[10px]">Sin Stock</Badge>
+   271→    if (status === 'low')
+   272→      return (
+   273→        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-[10px]">
+   274→          Bajo
+   275→        </Badge>
+   276→      )
+   277→    return (
+   278→      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]">
+   279→        OK
+   280→      </Badge>
+   281→    )
+   282→  }
+   283→
+   284→  const chartData = useMemo(() => {
+   285→    if (!timelineData?.timeline) return []
+   286→    return timelineData.timeline.map((t: any) => ({
+   287→      fecha: new Date(t.date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+   288→      stock: t.balance,
+   289→    }))
+   290→  }, [timelineData])
+   291→
+   292→  return (
+   293→    <div className="space-y-4">
+   294→      {/* Toolbar */}
+   295→      <div className="flex flex-col sm:flex-row gap-3">
+   296→        <div className="flex gap-2 flex-1 flex-wrap">
+   297→          <div className="relative flex-1 max-w-sm">
+   298→            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+   299→            <Input
+   300→              placeholder="Buscar por nombre o SKU..."
+   301→              className="pl-9"
+   302→              value={searchInput}
+   303→              onChange={(e) => setSearchInput(e.target.value)}
+   304→              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+   305→            />
+   306→          </div>
+   307→          <Button variant="outline" onClick={handleSearch}>
+   308→            <Search className="h-4 w-4" />
+   309→          </Button>
+   310→          <Button
+   311→            variant={bajoStock ? 'default' : 'outline'}
+   312→            onClick={() => { setBajoStock(!bajoStock); setPage(1) }}
+   313→          >
+   314→            <Filter className="h-4 w-4 mr-1" />
+   315→            Bajo Stock
+   316→          </Button>
+   317→          <Select value={idCategoria} onValueChange={(v) => { setIdCategoria(v === '_all' ? '' : v); setPage(1) }}>
+   318→            <SelectTrigger className="w-[140px] h-9 text-xs">
+   319→              <SelectValue placeholder="Categoría" />
+   320→            </SelectTrigger>
+   321→            <SelectContent>
+   322→              <SelectItem value="_all">Todas</SelectItem>
+   323→              {categorias.map((c: any) => (
+   324→                <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+   325→              ))}
+   326→            </SelectContent>
+   327→          </Select>
+   328→          <Select value={idMarca} onValueChange={(v) => { setIdMarca(v === '_all' ? '' : v); setPage(1) }}>
+   329→            <SelectTrigger className="w-[140px] h-9 text-xs">
+   330→              <SelectValue placeholder="Marca" />
+   331→            </SelectTrigger>
+   332→            <SelectContent>
+   333→              <SelectItem value="_all">Todas</SelectItem>
+   334→              {marcas.map((m: any) => (
+   335→                <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+   336→              ))}
+   337→            </SelectContent>
+   338→          </Select>
+   339→        </div>
+   340→        <Button onClick={() => { form.reset(); setShowCreate(true) }}>
+   341→          <Plus className="h-4 w-4 mr-1" />
+   342→          Nuevo Producto
+   343→        </Button>
+   344→      </div>
+   345→
+   346→      <div className="mb-4">
+   347→        <p className="text-sm text-muted-foreground">Gestiona el catálogo de repuestos, equipos y compatibilidades</p>
+   348→      </div>
+   349→
+   350→      {/* Table */}
+   351→      <Card className="rounded-xl shadow-sm transition-all duration-200">
+   352→        <CardContent className="p-0">
+   353→          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto overflow-x-auto">
+   354→            <Table>
+   355→              <TableHeader>
+   356→                <TableRow>
+   357→                  <TableHead className="text-xs">SKU</TableHead>
+   358→                  <TableHead className="text-xs">Nombre</TableHead>
+   359→                  <TableHead className="text-xs hidden md:table-cell">Categoría</TableHead>
+   360→                  <TableHead className="text-xs hidden lg:table-cell">Marca</TableHead>
+   361→                  <TableHead className="text-xs text-right hidden sm:table-cell">Costo</TableHead>
+   362→                  <TableHead className="text-xs text-right">Precio</TableHead>
+   363→                  <TableHead className="text-xs text-center">Stock</TableHead>
+   364→                  <TableHead className="text-xs text-center">Estado</TableHead>
+   365→                  <TableHead className="text-xs text-right">Acciones</TableHead>
+   366→                </TableRow>
+   367→              </TableHeader>
+   368→              <TableBody>
+   369→                {isLoading &&
+   370→                  Array.from({ length: 5 }).map((_, i) => (
+   371→                    <TableRow key={i}>
+   372→                      {Array.from({ length: 9 }).map((_, j) => (
+   373→                        <TableCell key={j} className="py-2">
+   374→                          <Skeleton className="h-4 w-full" />
+   375→                        </TableCell>
+   376→                      ))}
+   377→                    </TableRow>
+   378→                  ))}
+   379→                {!isLoading && items.length === 0 && (
+   380→                  <TableRow>
+   381→                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+   382→                      No se encontraron productos
+   383→                    </TableCell>
+   384→                  </TableRow>
+   385→                )}
+   386→                {!isLoading &&
+   387→                  items.map((p) => (
+   388→                    <TableRow key={p.id} className="hover:bg-muted/50">
+   389→                      <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
+   390→                      <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">
+   391→                        {p.nombre}
+   392→                      </TableCell>
+   393→                      <TableCell className="text-xs py-2 hidden md:table-cell">
+   394→                        {p.categoria?.nombre ?? '-'}
+   395→                      </TableCell>
+   396→                      <TableCell className="text-xs py-2 hidden lg:table-cell">
+   397→                        {p.marca?.nombre ?? '-'}
+   398→                      </TableCell>
+   399→                      <TableCell className="text-xs text-right py-2 hidden sm:table-cell">
+   400→                        {formatCurrency(p.costoUnitario)}
+   401→                      </TableCell>
+   402→                      <TableCell className="text-xs text-right py-2">
+   403→                        {formatCurrency(p.precioVenta)}
+   404→                      </TableCell>
+   405→                      <TableCell className="text-xs text-center font-mono py-2">
+   406→                        {p.totalStock}
+   407→                      </TableCell>
+   408→                      <TableCell className="text-xs text-center py-2">
+   409→                        <StatusBadge status={getStockStatus(p)} />
+   410→                      </TableCell>
+   411→                      <TableCell className="text-xs text-right py-2">
+   412→                        <div className="flex justify-end gap-1">
+   413→                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewId(p.id)}>
+   414→                            <Eye className="h-3.5 w-3.5" />
+   415→                          </Button>
+   416→                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
+   417→                            <Pencil className="h-3.5 w-3.5" />
+   418→                          </Button>
+   419→                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(p.id)}>
+   420→                            <Trash2 className="h-3.5 w-3.5" />
+   421→                          </Button>
+   422→                        </div>
+   423→                      </TableCell>
+   424→                    </TableRow>
+   425→                  ))}
+   426→              </TableBody>
+   427→            </Table>
+   428→          </div>
+   429→        </CardContent>
+   430→      </Card>
+   431→
+   432→      {/* Pagination */}
+   433→      <div className="flex items-center justify-between text-sm">
+   434→        <p className="text-muted-foreground">
+   435→          {(data?.total ?? 0)} productos encontrados
+   436→        </p>
+   437→        <div className="flex gap-2">
+   438→          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+   439→            Anterior
+   440→          </Button>
+   441→          <span className="px-3 py-1 text-sm">{page} / {totalPages || 1}</span>
+   442→          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+   443→            Siguiente
+   444→          </Button>
+   445→        </div>
+   446→      </div>
+   447→
+   448→      {/* Create/Edit Dialog */}
+   449→      <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
+   450→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   451→          <DialogHeader>
+   452→            <DialogTitle>{editId ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
+   453→            <DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del producto' : 'Formulario para crear un nuevo producto'}</DialogDescription>
+   454→          </DialogHeader>
+   455→          <form
+   456→            onSubmit={form.handleSubmit((values: any) => {
+   457→              if (editId) {
+   458→                updateMutation.mutate({ id: editId, values })
+   459→              } else {
+   460→                createMutation.mutate(values)
+   461→              }
+   462→            })}
+   463→            className="space-y-4"
+   464→          >
+   465→            <div className="grid grid-cols-2 gap-4">
+   466→              <div className="space-y-2">
+   467→                <Label className="text-sm font-medium">SKU *</Label>
+   468→                <Input {...form.register('sku')} />
+   469→                {form.formState.errors.sku && (
+   470→                  <p className="text-xs text-destructive">{form.formState.errors.sku.message}</p>
+   471→                )}
+   472→              </div>
+   473→              <div className="space-y-2">
+   474→                <Label className="text-sm font-medium">Unidad de Medida</Label>
+   475→                <Select value={form.watch('unidadMedida')} onValueChange={(v) => form.setValue('unidadMedida', v)}>
+   476→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   477→                  <SelectContent>
+   478→                    <SelectItem value="unidad">Unidad</SelectItem>
+   479→                    <SelectItem value="par">Par</SelectItem>
+   480→                    <SelectItem value="metro">Metro</SelectItem>
+   481→                    <SelectItem value="kg">Kg</SelectItem>
+   482→                    <SelectItem value="litro">Litro</SelectItem>
+   483→                  </SelectContent>
+   484→                </Select>
+   485→              </div>
+   486→            </div>
+   487→            <div className="space-y-2">
+   488→              <Label className="text-sm font-medium">Nombre *</Label>
+   489→              <Input {...form.register('nombre')} />
+   490→              {form.formState.errors.nombre && (
+   491→                <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>
+   492→              )}
+   493→            </div>
+   494→            <div className="space-y-2">
+   495→              <Label className="text-sm font-medium">Descripción</Label>
+   496→              <Textarea {...form.register('descripcion')} rows={2} />
+   497→            </div>
+   498→            <div className="grid grid-cols-2 gap-4">
+   499→              <div className="space-y-2">
+   500→                <Label className="text-sm font-medium">Código de Barras</Label>
+   501→                <Input {...form.register('codigoBarras')} />
+   502→              </div>
+   503→              <div className="space-y-2">
+   504→                <Label className="text-sm font-medium">URL de Foto</Label>
+   505→                <Input {...form.register('fotoUrl')} />
+   506→              </div>
+   507→            </div>
+   508→            {form.watch('fotoUrl') && (
+   509→              <div className="mt-2">
+   510→                <img
+   511→                  src={form.watch('fotoUrl')}
+   512→                  alt="Preview"
+   513→                  className="w-24 h-24 object-cover rounded-lg border"
+   514→                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+   515→                />
+   516→              </div>
+   517→            )}
+   518→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   519→              <div className="space-y-2">
+   520→                <Label className="text-sm font-medium">Costo Unitario</Label>
+   521→                <Input type="number" step="0.01" {...form.register('costoUnitario')} />
+   522→              </div>
+   523→              <div className="space-y-2">
+   524→                <Label className="text-sm font-medium">Precio de Venta</Label>
+   525→                <Input type="number" step="0.01" {...form.register('precioVenta')} />
+   526→              </div>
+   527→              <div className="space-y-2">
+   528→                <Label className="text-sm font-medium">Stock Mínimo</Label>
+   529→                <Input type="number" {...form.register('stockMinimo')} />
+   530→              </div>
+   531→              <div className="space-y-2">
+   532→                <Label className="text-sm font-medium">Stock Máximo</Label>
+   533→                <Input type="number" {...form.register('stockMaximo')} />
+   534→              </div>
+   535→            </div>
+   536→            <DialogFooter>
+   537→              <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setEditId(null); form.reset() }}>
+   538→                Cancelar
+   539→              </Button>
+   540→              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+   541→                {createMutation.isPending || updateMutation.isPending ? 'Guardando...' : editId ? 'Actualizar' : 'Crear'}
+   542→              </Button>
+   543→            </DialogFooter>
+   544→          </form>
+   545→        </DialogContent>
+   546→      </Dialog>
+   547→
+   548→      {/* View Detail Dialog */}
+   549→      <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
+   550→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   551→          <DialogHeader>
+   552→            <DialogTitle>Detalle del Producto</DialogTitle>
+   553→            <DialogDescription className="sr-only">Información detallada del producto seleccionado</DialogDescription>
+   554→          </DialogHeader>
+   555→          {viewProduct && (
+   556→            <div className="space-y-4">
+   557→              {viewProduct.fotoUrl && (
+   558→                <div className="flex justify-center">
+   559→                  <img
+   560→                    src={viewProduct.fotoUrl}
+   561→                    alt={viewProduct.nombre}
+   562→                    className="w-32 h-32 object-cover rounded-lg border"
+   563→                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+   564→                  />
+   565→                </div>
+   566→              )}
+   567→              <div className="grid grid-cols-2 gap-3 text-sm">
+   568→                <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono font-medium">{viewProduct.sku}</span></div>
+   569→                <div><span className="text-muted-foreground">Nombre:</span> <span className="font-medium">{viewProduct.nombre}</span></div>
+   570→                <div><span className="text-muted-foreground">Categoría:</span> {viewProduct.categoria?.nombre ?? '-'}</div>
+   571→                <div><span className="text-muted-foreground">Marca:</span> {viewProduct.marca?.nombre ?? '-'}</div>
+   572→                <div><span className="text-muted-foreground">Costo:</span> {formatCurrency(viewProduct.costoUnitario)}</div>
+   573→                <div><span className="text-muted-foreground">Precio:</span> {formatCurrency(viewProduct.precioVenta)}</div>
+   574→                <div><span className="text-muted-foreground">Stock Mínimo:</span> {viewProduct.stockMinimo}</div>
+   575→                <div><span className="text-muted-foreground">Unidad:</span> {viewProduct.unidadMedida}</div>
+   576→              </div>
+   577→              {viewProduct.descripcion && (
+   578→                <div className="text-sm">
+   579→                  <span className="text-muted-foreground">Descripción:</span>
+   580→                  <p className="mt-1">{viewProduct.descripcion}</p>
+   581→                </div>
+   582→              )}
+   583→              {viewProduct.stocks && viewProduct.stocks.length > 0 && (
+   584→                <div className="text-sm">
+   585→                  <p className="font-medium mb-2">Stock por Ubicación</p>
+   586→                  <div className="flex gap-2 flex-wrap">
+   587→                    {viewProduct.stocks.map((s: any) => (
+   588→                      <Badge key={s.idUbicacion} variant="outline">
+   589→                        Pasillo {s.ubicacion?.pasillo} - Estante {s.ubicacion?.estante} - Nivel {s.ubicacion?.nivel}: {s.cantidad}
+   590→                      </Badge>
+   591→                    ))}
+   592→                  </div>
+   593→                </div>
+   594→              )}
+   595→              {viewProduct.productoEquipo && viewProduct.productoEquipo.length > 0 && (
+   596→                <div className="text-sm">
+   597→                  <p className="font-medium mb-2">Compatible con Equipos</p>
+   598→                  <div className="flex gap-2 flex-wrap">
+   599→                    {viewProduct.productoEquipo.map((pe: any) => (
+   600→                      <Badge key={pe.idEquipo} variant="secondary">
+   601→                        {pe.equipo?.marca?.nombre} {pe.equipo?.modelo}
+   602→                      </Badge>
+   603→                    ))}
+   604→                  </div>
+   605→                </div>
+   606→              )}
+   607→              <div className="flex justify-end pt-2 border-t">
+   608→                <Button
+   609→                  variant="outline"
+   610→                  size="sm"
+   611→                  onClick={() => { setTimelineId(viewProduct.id); setViewId(null) }}
+   612→                >
+   613→                  <Activity className="h-4 w-4 mr-1" />
+   614→                  Ver Timeline
+   615→                </Button>
+   616→              </div>
+   617→            </div>
+   618→          )}
+   619→        </DialogContent>
+   620→      </Dialog>
+   621→
+   622→      {/* Timeline Dialog */}
+   623→      <Dialog open={!!timelineId} onOpenChange={(open) => { if (!open) setTimelineId(null) }}>
+   624→        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+   625→          <DialogHeader>
+   626→            <DialogTitle>Timeline de Stock</DialogTitle>
+   627→            <DialogDescription className="sr-only">Evolución del stock del producto en los últimos 30 movimientos</DialogDescription>
+   628→          </DialogHeader>
+   629→          {timelineData && (
+   630→            <div className="space-y-4">
+   631→              <div className="flex items-center justify-between text-sm">
+   632→                <div>
+   633→                  <p className="text-muted-foreground">Stock Actual</p>
+   634→                  <p className="text-2xl font-bold">{timelineData.currentStock}</p>
+   635→                </div>
+   636→                <div className="text-right">
+   637→                  <p className="text-muted-foreground">Producto ID</p>
+   638→                  <p className="font-mono">#{timelineData.productoId}</p>
+   639→                </div>
+   640→              </div>
+   641→              {chartData.length > 0 ? (
+   642→                <div className="h-64">
+   643→                  <ResponsiveContainer width="100%" height="100%">
+   644→                    <AreaChart data={chartData}>
+   645→                      <defs>
+   646→                        <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
+   647→                          <stop offset="5%" stopColor="oklch(0.55 0.15 145)" stopOpacity={0.3} />
+   648→                          <stop offset="95%" stopColor="oklch(0.55 0.15 145)" stopOpacity={0} />
+   649→                        </linearGradient>
+   650→                      </defs>
+   651→                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+   652→                      <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
+   653→                      <YAxis tick={{ fontSize: 11 }} />
+   654→                      <Tooltip
+   655→                        contentStyle={{
+   656→                          borderRadius: '8px',
+   657→                          border: '1px solid var(--border)',
+   658→                          background: 'var(--popover)',
+   659→                          color: 'var(--popover-foreground)',
+   660→                        }}
+   661→                      />
+   662→                      <Area
+   663→                        type="stepAfter"
+   664→                        dataKey="stock"
+   665→                        stroke="oklch(0.55 0.15 145)"
+   666→                        fill="url(#stockGradient)"
+   667→                        strokeWidth={2}
+   668→                      />
+   669→                    </AreaChart>
+   670→                  </ResponsiveContainer>
+   671→                </div>
+   672→              ) : (
+   673→                <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
+   674→                  Sin datos de movimiento para mostrar
+   675→                </div>
+   676→              )}
+   677→            </div>
+   678→          )}
+   679→        </DialogContent>
+   680→      </Dialog>
+   681→
+   682→      {/* Delete Alert */}
+   683→      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
+   684→        <AlertDialogContent>
+   685→          <AlertDialogHeader>
+   686→            <AlertDialogTitle>¿Eliminar producto?</AlertDialogTitle>
+   687→            <AlertDialogDescription>
+   688→              Esta acción no se puede deshacer. El producto será eliminado permanentemente.
+   689→            </AlertDialogDescription>
+   690→          </AlertDialogHeader>
+   691→          <AlertDialogFooter>
+   692→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+   693→            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)}>
+   694→              Eliminar
+   695→            </AlertDialogAction>
+   696→          </AlertDialogFooter>
+   697→        </AlertDialogContent>
+   698→      </AlertDialog>
+   699→    </div>
+   700→  )
+   701→}
+   702→

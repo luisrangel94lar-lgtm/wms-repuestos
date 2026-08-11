@@ -42,7 +42,7 @@ interface BatchRow {
 
 export function ReceivingPage() {
   const queryClient = useQueryClient()
-  const { receivingProductId, setReceivingProductId } = useWmsStore()
+  const { receivingProductId, receivingSuggestedQty, setReceivingProductId } = useWmsStore()
 
   const { data: tiposMov = [] } = useQuery({
     queryKey: ['tipos-movimiento'],
@@ -72,11 +72,14 @@ export function ReceivingPage() {
   })
 
   useEffect(() => {
-    if (receivingProductId) {
+    if (receivingProductId && products.length > 0) {
       form.setValue('idProducto', receivingProductId)
+      if (receivingSuggestedQty && receivingSuggestedQty > 0) {
+        form.setValue('cantidad', receivingSuggestedQty)
+      }
       setReceivingProductId(null)
     }
-  }, [receivingProductId, form, setReceivingProductId])
+  }, [receivingProductId, products.length, receivingSuggestedQty, form, setReceivingProductId])
 
   const createMutation = useMutation({
     mutationFn: (values: ReceivingFormData) => {

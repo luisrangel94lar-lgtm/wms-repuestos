@@ -2,17 +2,26 @@
 
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useWmsStore } from '@/store/wms'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Download, MapPin, Check, AlertTriangle, XCircle, SlidersHorizontal, ArrowRightLeft, Loader2 } from 'lucide-react'
-import { formatCurrency } from './lib/format'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '@/components/ui/sheet'
+import {
+  Download, MapPin, Check, AlertTriangle, XCircle, SlidersHorizontal, ArrowRightLeft, Loader2, Eye, Clock, Package,
+} from 'lucide-react'
+import { formatCurrency, formatDateTime, tipoMovColors } from './lib/format'
 import { exportToCSV } from './lib/export-csv'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -35,6 +44,9 @@ interface InventoryItem {
   id: number
   sku: string
   nombre: string
+  descripcion: string | null
+  idCategoria: number | null
+  idMarca: number | null
   costoUnitario: number
   precioVenta: number
   stockMinimo: number
@@ -42,6 +54,8 @@ interface InventoryItem {
   valorTotal: number
   status: 'ok' | 'low' | 'out'
   stocks: StockEntry[]
+  categoria?: { id: number; nombre: string } | null
+  marca?: { id: number; nombre: string } | null
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -66,7 +80,9 @@ function StatusBadge({ status }: { status: string }) {
 
 export function InventoryPage() {
   const queryClient = useQueryClient()
+  const { setCurrentPage, setReceivingProductId } = useWmsStore()
   const [selectedProduct, setSelectedProduct] = useState<StockEntry['producto'] | null>(null)
+  const [sheetProduct, setSheetProduct] = useState<InventoryItem | null>(null)
 
   // Ajuste state
   const [ajusteProduct, setAjusteProduct] = useState<InventoryItem | null>(null)
@@ -100,6 +116,12 @@ export function InventoryPage() {
     queryFn: () => fetch('/api/wms/ubicaciones?activos=true').then((r) => r.json()),
   })
 
+  const { data: productMovements = [] } = useQuery({
+    queryKey: ['product-movements-sheet', sheetProduct?.id],
+    queryFn: () => fetch(`/api/wms/movimientos?idProducto=${sheetProduct?.id}&limit=5`).then((r) => r.json()),
+    enabled: !!sheetProduct?.id,
+  })
+
   // Build inventory view
   const inventory: InventoryItem[] = products.map((p: any) => {
     const stocks = stockEntries.filter((s) => s.idProducto === p.id)
@@ -126,6 +148,7 @@ export function InventoryPage() {
     queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
     queryClient.invalidateQueries({ queryKey: ['all-stock-inv'] })
     queryClient.invalidateQueries({ queryKey: ['inventory-stats'] })
+    queryClient.invalidateQueries({ queryKey: ['product-movements-sheet'] })
   }
 
   // --- Sorting ---
@@ -168,7 +191,6 @@ export function InventoryPage() {
       return
     }
 
-    // Pick the first stock location (or first location overall)
     const locationId = ajusteProduct.stocks.length > 0
       ? ajusteProduct.stocks[0].idUbicacion
       : allLocations[0]?.id
@@ -186,7 +208,7 @@ export function InventoryPage() {
         body: JSON.stringify({
           idProducto: ajusteProduct.id,
           idUbicacion: locationId,
-          idTipo: 3, // AJUSTE
+          idTipo: 3,
           cantidad: newStock,
           referencia: 'Ajuste manual',
           observacion: ajusteMotivo || null,
@@ -283,6 +305,37 @@ export function InventoryPage() {
     )
   }
 
+  function openSheet(item: InventoryItem) {
+    setSheetProduct(item)
+  }
+
+  function quickGoToReceiving() {
+    if (!sheetProduct) return
+    const deficiency = sheetProduct.stockMinimo - sheetProduct.totalStock
+    setReceivingProductId(sheetProduct.id, deficiency > 0 ? deficiency : null)
+    setCurrentPage('receiving')
+    setSheetProduct(null)
+  }
+
+  function quickAdjust() {
+    if (!sheetProduct) return
+    setSheetProduct(null)
+    openAjuste(sheetProduct)
+  }
+
+  function quickTransfer() {
+    if (!sheetProduct) return
+    setSheetProduct(null)
+    openTraslado(sheetProduct)
+  }
+
+  // Find max stock for the location bars
+  function getMaxStock(): number {
+    if (!sheetProduct) return 1
+    const max = Math.max(...sheetProduct.stocks.map((s) => s.cantidad), sheetProduct.stockMinimo)
+    return max || 1
+  }
+
   return (
     <div className="space-y-4">
       {/* Stats Bar */}
@@ -341,7 +394,7 @@ export function InventoryPage() {
                 {!isLoading && sortedInventory.map((p, idx) => {
                   const margen = p.precioVenta > 0 ? ((p.precioVenta - p.costoUnitario) / p.precioVenta * 100) : 0
                   return (
-                    <TableRow key={p.id} className={cn('hover:bg-muted/50', idx % 2 === 1 && 'bg-muted/20')}>
+                    <TableRow key={p.id} className={cn('hover:bg-muted/50 cursor-pointer', idx % 2 === 1 && 'bg-muted/20')} onClick={() => openSheet(p)}>
                       <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{p.nombre}</TableCell>
                       <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
                       <TableCell className="text-xs text-center font-mono py-2">{p.totalStock}</TableCell>
@@ -358,7 +411,10 @@ export function InventoryPage() {
                       </TableCell>
                       <TableCell className="text-xs text-center py-2"><StatusBadge status={p.status} /></TableCell>
                       <TableCell className="text-xs text-right py-2">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver detalle" onClick={() => openSheet(p)}>
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
                           <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver ubicaciones" onClick={() => setSelectedProduct(p)}>
                             <MapPin className="h-3.5 w-3.5" />
                           </Button>
@@ -434,21 +490,11 @@ export function InventoryPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-sm font-medium">Nuevo Stock</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={ajusteStock}
-                  onChange={(e) => setAjusteStock(e.target.value)}
-                  placeholder="Nueva cantidad"
-                />
+                <Input type="number" min="0" value={ajusteStock} onChange={(e) => setAjusteStock(e.target.value)} placeholder="Nueva cantidad" />
               </div>
               <div className="space-y-1">
                 <Label className="text-sm font-medium">Motivo (opcional)</Label>
-                <Input
-                  value={ajusteMotivo}
-                  onChange={(e) => setAjusteMotivo(e.target.value)}
-                  placeholder="Razón del ajuste"
-                />
+                <Input value={ajusteMotivo} onChange={(e) => setAjusteMotivo(e.target.value)} placeholder="Razón del ajuste" />
               </div>
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setAjusteProduct(null)} disabled={ajusteLoading}>Cancelar</Button>
@@ -500,14 +546,7 @@ export function InventoryPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-sm font-medium">Cantidad (máx: {getOrigenStock()})</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max={getOrigenStock()}
-                  value={trasladoCantidad}
-                  onChange={(e) => setTrasladoCantidad(e.target.value)}
-                  placeholder="Cantidad a trasladar"
-                />
+                <Input type="number" min="1" max={getOrigenStock()} value={trasladoCantidad} onChange={(e) => setTrasladoCantidad(e.target.value)} placeholder="Cantidad a trasladar" />
               </div>
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setTrasladoProduct(null)} disabled={trasladoLoading}>Cancelar</Button>
@@ -520,6 +559,150 @@ export function InventoryPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Product Detail Sheet */}
+      <Sheet open={!!sheetProduct} onOpenChange={(open) => { if (!open) setSheetProduct(null) }}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader className="dialog-header-accent">
+            <SheetTitle>Detalle de Producto</SheetTitle>
+            <SheetDescription>Información completa del producto</SheetDescription>
+          </SheetHeader>
+          {sheetProduct && (
+            <div className="space-y-6 mt-4">
+              {/* Product Info */}
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold">{sheetProduct.nombre}</h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{sheetProduct.sku}</span></div>
+                  <div><span className="text-muted-foreground">Categoría:</span> {sheetProduct.categoria?.nombre ?? '-'}</div>
+                  <div><span className="text-muted-foreground">Marca:</span> {sheetProduct.marca?.nombre ?? '-'}</div>
+                  <div><span className="text-muted-foreground">Unidad:</span> {sheetProduct.unidadMedida ?? 'unidad'}</div>
+                  <div><span className="text-muted-foreground">Costo:</span> {formatCurrency(sheetProduct.costoUnitario)}</div>
+                  <div><span className="text-muted-foreground">Precio Venta:</span> <span className="font-semibold">{formatCurrency(sheetProduct.precioVenta)}</span></div>
+                </div>
+                {sheetProduct.descripcion && (
+                  <p className="text-xs text-muted-foreground mt-1">{sheetProduct.descripcion}</p>
+                )}
+                <div className="flex items-center gap-2 mt-1">
+                  <StatusBadge status={sheetProduct.status} />
+                  <Badge variant="outline" className="text-[10px]">
+                    Stock Total: <span className="font-mono font-semibold">{sheetProduct.totalStock}</span>
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    Mínimo: <span className="font-mono">{sheetProduct.stockMinimo}</span>
+                  </Badge>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Stock by Location - Visual Bars */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <MapPin className="h-4 w-4" /> Stock por Ubicación
+                </h4>
+                {sheetProduct.stocks.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground text-xs">
+                    <Package className="h-8 w-8 mx-auto mb-1 opacity-30" />
+                    <p>Sin stock registrado</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {sheetProduct.stocks.map((s) => {
+                      const maxStock = getMaxStock()
+                      const pct = Math.round((s.cantidad / maxStock) * 100)
+                      return (
+                        <div key={s.idUbicacion} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-mono text-muted-foreground">
+                              {s.ubicacion.pasillo}-{s.ubicacion.estante}-{s.ubicacion.nivel}
+                            </span>
+                            <span className="font-mono font-semibold">{s.cantidad}</span>
+                          </div>
+                          <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={cn(
+                                'h-full rounded-full transition-all duration-500',
+                                s.cantidad === 0 ? 'bg-red-500' :
+                                s.cantidad < sheetProduct.stockMinimo ? 'bg-amber-500' :
+                                'bg-emerald-500'
+                              )}
+                              style={{ width: `${Math.max(2, pct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {sheetProduct.stockMinimo > 0 && (
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-1">
+                        <div className="h-1 w-3 bg-amber-500 rounded" />
+                        <span>Línea de mínimo ({sheetProduct.stockMinimo})</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Recent Movements */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> Últimos Movimientos
+                </h4>
+                {productMovements.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Sin movimientos registrados</p>
+                ) : (
+                  <ScrollArea className="max-h-48">
+                    <div className="space-y-1">
+                      {productMovements.slice(0, 5).map((m: any) => (
+                        <div key={m.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            <span className={cn('inline-block px-1.5 py-0 rounded text-[10px] font-semibold', tipoMovColors[m.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800')}>
+                              {m.tipoMovimiento?.nombre}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {m.ubicacion ? `${m.ubicacion.pasillo}-${m.ubicacion.estante}` : '-'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={cn('text-xs font-mono font-semibold',
+                              m.tipoMovimiento?.nombre === 'ENTRADA' || m.tipoMovimiento?.nombre === 'DEVOLUCION'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-red-600 dark:text-red-400'
+                            )}>
+                              {m.tipoMovimiento?.nombre === 'ENTRADA' || m.tipoMovimiento?.nombre === 'DEVOLUCION' ? '+' : '-'}{m.cantidad}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">{formatDateTime(m.fecha)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Quick Actions */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">Acciones Rápidas</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" size="sm" className="text-xs" onClick={quickAdjust}>
+                    <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Ajustar Stock
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-xs" onClick={quickTransfer} disabled={sheetProduct.stocks.length <= 1}>
+                    <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
+                  </Button>
+                  <Button size="sm" className="text-xs col-span-2" onClick={quickGoToReceiving}>
+                    <Download className="h-3.5 w-3.5 mr-1" /> Ir a Recepción
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

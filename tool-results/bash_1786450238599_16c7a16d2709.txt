@@ -1,0 +1,991 @@
+- generic
+  - generic
+    - complementary
+      - StaticText "📦"
+      - StaticText "WMS Repuestos"
+      - paragraph
+        - StaticText "Refrigeración"
+      - LayoutTable
+        - button "Dashboard" [ref=e14]
+          - StaticText "Dashboard"
+        - paragraph
+          - StaticText "CATÁLOGO"
+        - button "Productos" [ref=e15]
+          - StaticText "Productos"
+        - button "Equipos" [ref=e16]
+          - StaticText "Equipos"
+        - paragraph
+          - StaticText "OPERACIONES"
+        - button "Recepción" [ref=e17]
+          - StaticText "Recepción"
+        - button "Ventas" [ref=e18]
+          - StaticText "Ventas"
+        - button "Inventario" [ref=e19]
+          - StaticText "Inventario"
+        - button "Ubicaciones" [ref=e20]
+          - StaticText "Ubicaciones"
+        - button "Inventario Físico" [ref=e21]
+          - StaticText "Inventario Físico"
+        - button "Clientes" [ref=e22]
+          - StaticText "Clientes"
+        - button "Movimientos" [ref=e23]
+          - StaticText "Movimientos"
+        - button "Reportes" [ref=e24]
+          - StaticText "Reportes"
+        - button "Alertas 4" [ref=e25]
+          - StaticText "Alertas"
+          - StaticText "4"
+        - paragraph
+          - StaticText "SISTEMA"
+        - button "Configuración" [ref=e26]
+          - StaticText "Configuración"
+      - paragraph
+        - StaticText "Última Venta"
+      - paragraph
+        - StaticText "V-20260810-0018 — Luis Fernando Rojas"
+      - paragraph
+        - StaticText "$2,090.00"
+      - StaticText "11-ago · 12:10 p.m."
+    - banner
+      - heading "Movimientos" [level=1, ref=e2]
+      - searchbox "Buscar productos, equipos... (Ctrl+K)" [ref=e10]
+      - button "Cambiar tema" [ref=e3]
+      - button "A Admin" [ref=e11]
+        - StaticText "A"
+        - StaticText "Admin"
+      - navigation
+        - StaticText "Movimientos"
+      - paragraph
+        - StaticText "Historial de movimientos de inventario y kardex"
+    - main
+      - button "Hoy" [ref=e4]
+      - button "Esta Semana" [ref=e5]
+      - button "Este Mes" [ref=e6]
+      - LabelText
+        - StaticText "Fecha Desde"
+      - Date
+        - generic
+          - spinbutton "Month" [ref=e27]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day" [ref=e28]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year" [ref=e29]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e12]
+      - LabelText
+        - StaticText "Fecha Hasta"
+      - Date
+        - generic
+          - spinbutton "Month" [ref=e30]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day" [ref=e31]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year" [ref=e32]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e13]
+      - LabelText
+        - StaticText "Tipo"
+      - combobox [expanded=false, ref=e7]: Todos
+        - StaticText "Todos"
+      - LabelText
+        - StaticText "Producto"
+      - textbox "Nombre o SKU" [ref=e8]
+      - button "Filtrar" [ref=e9]
+      - paragraph
+        - StaticText "Historial completo de movimientos de almacén (kardex)"
+      - paragraph
+        - StaticText "79 movimientos encontrados"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Fecha ↓" [ref=e587] clickable [cursor:pointer, onclick]
+              - StaticText "Fecha"
+              - StaticText "↓"
+            - columnheader "Producto" [ref=e588] clickable [cursor:pointer, onclick]
+            - columnheader "Tipo" [ref=e589] clickable [cursor:pointer, onclick]
+            - columnheader "Cantidad" [ref=e590] clickable [cursor:pointer, onclick]
+            - columnheader "Ubicación" [ref=e591]
+            - columnheader "Usuario" [ref=e592]
+            - columnheader "Referencia" [ref=e593]
+            - columnheader "Kardex" [ref=e594]
+        - row
+          - cell "10/08/2026 16:22" [ref=e34]
+          - cell "Filtro Secador Emerson 00(FILT-001)" [ref=e35]
+            - StaticText "Filtro Secador Emerson 00(FILT-001)"
+          - cell "SALIDA" [ref=e36]
+          - cell "3" [ref=e37]
+          - cell "B-3-1" [ref=e38]
+          - cell "Juan Pérez" [ref=e39]
+          - cell "Venta V-20260810-0018" [ref=e40]
+          - cell
+            - button [ref=e595]
+        - row
+          - cell "10/08/2026 16:22" [ref=e41]
+          - cell "Tubo de Cobre 1/4\" x 3m(TUBE-001)" [ref=e42]
+            - StaticText "Tubo de Cobre 1/4\" x 3m(TUBE-001)"
+          - cell "SALIDA" [ref=e43]
+          - cell "6" [ref=e44]
+          - cell "A-3-2" [ref=e45]
+          - cell "Juan Pérez" [ref=e46]
+          - cell "Venta V-20260810-0018" [ref=e47]
+          - cell
+            - button [ref=e596]
+        - row
+          - cell "10/08/2026 16:22" [ref=e48]
+          - cell "Relé Start Emerson 3ARR3(RELE-001)" [ref=e49]
+            - StaticText "Relé Start Emerson 3ARR3(RELE-001)"
+          - cell "SALIDA" [ref=e50]
+          - cell "4" [ref=e51]
+          - cell "A-3-2" [ref=e52]
+          - cell "Juan Pérez" [ref=e53]
+          - cell "Venta V-20260810-0018" [ref=e54]
+          - cell
+            - button [ref=e597]
+        - row
+          - cell "10/08/2026 14:52" [ref=e55]
+          - cell "Gas R600a Cilindro 5 kg(GAS-004)" [ref=e56]
+            - StaticText "Gas R600a Cilindro 5 kg(GAS-004)"
+          - cell "SALIDA" [ref=e57]
+          - cell "1" [ref=e58]
+          - cell "A-1-1" [ref=e59]
+          - cell "María López" [ref=e60]
+          - cell "Venta V-20260810-0017" [ref=e61]
+          - cell
+            - button [ref=e598]
+        - row
+          - cell "10/08/2026 14:52" [ref=e62]
+          - cell "Compresor LG CEA84KTCA(COMP-005)" [ref=e63]
+            - StaticText "Compresor LG CEA84KTCA(COMP-005)"
+          - cell "SALIDA" [ref=e64]
+          - cell "1" [ref=e65]
+          - cell "A-2-1" [ref=e66]
+          - cell "Admin" [ref=e67]
+          - cell "Venta V-20260810-0017" [ref=e68]
+          - cell
+            - button [ref=e599]
+        - row
+          - cell "10/08/2026 14:52" [ref=e69]
+          - cell "Evaporador LG 6871JK1005A(EVAP-003)" [ref=e70]
+            - StaticText "Evaporador LG 6871JK1005A(EVAP-003)"
+          - cell "SALIDA" [ref=e71]
+          - cell "1" [ref=e72]
+          - cell "A-1-1" [ref=e73]
+          - cell "Juan Pérez" [ref=e74]
+          - cell "Venta V-20260810-0017" [ref=e75]
+          - cell
+            - button [ref=e600]
+        - row
+          - cell "09/08/2026 11:44" [ref=e76]
+          - cell "Accesorio Unión Directa 3(TUBE-004)" [ref=e77]
+            - StaticText "Accesorio Unión Directa 3(TUBE-004)"
+          - cell "SALIDA" [ref=e78]
+          - cell "4" [ref=e79]
+          - cell "A-1-1" [ref=e80]
+          - cell "María López" [ref=e81]
+          - cell "Venta V-20260809-0016" [ref=e82]
+          - cell
+            - button [ref=e601]
+        - row
+          - cell "09/08/2026 11:44" [ref=e83]
+          - cell "Válvula de Expansión Danf(VALV-001)" [ref=e84]
+            - StaticText "Válvula de Expansión Danf(VALV-001)"
+          - cell "SALIDA" [ref=e85]
+          - cell "2" [ref=e86]
+          - cell "A-3-1" [ref=e87]
+          - cell "María López" [ref=e88]
+          - cell "Venta V-20260809-0016" [ref=e89]
+          - cell
+            - button [ref=e602]
+        - row
+          - cell "09/08/2026 11:44" [ref=e90]
+          - cell "Termostato Carrier KJ3102(TERM-003)" [ref=e91]
+            - StaticText "Termostato Carrier KJ3102(TERM-003)"
+          - cell "SALIDA" [ref=e92]
+          - cell "1" [ref=e93]
+          - cell "B-2-2" [ref=e94]
+          - cell "María López" [ref=e95]
+          - cell "Venta V-20260809-0016" [ref=e96]
+          - cell
+            - button [ref=e603]
+        - row
+          - cell "08/08/2026 10:35" [ref=e97]
+          - cell "Resistencia Drenaje LG 50(RESI-003)" [ref=e98]
+            - StaticText "Resistencia Drenaje LG 50(RESI-003)"
+          - cell "SALIDA" [ref=e99]
+          - cell "2" [ref=e100]
+          - cell "B-3-2" [ref=e101]
+          - cell "Admin" [ref=e102]
+          - cell "Venta V-20260808-0015" [ref=e103]
+          - cell
+            - button [ref=e604]
+        - row
+          - cell "08/08/2026 10:35" [ref=e104]
+          - cell "Sello Compresor Tecumseh (SELLO-001)" [ref=e105]
+            - StaticText "Sello Compresor Tecumseh (SELLO-001)"
+          - cell "SALIDA" [ref=e106]
+          - cell "3" [ref=e107]
+          - cell "A-3-2" [ref=e108]
+          - cell "Juan Pérez" [ref=e109]
+          - cell "Venta V-20260808-0015" [ref=e110]
+          - cell
+            - button [ref=e605]
+        - row
+          - cell "08/08/2026 10:35" [ref=e111]
+          - cell "Motor Ventilador Mabe 495(MOTO-004)" [ref=e112]
+            - StaticText "Motor Ventilador Mabe 495(MOTO-004)"
+          - cell "SALIDA" [ref=e113]
+          - cell "1" [ref=e114]
+          - cell "A-3-1" [ref=e115]
+          - cell "María López" [ref=e116]
+          - cell "Venta V-20260808-0015" [ref=e117]
+          - cell
+            - button [ref=e606]
+        - row
+          - cell "07/08/2026 11:02" [ref=e118]
+          - cell "Válvula de Expansión Danf(VALV-001)" [ref=e119]
+            - StaticText "Válvula de Expansión Danf(VALV-001)"
+          - cell "ENTRADA" [ref=e120]
+          - cell "15" [ref=e121]
+          - cell "A-3-1" [ref=e122]
+          - cell "Admin" [ref=e123]
+          - cell "OC-2024-0461" [ref=e124]
+          - cell
+            - button [ref=e607]
+        - row
+          - cell "06/08/2026 16:17" [ref=e125]
+          - cell "Tubo de Cobre 3/8\" x 3m(TUBE-002)" [ref=e126]
+            - StaticText "Tubo de Cobre 3/8\" x 3m(TUBE-002)"
+          - cell "SALIDA" [ref=e127]
+          - cell "3" [ref=e128]
+          - cell "B-1-2" [ref=e129]
+          - cell "Juan Pérez" [ref=e130]
+          - cell "Venta V-20260806-0014" [ref=e131]
+          - cell
+            - button [ref=e608]
+        - row
+          - cell "06/08/2026 16:17" [ref=e132]
+          - cell "Filtro Secador Danfoss 03(FILT-004)" [ref=e133]
+            - StaticText "Filtro Secador Danfoss 03(FILT-004)"
+          - cell "SALIDA" [ref=e134]
+          - cell "2" [ref=e135]
+          - cell "B-1-2" [ref=e136]
+          - cell "Juan Pérez" [ref=e137]
+          - cell "Venta V-20260806-0014" [ref=e138]
+          - cell
+            - button [ref=e609]
+        - row
+          - cell "06/08/2026 16:17" [ref=e139]
+          - cell "Compresor Danfoss SC15G(COMP-004)" [ref=e140]
+            - StaticText "Compresor Danfoss SC15G(COMP-004)"
+          - cell "SALIDA" [ref=e141]
+          - cell "1" [ref=e142]
+          - cell "B-2-1" [ref=e143]
+          - cell "Juan Pérez" [ref=e144]
+          - cell "Venta V-20260806-0014" [ref=e145]
+          - cell
+            - button [ref=e610]
+        - row
+          - cell "06/08/2026 16:17" [ref=e146]
+          - cell "Gas R404A Cilindro 10.9 k(GAS-003)" [ref=e147]
+            - StaticText "Gas R404A Cilindro 10.9 k(GAS-003)"
+          - cell "SALIDA" [ref=e148]
+          - cell "2" [ref=e149]
+          - cell "A-1-1" [ref=e150]
+          - cell "Juan Pérez" [ref=e151]
+          - cell "Venta V-20260806-0014" [ref=e152]
+          - cell
+            - button [ref=e611]
+        - row
+          - cell "05/08/2026 11:58" [ref=e153]
+          - cell "Junta Puerta Whirlpool W1(SELLO-002)" [ref=e154]
+            - StaticText "Junta Puerta Whirlpool W1(SELLO-002)"
+          - cell "AJUSTE" [ref=e155]
+          - cell "2" [ref=e156]
+          - cell "B-1-2" [ref=e157]
+          - cell "Juan Pérez" [ref=e158]
+          - cell "-" [ref=e159]
+          - cell
+            - button [ref=e612]
+        - row
+          - cell "05/08/2026 09:14" [ref=e160]
+          - cell "Condensador Daikin RC1800(COND-002)" [ref=e161]
+            - StaticText "Condensador Daikin RC1800(COND-002)"
+          - cell "ENTRADA" [ref=e162]
+          - cell "4" [ref=e163]
+          - cell "B-3-1" [ref=e164]
+          - cell "Juan Pérez" [ref=e165]
+          - cell "OC-2024-0460" [ref=e166]
+          - cell
+            - button [ref=e613]
+        - row
+          - cell "04/08/2026 10:37" [ref=e167]
+          - cell "Condensador Carrier 30XA-(COND-001)" [ref=e168]
+            - StaticText "Condensador Carrier 30XA-(COND-001)"
+          - cell "ENTRADA" [ref=e169]
+          - cell "3" [ref=e170]
+          - cell "A-3-1" [ref=e171]
+          - cell "Admin" [ref=e172]
+          - cell "OC-2024-0459" [ref=e173]
+          - cell
+            - button [ref=e614]
+        - row
+          - cell "03/08/2026 10:24" [ref=e174]
+          - cell "Motor Ventilador Mabe 495(MOTO-004)" [ref=e175]
+            - StaticText "Motor Ventilador Mabe 495(MOTO-004)"
+          - cell "TRASLADO" [ref=e176]
+          - cell "2" [ref=e177]
+          - cell "A-3-1" [ref=e178]
+          - cell "Admin" [ref=e179]
+          - cell "-" [ref=e180]
+          - cell
+            - button [ref=e615]
+        - row
+          - cell "03/08/2026 09:46" [ref=e181]
+          - cell "Gas R410A Cilindro 11.3 k(GAS-002)" [ref=e182]
+            - StaticText "Gas R410A Cilindro 11.3 k(GAS-002)"
+          - cell "SALIDA" [ref=e183]
+          - cell "1" [ref=e184]
+          - cell "B-1-1" [ref=e185]
+          - cell "Admin" [ref=e186]
+          - cell "Venta V-20260803-0013" [ref=e187]
+          - cell
+            - button [ref=e616]
+        - row
+          - cell "03/08/2026 09:46" [ref=e188]
+          - cell "Tubo de Cobre 3/8\" x 3m(TUBE-002)" [ref=e189]
+            - StaticText "Tubo de Cobre 3/8\" x 3m(TUBE-002)"
+          - cell "SALIDA" [ref=e190]
+          - cell "2" [ref=e191]
+          - cell "A-2-2" [ref=e192]
+          - cell "Juan Pérez" [ref=e193]
+          - cell "Venta V-20260803-0013" [ref=e194]
+          - cell
+            - button [ref=e617]
+        - row
+          - cell "03/08/2026 09:46" [ref=e195]
+          - cell "Condensador Samsung S-Bin(COND-003)" [ref=e196]
+            - StaticText "Condensador Samsung S-Bin(COND-003)"
+          - cell "SALIDA" [ref=e197]
+          - cell "1" [ref=e198]
+          - cell "B-3-1" [ref=e199]
+          - cell "María López" [ref=e200]
+          - cell "Venta V-20260803-0013" [ref=e201]
+          - cell
+            - button [ref=e618]
+        - row
+          - cell "02/08/2026 13:11" [ref=e202]
+          - cell "Gas R600a Cilindro 5 kg(GAS-004)" [ref=e203]
+            - StaticText "Gas R600a Cilindro 5 kg(GAS-004)"
+          - cell "AJUSTE" [ref=e204]
+          - cell "1" [ref=e205]
+          - cell "B-1-2" [ref=e206]
+          - cell "Juan Pérez" [ref=e207]
+          - cell "-" [ref=e208]
+          - cell
+            - button [ref=e619]
+        - row
+          - cell "02/08/2026 11:10" [ref=e209]
+          - cell "Motor Evaporador Samsung (MOTO-002)" [ref=e210]
+            - StaticText "Motor Evaporador Samsung (MOTO-002)"
+          - cell "SALIDA" [ref=e211]
+          - cell "1" [ref=e212]
+          - cell "A-1-2" [ref=e213]
+          - cell "Admin" [ref=e214]
+          - cell "SAL-003" [ref=e215]
+          - cell
+            - button [ref=e620]
+        - row
+          - cell "01/08/2026 14:07" [ref=e216]
+          - cell "Kit Juntas Danfoss 084N73(SELLO-003)" [ref=e217]
+            - StaticText "Kit Juntas Danfoss 084N73(SELLO-003)"
+          - cell "SALIDA" [ref=e218]
+          - cell "2" [ref=e219]
+          - cell "B-3-1" [ref=e220]
+          - cell "Admin" [ref=e221]
+          - cell "Venta V-20260801-0012" [ref=e222]
+          - cell
+            - button [ref=e621]
+        - row
+          - cell "01/08/2026 14:07" [ref=e223]
+          - cell "Resistencia Evaporador Sa(RESI-002)" [ref=e224]
+            - StaticText "Resistencia Evaporador Sa(RESI-002)"
+          - cell "SALIDA" [ref=e225]
+          - cell "1" [ref=e226]
+          - cell "A-3-1" [ref=e227]
+          - cell "Admin" [ref=e228]
+          - cell "Venta V-20260801-0012" [ref=e229]
+          - cell
+            - button [ref=e622]
+        - row
+          - cell "01/08/2026 14:07" [ref=e230]
+          - cell "Válvula Solenoide Samsung(VALV-002)" [ref=e231]
+            - StaticText "Válvula Solenoide Samsung(VALV-002)"
+          - cell "SALIDA" [ref=e232]
+          - cell "3" [ref=e233]
+          - cell "B-1-2" [ref=e234]
+          - cell "Juan Pérez" [ref=e235]
+          - cell "Venta V-20260801-0012" [ref=e236]
+          - cell
+            - button [ref=e623]
+        - row
+          - cell "31/07/2026 14:08" [ref=e237]
+          - cell "Relé Start Emerson 3ARR3(RELE-001)" [ref=e238]
+            - StaticText "Relé Start Emerson 3ARR3(RELE-001)"
+          - cell "ENTRADA" [ref=e239]
+          - cell "20" [ref=e240]
+          - cell "B-1-1" [ref=e241]
+          - cell "María López" [ref=e242]
+          - cell "OC-2024-0458" [ref=e243]
+          - cell
+            - button [ref=e624]
+        - row
+          - cell "30/07/2026 14:48" [ref=e244]
+          - cell "Filtro de Línea LG TAC-22(FILT-003)" [ref=e245]
+            - StaticText "Filtro de Línea LG TAC-22(FILT-003)"
+          - cell "TRASLADO" [ref=e246]
+          - cell "4" [ref=e247]
+          - cell "B-1-1" [ref=e248]
+          - cell "María López" [ref=e249]
+          - cell "-" [ref=e250]
+          - cell
+            - button [ref=e625]
+        - row
+          - cell "30/07/2026 11:10" [ref=e251]
+          - cell "Tubo de Cobre 1/4\" x 3m(TUBE-001)" [ref=e252]
+            - StaticText "Tubo de Cobre 1/4\" x 3m(TUBE-001)"
+          - cell "SALIDA" [ref=e253]
+          - cell "4" [ref=e254]
+          - cell "B-2-2" [ref=e255]
+          - cell "Juan Pérez" [ref=e256]
+          - cell "Venta V-20260730-0011" [ref=e257]
+          - cell
+            - button [ref=e626]
+        - row
+          - cell "30/07/2026 11:10" [ref=e258]
+          - cell "Filtro de Línea LG TAC-22(FILT-003)" [ref=e259]
+            - StaticText "Filtro de Línea LG TAC-22(FILT-003)"
+          - cell "SALIDA" [ref=e260]
+          - cell "2" [ref=e261]
+          - cell "A-2-2" [ref=e262]
+          - cell "Admin" [ref=e263]
+          - cell "Venta V-20260730-0011" [ref=e264]
+          - cell
+            - button [ref=e627]
+        - row
+          - cell "30/07/2026 11:10" [ref=e265]
+          - cell "Compresor LG CEA84KTCA(COMP-005)" [ref=e266]
+            - StaticText "Compresor LG CEA84KTCA(COMP-005)"
+          - cell "SALIDA" [ref=e267]
+          - cell "2" [ref=e268]
+          - cell "B-1-2" [ref=e269]
+          - cell "María López" [ref=e270]
+          - cell "Venta V-20260730-0011" [ref=e271]
+          - cell
+            - button [ref=e628]
+        - row
+          - cell "29/07/2026 09:02" [ref=e272]
+          - cell "Gas R404A Cilindro 10.9 k(GAS-003)" [ref=e273]
+            - StaticText "Gas R404A Cilindro 10.9 k(GAS-003)"
+          - cell "ENTRADA" [ref=e274]
+          - cell "5" [ref=e275]
+          - cell "A-1-1" [ref=e276]
+          - cell "Admin" [ref=e277]
+          - cell "OC-2024-0457" [ref=e278]
+          - cell
+            - button [ref=e629]
+        - row
+          - cell "28/07/2026 16:32" [ref=e279]
+          - cell "Motor Condensador Carrier(MOTO-003)" [ref=e280]
+            - StaticText "Motor Condensador Carrier(MOTO-003)"
+          - cell "DEVOLUCION" [ref=e281]
+          - cell "1" [ref=e282]
+          - cell "A-3-2" [ref=e283]
+          - cell "María López" [ref=e284]
+          - cell "DEV-002" [ref=e285]
+          - cell
+            - button [ref=e630]
+        - row
+          - cell "28/07/2026 10:22" [ref=e286]
+          - cell "Gas R410A Cilindro 11.3 k(GAS-002)" [ref=e287]
+            - StaticText "Gas R410A Cilindro 11.3 k(GAS-002)"
+          - cell "SALIDA" [ref=e288]
+          - cell "1" [ref=e289]
+          - cell "B-1-2" [ref=e290]
+          - cell "Juan Pérez" [ref=e291]
+          - cell "Venta V-20260728-0010" [ref=e292]
+          - cell
+            - button [ref=e631]
+        - row
+          - cell "28/07/2026 10:22" [ref=e293]
+          - cell "Motor Evaporador Samsung (MOTO-002)" [ref=e294]
+            - StaticText "Motor Evaporador Samsung (MOTO-002)"
+          - cell "SALIDA" [ref=e295]
+          - cell "2" [ref=e296]
+          - cell "A-2-1" [ref=e297]
+          - cell "Juan Pérez" [ref=e298]
+          - cell "Venta V-20260728-0010" [ref=e299]
+          - cell
+            - button [ref=e632]
+        - row
+          - cell "28/07/2026 10:22" [ref=e300]
+          - cell "Tarjeta Electrónica LG EB(RELE-004)" [ref=e301]
+            - StaticText "Tarjeta Electrónica LG EB(RELE-004)"
+          - cell "SALIDA" [ref=e302]
+          - cell "1" [ref=e303]
+          - cell "A-3-1" [ref=e304]
+          - cell "Juan Pérez" [ref=e305]
+          - cell "Venta V-20260728-0010" [ref=e306]
+          - cell
+            - button [ref=e633]
+        - row
+          - cell "27/07/2026 15:49" [ref=e307]
+          - cell "Evaporador Whirlpool W108(EVAP-001)" [ref=e308]
+            - StaticText "Evaporador Whirlpool W108(EVAP-001)"
+          - cell "SALIDA" [ref=e309]
+          - cell "1" [ref=e310]
+          - cell "B-1-1" [ref=e311]
+          - cell "María López" [ref=e312]
+          - cell "Venta V-20260727-0009" [ref=e313]
+          - cell
+            - button [ref=e634]
+        - row
+          - cell "27/07/2026 15:49" [ref=e314]
+          - cell "Compresor Tecumseh AE1340(COMP-002)" [ref=e315]
+            - StaticText "Compresor Tecumseh AE1340(COMP-002)"
+          - cell "SALIDA" [ref=e316]
+          - cell "1" [ref=e317]
+          - cell "A-3-1" [ref=e318]
+          - cell "María López" [ref=e319]
+          - cell "Venta V-20260727-0009" [ref=e320]
+          - cell
+            - button [ref=e635]
+        - row
+          - cell "27/07/2026 12:40" [ref=e321]
+          - cell "Resistencia Descongelamie(RESI-001)" [ref=e322]
+            - StaticText "Resistencia Descongelamie(RESI-001)"
+          - cell "SALIDA" [ref=e323]
+          - cell "2" [ref=e324]
+          - cell "B-3-2" [ref=e325]
+          - cell "Admin" [ref=e326]
+          - cell "SAL-002" [ref=e327]
+          - cell
+            - button [ref=e636]
+        - row
+          - cell "26/07/2026 10:35" [ref=e328]
+          - cell "Tubo de Cobre 3/8\" x 3m(TUBE-002)" [ref=e329]
+            - StaticText "Tubo de Cobre 3/8\" x 3m(TUBE-002)"
+          - cell "ENTRADA" [ref=e330]
+          - cell "40" [ref=e331]
+          - cell "A-1-1" [ref=e332]
+          - cell "María López" [ref=e333]
+          - cell "OC-2024-0456" [ref=e334]
+          - cell
+            - button [ref=e637]
+        - row
+          - cell "26/07/2026 10:25" [ref=e335]
+          - cell "Tubo de Cobre 1/4\" x 3m(TUBE-001)" [ref=e336]
+            - StaticText "Tubo de Cobre 1/4\" x 3m(TUBE-001)"
+          - cell "ENTRADA" [ref=e337]
+          - cell "50" [ref=e338]
+          - cell "A-1-1" [ref=e339]
+          - cell "Admin" [ref=e340]
+          - cell "OC-2024-0456" [ref=e341]
+          - cell
+            - button [ref=e638]
+        - row
+          - cell "25/07/2026 10:15" [ref=e342]
+          - cell "Accesorio Unión Directa 3(TUBE-004)" [ref=e343]
+            - StaticText "Accesorio Unión Directa 3(TUBE-004)"
+          - cell "AJUSTE" [ref=e344]
+          - cell "2" [ref=e345]
+          - cell "B-3-2" [ref=e346]
+          - cell "Juan Pérez" [ref=e347]
+          - cell "-" [ref=e348]
+          - cell
+            - button [ref=e639]
+        - row
+          - cell "25/07/2026 09:29" [ref=e349]
+          - cell "Filtro Secador Samsung DA(FILT-002)" [ref=e350]
+            - StaticText "Filtro Secador Samsung DA(FILT-002)"
+          - cell "SALIDA" [ref=e351]
+          - cell "2" [ref=e352]
+          - cell "A-1-1" [ref=e353]
+          - cell "María López" [ref=e354]
+          - cell "Venta V-20260725-0008" [ref=e355]
+          - cell
+            - button [ref=e640]
+        - row
+          - cell "25/07/2026 09:29" [ref=e356]
+          - cell "Conector Flare 1/4\" SAE ((TUBE-003)" [ref=e357]
+            - StaticText "Conector Flare 1/4\" SAE ((TUBE-003)"
+          - cell "SALIDA" [ref=e358]
+          - cell "5" [ref=e359]
+          - cell "B-2-2" [ref=e360]
+          - cell "María López" [ref=e361]
+          - cell "Venta V-20260725-0008" [ref=e362]
+          - cell
+            - button [ref=e641]
+        - row
+          - cell "25/07/2026 09:29" [ref=e363]
+          - cell "Gas R600a Cilindro 5 kg(GAS-004)" [ref=e364]
+            - StaticText "Gas R600a Cilindro 5 kg(GAS-004)"
+          - cell "SALIDA" [ref=e365]
+          - cell "2" [ref=e366]
+          - cell "B-1-2" [ref=e367]
+          - cell "Admin" [ref=e368]
+          - cell "Venta V-20260725-0008" [ref=e369]
+          - cell
+            - button [ref=e642]
+        - row
+          - cell "25/07/2026 09:29" [ref=e370]
+          - cell "Gas R134a Cilindro 13.6 k(GAS-001)" [ref=e371]
+            - StaticText "Gas R134a Cilindro 13.6 k(GAS-001)"
+          - cell "SALIDA" [ref=e372]
+          - cell "1" [ref=e373]
+          - cell "A-2-2" [ref=e374]
+          - cell "Juan Pérez" [ref=e375]
+          - cell "Venta V-20260725-0008" [ref=e376]
+          - cell
+            - button [ref=e643]
+        - row
+          - cell "24/07/2026 13:22" [ref=e377]
+          - cell "Capacitor Samsung 25 µF 3(RELE-002)" [ref=e378]
+            - StaticText "Capacitor Samsung 25 µF 3(RELE-002)"
+          - cell "SALIDA" [ref=e379]
+          - cell "3" [ref=e380]
+          - cell "A-3-1" [ref=e381]
+          - cell "Juan Pérez" [ref=e382]
+          - cell "Venta V-20260724-0007" [ref=e383]
+          - cell
+            - button [ref=e644]
+        - row
+          - cell "24/07/2026 13:22" [ref=e384]
+          - cell "Válvula Inversora 4 Vías (VALV-003)" [ref=e385]
+            - StaticText "Válvula Inversora 4 Vías (VALV-003)"
+          - cell "SALIDA" [ref=e386]
+          - cell "2" [ref=e387]
+          - cell "B-1-2" [ref=e388]
+          - cell "María López" [ref=e389]
+          - cell "Venta V-20260724-0007" [ref=e390]
+          - cell
+            - button [ref=e645]
+        - row
+          - cell "24/07/2026 13:22" [ref=e391]
+          - cell "Condensador Daikin RC1800(COND-002)" [ref=e392]
+            - StaticText "Condensador Daikin RC1800(COND-002)"
+          - cell "SALIDA" [ref=e393]
+          - cell "1" [ref=e394]
+          - cell "B-3-2" [ref=e395]
+          - cell "María López" [ref=e396]
+          - cell "Venta V-20260724-0007" [ref=e397]
+          - cell
+            - button [ref=e646]
+        - row
+          - cell "24/07/2026 09:48" [ref=e398]
+          - cell "Compresor Danfoss SC15G(COMP-004)" [ref=e399]
+            - StaticText "Compresor Danfoss SC15G(COMP-004)"
+          - cell "TRASLADO" [ref=e400]
+          - cell "3" [ref=e401]
+          - cell "A-3-2" [ref=e402]
+          - cell "Admin" [ref=e403]
+          - cell "-" [ref=e404]
+          - cell
+            - button [ref=e647]
+        - row
+          - cell "23/07/2026 11:15" [ref=e405]
+          - cell "Gas R410A Cilindro 11.3 k(GAS-002)" [ref=e406]
+            - StaticText "Gas R410A Cilindro 11.3 k(GAS-002)"
+          - cell "ENTRADA" [ref=e407]
+          - cell "8" [ref=e408]
+          - cell "B-1-2" [ref=e409]
+          - cell "Juan Pérez" [ref=e410]
+          - cell "OC-2024-0455" [ref=e411]
+          - cell
+            - button [ref=e648]
+        - row
+          - cell "22/07/2026 12:19" [ref=e412]
+          - cell "Conector Flare 1/4\" SAE ((TUBE-003)" [ref=e413]
+            - StaticText "Conector Flare 1/4\" SAE ((TUBE-003)"
+          - cell "AJUSTE" [ref=e414]
+          - cell "3" [ref=e415]
+          - cell "A-3-1" [ref=e416]
+          - cell "Juan Pérez" [ref=e417]
+          - cell "-" [ref=e418]
+          - cell
+            - button [ref=e649]
+        - row
+          - cell "22/07/2026 10:13" [ref=e419]
+          - cell "Filtro Secador Emerson 00(FILT-001)" [ref=e420]
+            - StaticText "Filtro Secador Emerson 00(FILT-001)"
+          - cell "SALIDA" [ref=e421]
+          - cell "1" [ref=e422]
+          - cell "A-2-2" [ref=e423]
+          - cell "María López" [ref=e424]
+          - cell "Venta V-20260722-0006" [ref=e425]
+          - cell
+            - button [ref=e650]
+        - row
+          - cell "22/07/2026 10:13" [ref=e426]
+          - cell "Tubo de Cobre 3/8\" x 3m(TUBE-002)" [ref=e427]
+            - StaticText "Tubo de Cobre 3/8\" x 3m(TUBE-002)"
+          - cell "SALIDA" [ref=e428]
+          - cell "3" [ref=e429]
+          - cell "B-2-1" [ref=e430]
+          - cell "María López" [ref=e431]
+          - cell "Venta V-20260722-0006" [ref=e432]
+          - cell
+            - button [ref=e651]
+        - row
+          - cell "22/07/2026 10:13" [ref=e433]
+          - cell "Motor Condensador Carrier(MOTO-003)" [ref=e434]
+            - StaticText "Motor Condensador Carrier(MOTO-003)"
+          - cell "SALIDA" [ref=e435]
+          - cell "2" [ref=e436]
+          - cell "B-1-2" [ref=e437]
+          - cell "María López" [ref=e438]
+          - cell "Venta V-20260722-0006" [ref=e439]
+          - cell
+            - button [ref=e652]
+        - row
+          - cell "21/07/2026 09:05" [ref=e440]
+          - cell "Gas R134a Cilindro 13.6 k(GAS-001)" [ref=e441]
+            - StaticText "Gas R134a Cilindro 13.6 k(GAS-001)"
+          - cell "ENTRADA" [ref=e442]
+          - cell "10" [ref=e443]
+          - cell "A-3-1" [ref=e444]
+          - cell "Admin" [ref=e445]
+          - cell "OC-2024-0454" [ref=e446]
+          - cell
+            - button [ref=e653]
+        - row
+          - cell "20/07/2026 16:04" [ref=e447]
+          - cell "Junta Puerta Whirlpool W1(SELLO-002)" [ref=e448]
+            - StaticText "Junta Puerta Whirlpool W1(SELLO-002)"
+          - cell "SALIDA" [ref=e449]
+          - cell "2" [ref=e450]
+          - cell "A-1-1" [ref=e451]
+          - cell "Juan Pérez" [ref=e452]
+          - cell "Venta V-20260720-0005" [ref=e453]
+          - cell
+            - button [ref=e654]
+        - row
+          - cell "20/07/2026 16:04" [ref=e454]
+          - cell "Resistencia Descongelamie(RESI-001)" [ref=e455]
+            - StaticText "Resistencia Descongelamie(RESI-001)"
+          - cell "SALIDA" [ref=e456]
+          - cell "2" [ref=e457]
+          - cell "A-1-2" [ref=e458]
+          - cell "Admin" [ref=e459]
+          - cell "Venta V-20260720-0005" [ref=e460]
+          - cell
+            - button [ref=e655]
+        - row
+          - cell "20/07/2026 16:04" [ref=e461]
+          - cell "Termostato Whirlpool W108(TERM-001)" [ref=e462]
+            - StaticText "Termostato Whirlpool W108(TERM-001)"
+          - cell "SALIDA" [ref=e463]
+          - cell "3" [ref=e464]
+          - cell "A-2-2" [ref=e465]
+          - cell "María López" [ref=e466]
+          - cell "Venta V-20260720-0005" [ref=e467]
+          - cell
+            - button [ref=e656]
+        - row
+          - cell "20/07/2026 15:00" [ref=e468]
+          - cell "Termostato Samsung DA32-0(TERM-002)" [ref=e469]
+            - StaticText "Termostato Samsung DA32-0(TERM-002)"
+          - cell "DEVOLUCION" [ref=e470]
+          - cell "1" [ref=e471]
+          - cell "A-3-2" [ref=e472]
+          - cell "María López" [ref=e473]
+          - cell "DEV-001" [ref=e474]
+          - cell
+            - button [ref=e657]
+        - row
+          - cell "19/07/2026 11:59" [ref=e475]
+          - cell "Protector Térmico Copelan(RELE-003)" [ref=e476]
+            - StaticText "Protector Térmico Copelan(RELE-003)"
+          - cell "SALIDA" [ref=e477]
+          - cell "2" [ref=e478]
+          - cell "A-2-2" [ref=e479]
+          - cell "Juan Pérez" [ref=e480]
+          - cell "Venta V-20260719-0004" [ref=e481]
+          - cell
+            - button [ref=e658]
+        - row
+          - cell "19/07/2026 11:59" [ref=e482]
+          - cell "Condensador Carrier 30XA-(COND-001)" [ref=e483]
+            - StaticText "Condensador Carrier 30XA-(COND-001)"
+          - cell "SALIDA" [ref=e484]
+          - cell "1" [ref=e485]
+          - cell "A-2-1" [ref=e486]
+          - cell "María López" [ref=e487]
+          - cell "Venta V-20260719-0004" [ref=e488]
+          - cell
+            - button [ref=e659]
+        - row
+          - cell "19/07/2026 11:59" [ref=e489]
+          - cell "Compresor Copeland ZP36K5(COMP-003)" [ref=e490]
+            - StaticText "Compresor Copeland ZP36K5(COMP-003)"
+          - cell "SALIDA" [ref=e491]
+          - cell "1" [ref=e492]
+          - cell "A-3-1" [ref=e493]
+          - cell "Admin" [ref=e494]
+          - cell "Venta V-20260719-0004" [ref=e495]
+          - cell
+            - button [ref=e660]
+        - row
+          - cell "18/07/2026 16:58" [ref=e496]
+          - cell "Termostato Whirlpool W108(TERM-001)" [ref=e497]
+            - StaticText "Termostato Whirlpool W108(TERM-001)"
+          - cell "SALIDA" [ref=e498]
+          - cell "1" [ref=e499]
+          - cell "B-3-2" [ref=e500]
+          - cell "Admin" [ref=e501]
+          - cell "SAL-001" [ref=e502]
+          - cell
+            - button [ref=e661]
+        - row
+          - cell "18/07/2026 08:02" [ref=e503]
+          - cell "Compresor Copeland ZP36K5(COMP-003)" [ref=e504]
+            - StaticText "Compresor Copeland ZP36K5(COMP-003)"
+          - cell "ENTRADA" [ref=e505]
+          - cell "2" [ref=e506]
+          - cell "A-1-2" [ref=e507]
+          - cell "Admin" [ref=e508]
+          - cell "OC-2024-0453" [ref=e509]
+          - cell
+            - button [ref=e662]
+        - row
+          - cell "17/07/2026 09:54" [ref=e510]
+          - cell "Tubo de Cobre 1/4\" x 3m(TUBE-001)" [ref=e511]
+            - StaticText "Tubo de Cobre 1/4\" x 3m(TUBE-001)"
+          - cell "SALIDA" [ref=e512]
+          - cell "3" [ref=e513]
+          - cell "B-3-1" [ref=e514]
+          - cell "María López" [ref=e515]
+          - cell "Venta V-20260717-0003" [ref=e516]
+          - cell
+            - button [ref=e663]
+        - row
+          - cell "17/07/2026 09:54" [ref=e517]
+          - cell "Motor Ventilador Whirlpoo(MOTO-001)" [ref=e518]
+            - StaticText "Motor Ventilador Whirlpoo(MOTO-001)"
+          - cell "SALIDA" [ref=e519]
+          - cell "1" [ref=e520]
+          - cell "B-3-2" [ref=e521]
+          - cell "Admin" [ref=e522]
+          - cell "Venta V-20260717-0003" [ref=e523]
+          - cell
+            - button [ref=e664]
+        - row
+          - cell "17/07/2026 09:54" [ref=e524]
+          - cell "Evaporador Whirlpool W108(EVAP-001)" [ref=e525]
+            - StaticText "Evaporador Whirlpool W108(EVAP-001)"
+          - cell "SALIDA" [ref=e526]
+          - cell "1" [ref=e527]
+          - cell "B-2-2" [ref=e528]
+          - cell "Juan Pérez" [ref=e529]
+          - cell "Venta V-20260717-0003" [ref=e530]
+          - cell
+            - button [ref=e665]
+        - row
+          - cell "16/07/2026 10:46" [ref=e531]
+          - cell "Compresor Tecumseh AE1340(COMP-002)" [ref=e532]
+            - StaticText "Compresor Tecumseh AE1340(COMP-002)"
+          - cell "ENTRADA" [ref=e533]
+          - cell "8" [ref=e534]
+          - cell "B-1-2" [ref=e535]
+          - cell "Admin" [ref=e536]
+          - cell "OC-2024-0452" [ref=e537]
+          - cell
+            - button [ref=e666]
+        - row
+          - cell "15/07/2026 14:41" [ref=e538]
+          - cell "Válvula de Expansión Danf(VALV-001)" [ref=e539]
+            - StaticText "Válvula de Expansión Danf(VALV-001)"
+          - cell "SALIDA" [ref=e540]
+          - cell "1" [ref=e541]
+          - cell "B-2-2" [ref=e542]
+          - cell "Admin" [ref=e543]
+          - cell "Venta V-20260715-0002" [ref=e544]
+          - cell
+            - button [ref=e667]
+        - row
+          - cell "15/07/2026 14:41" [ref=e545]
+          - cell "Tubo de Cobre 3/8\" x 3m(TUBE-002)" [ref=e546]
+            - StaticText "Tubo de Cobre 3/8\" x 3m(TUBE-002)"
+          - cell "SALIDA" [ref=e547]
+          - cell "4" [ref=e548]
+          - cell "A-3-2" [ref=e549]
+          - cell "Admin" [ref=e550]
+          - cell "Venta V-20260715-0002" [ref=e551]
+          - cell
+            - button [ref=e668]
+        - row
+          - cell "15/07/2026 14:41" [ref=e552]
+          - cell "Gas R410A Cilindro 11.3 k(GAS-002)" [ref=e553]
+            - StaticText "Gas R410A Cilindro 11.3 k(GAS-002)"
+          - cell "SALIDA" [ref=e554]
+          - cell "2" [ref=e555]
+          - cell "A-2-2" [ref=e556]
+          - cell "Admin" [ref=e557]
+          - cell "Venta V-20260715-0002" [ref=e558]
+          - cell
+            - button [ref=e669]
+        - row
+          - cell "14/07/2026 09:32" [ref=e559]
+          - cell "Compresor Emerson 6103472(COMP-001)" [ref=e560]
+            - StaticText "Compresor Emerson 6103472(COMP-001)"
+          - cell "ENTRADA" [ref=e561]
+          - cell "5" [ref=e562]
+          - cell "B-2-1" [ref=e563]
+          - cell "María López" [ref=e564]
+          - cell "OC-2024-0451" [ref=e565]
+          - cell
+            - button [ref=e670]
+        - row
+          - cell "13/07/2026 10:44" [ref=e566]
+          - cell "Relé Start Emerson 3ARR3(RELE-001)" [ref=e567]
+            - StaticText "Relé Start Emerson 3ARR3(RELE-001)"
+          - cell "SALIDA" [ref=e568]
+          - cell "2" [ref=e569]
+          - cell "B-3-1" [ref=e570]
+          - cell "Juan Pérez" [ref=e571]
+          - cell "Venta V-20260713-0001" [ref=e572]
+          - cell
+            - button [ref=e671]
+        - row
+          - cell "13/07/2026 10:44" [ref=e573]
+          - cell "Filtro Secador Emerson 00(FILT-001)" [ref=e574]
+            - StaticText "Filtro Secador Emerson 00(FILT-001)"
+          - cell "SALIDA" [ref=e575]
+          - cell "2" [ref=e576]
+          - cell "A-1-2" [ref=e577]
+          - cell "María López" [ref=e578]
+          - cell "Venta V-20260713-0001" [ref=e579]
+          - cell
+            - button [ref=e672]
+        - row
+          - cell "13/07/2026 10:44" [ref=e580]
+          - cell "Compresor Emerson 6103472(COMP-001)" [ref=e581]
+            - StaticText "Compresor Emerson 6103472(COMP-001)"
+          - cell "SALIDA" [ref=e582]
+          - cell "1" [ref=e583]
+          - cell "B-2-1" [ref=e584]
+          - cell "Juan Pérez" [ref=e585]
+          - cell "Venta V-20260713-0001" [ref=e586]
+          - cell
+            - button [ref=e673]
+    - contentinfo
+      - StaticText "WMS Pilot v1.0"
+      - StaticText "Martes, 11 De Agosto De 2026"
+      - StaticText "Claro"
+  - region "Notifications alt+T" [ref=e1]
+  - button "Open Next.js Dev Tools" [expanded=false, ref=e33]
+    - image
+  - alert

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useWmsStore } from '@/store/wms'
-import { formatCurrency, formatDate, tipoMovColors } from './lib/format'
+import { formatCurrency, formatDate, formatDateTime, tipoMovColors } from './lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   DollarSign,
@@ -24,6 +25,13 @@ import {
   Users,
   Download,
   BarChart3,
+  PackageOpen,
+  Inbox,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  RefreshCw,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react'
 import {
   BarChart,
@@ -95,6 +103,17 @@ const colorMap: Record<string, { border: string; iconBg: string; iconColor: stri
   },
 }
 
+/* Custom tooltip style for charts */
+const tooltipStyle: React.CSSProperties = {
+  borderRadius: '10px',
+  border: '1px solid var(--border)',
+  background: 'var(--popover)',
+  color: 'var(--popover-foreground)',
+  boxShadow: '0 4px 16px oklch(0 0 0 / 10%), 0 0 0 1px oklch(0.55 0.15 160 / 8%)',
+  padding: '10px 14px',
+  fontSize: '13px',
+}
+
 function KpiCard({
   label,
   value,
@@ -103,6 +122,7 @@ function KpiCard({
   subtitle,
   onClick,
   valueClassName,
+  pulse,
 }: {
   label: string
   value: React.ReactNode
@@ -111,6 +131,7 @@ function KpiCard({
   subtitle?: string
   onClick?: () => void
   valueClassName?: string
+  pulse?: boolean
 }) {
   const c = colorMap[color] || colorMap.primary
   return (
@@ -120,7 +141,8 @@ function KpiCard({
         'rounded-xl shadow-sm border-t-2 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-default hover:shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)] dark:hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]',
         c.border,
         c.gradient,
-        onClick && 'cursor-pointer'
+        onClick && 'cursor-pointer',
+        pulse && 'pulse-glow'
       )}
     >
       <CardContent className="p-5">
@@ -170,6 +192,12 @@ export function DashboardPage() {
     refetchInterval: 30000,
   })
 
+  const { data: activityFeed = [] } = useQuery({
+    queryKey: ['activity-feed'],
+    queryFn: () => fetch('/api/wms/dashboard/activity').then((r) => r.json()),
+    refetchInterval: 30000,
+  })
+
   const { data: dailySales = [] } = useQuery({
     queryKey: ['daily-sales', chartDays],
     queryFn: () =>
@@ -201,12 +229,12 @@ export function DashboardPage() {
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+            <Skeleton key={i} className="h-28 rounded-xl shimmer" />
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Skeleton className="h-72 rounded-xl" />
-          <Skeleton className="h-72 rounded-xl" />
+          <Skeleton className="h-72 rounded-xl shimmer" />
+          <Skeleton className="h-72 rounded-xl shimmer" />
         </div>
       </div>
     )
@@ -216,7 +244,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       {/* KPI Cards Section */}
       <div className="dot-pattern -mx-6 -mt-2 px-6 py-6 rounded-xl">
-        <h2 className="text-sm font-semibold text-foreground mb-3">Resumen del Almacén</h2>
+        <h2 className="text-sm font-semibold text-foreground mb-3 gradient-text inline-block">Resumen del Almacén</h2>
         <div className="h-0.5 w-12 bg-primary/30 rounded-full mt-1 -mb-2" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <KpiCard
@@ -228,6 +256,7 @@ export function DashboardPage() {
           />
           <KpiCard
             label="Bajo Mínimo"
+            pulse={(data?.productosBajoStock?.count ?? 0) > 0}
             value={
               <span className="inline-flex items-center gap-2">
                 <span className="relative flex h-2.5 w-2.5">
@@ -276,7 +305,7 @@ export function DashboardPage() {
 
       {/* Quick Actions Section */}
       <div>
-        <h2 className="text-sm font-semibold text-foreground mb-3">Acciones Rápidas</h2>
+        <h2 className="text-sm font-semibold text-foreground mb-3 gradient-text inline-block">Acciones Rápidas</h2>
         <div className="h-0.5 w-12 bg-primary/30 rounded-full mt-1 -mb-2" />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {quickActions.map((action) => {
@@ -310,9 +339,9 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Charts */}
+      {/* Charts — with thin left-border color accent */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="rounded-xl shadow-sm border bg-gradient-to-br from-emerald-50/30 to-transparent dark:from-emerald-950/10 dark:to-transparent">
+        <Card className="rounded-xl shadow-sm border-l-2 border-l-emerald-500 bg-gradient-to-br from-emerald-50/30 to-transparent dark:from-emerald-950/10 dark:to-transparent">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -320,39 +349,20 @@ export function DashboardPage() {
                 <p className="text-xs text-muted-foreground mt-0.5">Ingresos por día</p>
               </div>
               <div className="flex items-center gap-1">
-                <button
-                  className={cn(
-                    'text-xs px-2.5 py-1 rounded-md transition-colors',
-                    chartDays === 7
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted'
-                  )}
-                  onClick={() => setChartDays(7)}
-                >
-                  7 días
-                </button>
-                <button
-                  className={cn(
-                    'text-xs px-2.5 py-1 rounded-md transition-colors',
-                    chartDays === 30
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted'
-                  )}
-                  onClick={() => setChartDays(30)}
-                >
-                  30 días
-                </button>
-                <button
-                  className={cn(
-                    'text-xs px-2.5 py-1 rounded-md transition-colors',
-                    chartDays === 90
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted'
-                  )}
-                  onClick={() => setChartDays(90)}
-                >
-                  90 días
-                </button>
+                {([7, 30, 90] as const).map((d) => (
+                  <button
+                    key={d}
+                    className={cn(
+                      'text-xs px-2.5 py-1 rounded-md transition-all duration-150',
+                      chartDays === d
+                        ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+                        : 'text-muted-foreground hover:bg-muted'
+                    )}
+                    onClick={() => setChartDays(d)}
+                  >
+                    {d}d
+                  </button>
+                ))}
               </div>
             </div>
           </CardHeader>
@@ -367,22 +377,17 @@ export function DashboardPage() {
                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                   />
                   <Tooltip
-                    formatter={(value: number) => formatCurrency(value)}
-                    contentStyle={{
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--popover)',
-                      color: 'var(--popover-foreground)',
-                    }}
+                    formatter={(value: number) => [formatCurrency(value), 'Ventas']}
+                    contentStyle={tooltipStyle}
                   />
-                  <Bar dataKey="ventas" fill="oklch(0.55 0.15 145)" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="ventas" fill="oklch(0.55 0.15 160)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm border bg-gradient-to-br from-amber-50/30 to-transparent dark:from-amber-950/10 dark:to-transparent">
+        <Card className="rounded-xl shadow-sm border-l-2 border-l-amber-500 bg-gradient-to-br from-amber-50/30 to-transparent dark:from-amber-950/10 dark:to-transparent">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -404,14 +409,10 @@ export function DashboardPage() {
                     width={120}
                   />
                   <Tooltip
-                    contentStyle={{
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--popover)',
-                      color: 'var(--popover-foreground)',
-                    }}
+                    formatter={(value: number) => [value, 'Cantidad']}
+                    contentStyle={tooltipStyle}
                   />
-                  <Bar dataKey="cantidad" fill="oklch(0.65 0.12 35)" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="cantidad" fill="oklch(0.78 0.14 75)" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -422,7 +423,7 @@ export function DashboardPage() {
       {/* Bottom tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent movements */}
-        <Card className="rounded-xl shadow-sm border">
+        <Card className="rounded-xl shadow-sm border-l-2 border-l-primary">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -467,8 +468,10 @@ export function DashboardPage() {
                 ))}
                 {recentMovements.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground text-sm py-6">
-                      Sin movimientos registrados
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
+                      <Inbox className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+                      <p className="text-sm font-medium">Sin movimientos registrados</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">Los movimientos aparecerán aquí cuando se registren</p>
                     </TableCell>
                   </TableRow>
                 )}
@@ -479,7 +482,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Low stock alerts */}
-        <Card className="rounded-xl shadow-sm border">
+        <Card className="rounded-xl shadow-sm border-l-2 border-l-red-500">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -529,8 +532,10 @@ export function DashboardPage() {
                 })}
                 {(!data?.productosBajoStock?.items || data.productosBajoStock.items.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground text-sm py-6">
-                      Sin alertas de stock
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
+                      <PackageOpen className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+                      <p className="text-sm font-medium">Sin alertas de stock</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">Todos los productos están por encima del mínimo</p>
                     </TableCell>
                   </TableRow>
                 )}
@@ -540,6 +545,102 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Activity Feed */}
+      <Card className="rounded-xl shadow-sm border">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                Actividad Reciente
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Feed en tiempo real · Actualiza cada 30s</p>
+            </div>
+            <Badge
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() => setCurrentPage('movements')}
+            >
+              Ver todo
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4">
+          <ScrollArea className="max-h-80">
+            {activityFeed.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <Inbox className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Sin actividad registrada</p>
+              </div>
+            ) : (
+              <div className="relative space-y-0">
+                {activityFeed.map((activity: any, idx: number) => {
+                  const tipo = activity.tipoMovimiento?.nombre ?? 'N/A'
+
+                  const iconMap: Record<string, { icon: React.ReactNode; color: string }> = {
+                    ENTRADA: { icon: <ArrowDownCircle className="h-4 w-4" />, color: 'text-emerald-500' },
+                    SALIDA: { icon: <ArrowUpCircle className="h-4 w-4" />, color: 'text-red-500' },
+                    AJUSTE: { icon: <SlidersHorizontal className="h-4 w-4" />, color: 'text-amber-500' },
+                    TRASLADO: { icon: <RefreshCw className="h-4 w-4" />, color: 'text-gray-500' },
+                    DEVOLUCION: { icon: <RotateCcw className="h-4 w-4" />, color: 'text-purple-500' },
+                  }
+                  const iconInfo = iconMap[tipo] ?? { icon: <ArrowLeftRight className="h-4 w-4" />, color: 'text-gray-500' }
+
+                  const isPositive = tipo === 'ENTRADA' || tipo === 'DEVOLUCION'
+                  const qtyLabel = isPositive
+                    ? `+${activity.cantidad}`
+                    : `-${activity.cantidad}`
+                  const qtyColor = isPositive
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-red-600 dark:text-red-400'
+
+                  const timeLabel = formatDateTime(activity.fecha)
+
+                  return (
+                    <div key={activity.id} className="flex items-start gap-3 py-2.5 group">
+                      {/* Timeline line and dot */}
+                      <div className="flex flex-col items-center">
+                        <div className={cn('h-8 w-8 rounded-full flex items-center justify-center bg-muted/50 group-hover:bg-muted transition-colors shrink-0', iconInfo.color)}>
+                          {iconInfo.icon}
+                        </div>
+                        {idx < activityFeed.length - 1 && (
+                          <div className="w-px h-full min-h-[12px] bg-border mt-1" />
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 pb-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium truncate">
+                            {activity.producto?.nombre?.substring(0, 30)}
+                          </p>
+                          <span className={cn('text-xs font-mono font-semibold shrink-0', qtyColor)}>
+                            {tipo.substring(0, 4)} {qtyLabel}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={cn('inline-block px-1.5 py-0 rounded text-[10px] font-semibold', tipoMovColors[tipo] ?? 'bg-gray-100 text-gray-800')}>
+                            {tipo}
+                          </span>
+                          {activity.ubicacion && (
+                            <span className="text-[10px] text-muted-foreground">
+                              {activity.ubicacion.pasillo}-{activity.ubicacion.estante}-{activity.ubicacion.nivel}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-muted-foreground ml-auto">
+                            {timeLabel}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   )
 }

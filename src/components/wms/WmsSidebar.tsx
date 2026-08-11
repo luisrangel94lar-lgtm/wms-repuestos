@@ -17,12 +17,10 @@ import {
   AlertTriangle,
   ClipboardCheck,
   Settings,
-  ChevronLeft,
   Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { formatCurrency } from './lib/format'
 import {
@@ -63,6 +61,7 @@ interface NavItemConfig {
 
 interface NavSection {
   title?: string
+  titleColor?: string
   items: NavItemConfig[]
 }
 
@@ -72,6 +71,7 @@ const navSections: NavSection[] = [
   },
   {
     title: 'CATÁLOGO',
+    titleColor: 'bg-emerald-500',
     items: [
       { id: 'products', label: 'Productos', icon: <Package className="h-4 w-4" /> },
       { id: 'equipment', label: 'Equipos', icon: <Cpu className="h-4 w-4" /> },
@@ -79,6 +79,7 @@ const navSections: NavSection[] = [
   },
   {
     title: 'OPERACIONES',
+    titleColor: 'bg-amber-500',
     items: [
       { id: 'receiving', label: 'Recepción', icon: <Download className="h-4 w-4" /> },
       { id: 'sales', label: 'Ventas', icon: <ShoppingCart className="h-4 w-4" /> },
@@ -101,6 +102,7 @@ const navSections: NavSection[] = [
   },
   {
     title: 'SISTEMA',
+    titleColor: 'bg-slate-400 dark:bg-slate-500',
     items: [{ id: 'settings', label: 'Configuración', icon: <Settings className="h-4 w-4" /> }],
   },
 ]
@@ -149,14 +151,14 @@ function SidebarFooter() {
   return (
     <div className="shrink-0">
       {lastSale && (
-        <div className="mx-3 mb-2 bg-muted/50 rounded-lg p-2.5 mt-2">
-          <p className="text-[10px] text-muted-foreground mb-1">Última Venta</p>
-          <p className="text-xs font-medium truncate">{lastSale.folio} — {lastSale.cliente?.nombre}</p>
-          <p className="text-[10px] text-muted-foreground">{formatCurrency(lastSale.total)}</p>
+        <div className="mx-3 mb-2 rounded-lg p-2.5 mt-2 bg-primary/5 border border-primary/10">
+          <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wider">Última Venta</p>
+          <p className="text-xs font-semibold truncate text-foreground">{lastSale.folio} — {lastSale.cliente?.nombre}</p>
+          <p className="text-[10px] text-primary font-semibold mt-0.5">{formatCurrency(lastSale.total)}</p>
         </div>
       )}
-      <div className="border-t px-4 py-3 flex items-center gap-2 text-xs text-muted-foreground">
-        <Clock className="h-3.5 w-3.5" />
+      <div className="border-t border-sidebar-border px-4 py-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <Clock className="h-3.5 w-3.5 text-primary/60" />
         <span>{time}</span>
       </div>
     </div>
@@ -198,25 +200,34 @@ export function WmsSidebar() {
   function renderNav() {
     return (
       <div className="flex flex-col h-full">
-        {/* Header with gradient accent */}
-        <div className="px-4 py-4 border-b bg-gradient-to-br from-primary/5 via-transparent to-primary/[0.02]">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">📦</span>
-            <span className="font-bold text-lg [text-shadow:0_1px_2px_rgba(0,0,0,0.1)]">{warehouseName}</span>
+        {/* Header with brand icon effect */}
+        <div className="px-4 py-4 border-b border-sidebar-border relative overflow-hidden">
+          {/* Subtle gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-primary/3 to-transparent" />
+          <div className="relative flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shadow-sm shadow-primary/25">
+              <span className="text-lg">📦</span>
+            </div>
+            <div className="min-w-0">
+              <span className="font-bold text-lg tracking-tight block truncate">{warehouseName}</span>
+              <p className="text-[10px] text-muted-foreground tracking-wide truncate">{warehouseSubtitle}</p>
+            </div>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-0.5 tracking-wide truncate">{warehouseSubtitle}</p>
         </div>
 
         <ScrollArea className="flex-1 px-3 py-2">
           {navSections.map((section, si) => (
-            <div key={si} className={cn('mb-2', section.title === 'SISTEMA' && 'mt-2 pt-2 border-t')}>
+            <div key={si} className={cn('mb-1', section.title === 'SISTEMA' && 'mt-2 pt-2 border-t border-sidebar-border')}>
               {section.title && (
-                <p className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-                  {section.title}
-                </p>
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', section.titleColor || 'bg-primary')} />
+                  <p className="text-[10px] font-bold text-muted-foreground/70 tracking-[0.12em]">
+                    {section.title}
+                  </p>
+                </div>
               )}
               {(section.title === 'CATÁLOGO' || section.title === 'OPERACIONES') && (
-                <div className="my-1 h-px bg-border/50" />
+                <div className="my-1 h-px bg-sidebar-border/60" />
               )}
               {section.items.map((item) => {
                 const isActive = currentPage === item.id
@@ -225,18 +236,26 @@ export function WmsSidebar() {
                     key={item.id}
                     onClick={() => handleNav(item.id)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-200 mb-0.5 hover:scale-[1.02]',
+                      'w-full flex items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-200 mb-0.5 relative group',
                       isActive
-                        ? 'bg-primary/10 text-primary border-l-[3px] border-l-primary dark:bg-primary/15 rounded-r-lg'
-                        : 'hover:bg-accent text-foreground border-l-[3px] border-l-transparent rounded-lg'
+                        ? 'text-primary'
+                        : 'hover:text-foreground text-muted-foreground hover:bg-sidebar-accent/60'
                     )}
                   >
-                    {item.icon}
-                    <span>{item.label}</span>
+                    {/* Active indicator: left accent bar */}
+                    {isActive && (
+                      <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-primary shadow-sm shadow-primary/40" />
+                    )}
+                    {/* Subtle background on active */}
+                    {isActive && (
+                      <span className="absolute inset-0 bg-primary/8 rounded-r-lg" />
+                    )}
+                    <span className="relative z-10">{item.icon}</span>
+                    <span className="relative z-10">{item.label}</span>
                     {item.id === 'alerts' && alertCount > 0 && (
                       <Badge
                         variant="destructive"
-                        className="ml-auto h-5 min-w-[20px] flex items-center justify-center text-[10px] px-1"
+                        className="relative z-10 ml-auto h-5 min-w-[20px] flex items-center justify-center text-[10px] px-1"
                       >
                         {alertCount}
                       </Badge>
@@ -267,9 +286,13 @@ export function WmsSidebar() {
         </Sheet>
       )}
 
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 border-r bg-sidebar text-sidebar-foreground h-screen sticky top-0 shrink-0">
-        {renderNav()}
+      {/* Desktop sidebar — gradient background */}
+      <aside className="hidden lg:flex flex-col w-64 border-r border-sidebar-border bg-sidebar text-sidebar-foreground h-screen sticky top-0 shrink-0 relative overflow-hidden">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.03] via-transparent to-primary/[0.02] pointer-events-none" />
+        <div className="relative flex flex-col h-full">
+          {renderNav()}
+        </div>
       </aside>
     </>
   )

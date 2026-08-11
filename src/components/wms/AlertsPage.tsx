@@ -131,7 +131,7 @@ export function AlertsPage() {
                           size="sm"
                           variant="outline"
                           className="h-8 text-xs gap-1"
-                          onClick={() => { setCurrentPage('receiving'); setReceivingProductId(a.id) }}
+                          onClick={() => { setCurrentPage('receiving'); setReceivingProductId(a.id, a.deficiencia) }}
                         >
                           <Zap className="h-3 w-3" /> Pedido rápido
                         </Button>

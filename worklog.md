@@ -848,3 +848,94 @@ Stage Summary:
 7. Email notifications for low stock alerts
 8. Server-side pagination for Sales, Clients, Movements, Equipment pages
 9. i18n system (language setting is saved but not applied)
+
+---
+Task ID: 6
+Agent: Main Architect (Round 6 — QA + Fixes + Styling + Features)
+Task: Comprehensive QA testing, bug fixes, styling overhaul, and new feature development
+
+Work Log:
+- Performed full QA via agent-browser on all 13 pages (100% pass rate, 5 bugs found)
+- Fixed Bug #3 (High): Clients API `/api/wms/clientes/route.ts` — added `_count: { select: { ventas: true } }` include; updated ClientsPage to use `(c as any)._count?.ventas` instead of `c.ventas?.length`
+- Fixed Bug #2 (High): EquipmentPage repuestos count — changed `(eq as any).repuestosCount` to `(eq as any)._count?.productoEquipo` to match API response
+- Fixed Bug #1 (Medium): Products bajoStock filter — refactored `/api/wms/productos/route.ts` to apply bajoStock filter BEFORE pagination instead of after, so total count reflects filtered results
+- Fixed Bug #4 (Medium): Alerts "Pedido rápido" — extended Zustand store with `receivingSuggestedQty` state; AlertsPage now passes deficiency amount; ReceivingPage useEffect pre-fills both product and quantity
+- Complete color theme overhaul: primary changed from black/gray to emerald/teal (`oklch(0.55 0.15 160)` light, `oklch(0.70 0.15 160)` dark); amber accent for highlights
+- Sidebar enhancements: gradient background, colored section dots (emerald/amber/slate), improved active indicator with rounded accent bar, better hover transitions
+- Header enhancements: 2px gradient top accent bar (emerald→teal), rounded search bar with focus glow effect, improved breadcrumb separators
+- Dashboard enhancements: pulse-glow on low-stock KPI, chart section border accents, gradient-text headings, improved empty states, shimmer skeleton loading
+- CSS utilities added: `.glass-card` (glassmorphism), `.gradient-text`, `.shimmer` animation, `.pulse-glow` animation
+- Table polish: alternating row colors, sticky header shadow, rounded scrollbar pills
+- Footer: gradient top border
+- Card hover: inner glow border effect
+
+### New Features (5 features)
+
+1. **Sales Receipt Print** — `src/components/wms/lib/print-receipt.ts`
+   - `generateReceiptHtml()` generates 80mm thermal receipt with warehouse branding, folio, client, line items, totals
+   - `printReceipt()` opens print-friendly window
+   - Reads warehouse settings from localStorage
+   - Integrated into SalesPage detail dialog
+
+2. **Barcode/Quick Search** — `src/components/wms/BarcodeScanner.tsx` + `/api/wms/productos/barcode/route.ts`
+   - GET endpoint accepts `?barcode=xxx`, returns product with stock-by-location
+   - Dialog component with monospace input, product card, stock bars, location table
+   - "Ver Producto" and "Ir a Recepción" quick actions
+   - "Código de Barras" button added to ProductsPage header
+
+3. **Notification Center** — `/api/wms/notificaciones/route.ts` + WmsHeader integration
+   - GET endpoint returns up to 20 notifications (low stock alerts, recent sales, recent receiving)
+   - Bell icon in header between search and theme toggle
+   - Badge count (caps at 9+), dropdown panel with scrollable list
+   - Click-to-navigate, localStorage-based "seen" tracking
+   - "Marcar como leídas" button to clear unread count
+
+4. **Dashboard Activity Feed** — `/api/wms/dashboard/activity/route.ts` + DashboardPage
+   - GET endpoint returns last 20 movements with product/quantity/type info
+   - Timeline-style layout with colored circular type icons
+   - Vertical connecting lines, signed quantity display (+/-)
+   - Auto-refreshes every 30 seconds
+   - "Ver todo" link to Movements page
+
+5. **Inventory Product Sheet** — InventoryPage enhancement
+   - Clicking any inventory row opens a Sheet (slide-over from right)
+   - Product info section, visual stock-by-location progress bars
+   - Recent movements (last 5) with type badges
+   - Quick actions: Adjust stock, Transfer, Go to Receiving
+
+### Code Quality
+- **0 ESLint errors**, 7 cosmetic warnings (pre-existing: react-hook-form watch() incompatibility + ternary-as-statement in callbacks)
+- All new API routes use proper error handling with try/catch
+- All new components follow existing patterns (Zustand navigation, TanStack Query, toast from sonner)
+
+### Files Changed This Round
+**Modified:**
+- `src/app/globals.css` — Theme overhaul, new CSS utilities, table polish
+- `src/app/page.tsx` — Footer gradient border
+- `src/store/wms.ts` — Added `receivingSuggestedQty` state
+- `src/components/wms/WmsSidebar.tsx` — Visual enhancements
+- `src/components/wms/WmsHeader.tsx` — Notification bell, search glow, gradient bar
+- `src/components/wms/DashboardPage.tsx` — Activity feed, pulse-glow, chart accents
+- `src/components/wms/AlertsPage.tsx` — Pass deficiency to receiving
+- `src/components/wms/ClientsPage.tsx` — Use _count for purchase count
+- `src/components/wms/EquipmentPage.tsx` — Fix repuestos count property
+- `src/components/wms/ReceivingPage.tsx` — Pre-fill product + quantity
+- `src/components/wms/ProductsPage.tsx` — Barcode scanner button
+- `src/components/wms/InventoryPage.tsx` — Product detail Sheet
+- `src/components/wms/SalesPage.tsx` — Print receipt integration
+- `src/app/api/wms/clientes/route.ts` — Include ventas count
+- `src/app/api/wms/productos/route.ts` — Fix bajoStock pagination
+
+**Created:**
+- `src/components/wms/BarcodeScanner.tsx` — Barcode lookup dialog
+- `src/components/wms/lib/print-receipt.ts` — Receipt print utility
+- `src/app/api/wms/productos/barcode/route.ts` — Barcode lookup API
+- `src/app/api/wms/notificaciones/route.ts` — Notifications API
+- `src/app/api/wms/dashboard/activity/route.ts` — Activity feed API
+
+Stage Summary:
+- All 5 bugs from QA fixed
+- Color theme upgraded to professional emerald/teal
+- 5 new features added (print receipt, barcode scanner, notifications, activity feed, inventory sheet)
+- 5 new files created, 14 files modified
+- 0 errors, stable dev server

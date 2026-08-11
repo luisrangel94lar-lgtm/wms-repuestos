@@ -46,8 +46,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode } from 'lucide-react'
 import { formatCurrency } from './lib/format'
+import { BarcodeScanner } from './BarcodeScanner'
 import {
   AreaChart,
   Area,
@@ -116,6 +117,7 @@ export function ProductsPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [viewId, setViewId] = useState<number | null>(null)
   const [timelineId, setTimelineId] = useState<number | null>(null)
+  const [showBarcode, setShowBarcode] = useState(false)
 
   const { data, isLoading } = useQuery<CategoriasResponse>({
     queryKey: ['products', page, search, idCategoria, idMarca, bajoStock],
@@ -336,10 +338,16 @@ export function ProductsPage() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => { form.reset(); setShowCreate(true) }}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo Producto
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => { form.reset(); setShowCreate(true) }}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nuevo Producto
+          </Button>
+          <Button variant="outline" onClick={() => setShowBarcode(true)}>
+            <Barcode className="h-4 w-4 mr-1" />
+            Código de Barras
+          </Button>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -695,6 +703,8 @@ export function ProductsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <BarcodeScanner open={showBarcode} onOpenChange={setShowBarcode} />
     </div>
   )
 }

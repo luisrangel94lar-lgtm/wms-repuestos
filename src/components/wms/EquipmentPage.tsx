@@ -180,7 +180,7 @@ export function EquipmentPage() {
                       <TableCell className="text-xs py-2 hidden md:table-cell">{eq.tipoEquipo ?? '-'}</TableCell>
                       <TableCell className="text-xs text-center py-2">
                         <Badge variant="outline" className="text-[10px]">
-                          {(eq as any).repuestosCount ?? 0}
+                          {(eq as any)._count?.productoEquipo ?? 0}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-right py-2" onClick={(e) => e.stopPropagation()}>

@@ -6,11 +6,12 @@ interface WmsState {
   sidebarOpen: boolean;
   searchQuery: string;
   receivingProductId: number | null;
+  receivingSuggestedQty: number | null;
   setCurrentPage: (page: WmsPage) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
-  setReceivingProductId: (id: number | null) => void;
+  setReceivingProductId: (id: number | null, qty?: number | null) => void;
 }
 
 export const useWmsStore = create<WmsState>((set) => ({
@@ -18,9 +19,10 @@ export const useWmsStore = create<WmsState>((set) => ({
   sidebarOpen: true,
   searchQuery: '',
   receivingProductId: null,
+  receivingSuggestedQty: null,
   setCurrentPage: (page) => set({ currentPage: page }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSearchQuery: (query) => set({ searchQuery: query }),
-  setReceivingProductId: (id) => set({ receivingProductId: id }),
+  setReceivingProductId: (id, qty) => set({ receivingProductId: id, receivingSuggestedQty: qty ?? null }),
 }));
