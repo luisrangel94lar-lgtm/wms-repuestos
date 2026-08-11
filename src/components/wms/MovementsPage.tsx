@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -41,6 +43,8 @@ export function MovementsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [applied, setApplied] = useState(false)
+  const [kardexProduct, setKardexProduct] = useState<{id: number; nombre: string; sku: string} | null>(null)
+  const [showKardex, setShowKardex] = useState(false)
 
   const { data: tiposMov = [] } = useQuery({
     queryKey: ['tipos-mov-movements'],
@@ -64,6 +68,12 @@ export function MovementsPage() {
         m.producto?.sku?.toLowerCase().includes(search.toLowerCase())
       )
     : movimientos
+
+  const { data: kardexData = [], isLoading: kardexLoading } = useQuery({
+    queryKey: ['kardex', kardexProduct?.id],
+    queryFn: () => fetch(`/api/wms/reportes/kardex/${kardexProduct?.id}`).then(r => r.json()),
+    enabled: showKardex && !!kardexProduct?.id,
+  })
 
   function applyFilters() {
     setSearch(searchInput)
@@ -135,6 +145,10 @@ export function MovementsPage() {
         </CardContent>
       </Card>
 
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Historial completo de movimientos de almacén (kardex)</p>
+      </div>
+
       <p className="text-sm text-muted-foreground">
         <ArrowLeftRight className="h-4 w-4 inline mr-1" />
         {filtered.length} movimientos encontrados
@@ -196,7 +210,7 @@ export function MovementsPage() {
                           size="icon"
                           variant="ghost"
                           className="h-7 w-7"
-                          onClick={() => toast.info(`Kardex de ${m.producto?.nombre ?? 'producto'} — función pendiente`)}
+                          onClick={(e) => { e.stopPropagation(); setKardexProduct({ id: m.idProducto, nombre: m.producto?.nombre, sku: m.producto?.sku }); setShowKardex(true) }}
                         >
                           <BookOpen className="h-3.5 w-3.5" />
                         </Button>
@@ -209,6 +223,54 @@ export function MovementsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Kardex Dialog */}
+      <Dialog open={showKardex} onOpenChange={setShowKardex}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Kardex - {kardexProduct?.nombre}</DialogTitle>
+            <DialogDescription className="sr-only">Historial de movimientos del producto</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">SKU: {kardexProduct?.sku} | Historial completo de movimientos</p>
+            <div className="max-h-96 overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Fecha</TableHead>
+                    <TableHead className="text-xs">Tipo</TableHead>
+                    <TableHead className="text-xs text-center">Entrada</TableHead>
+                    <TableHead className="text-xs text-center">Salida</TableHead>
+                    <TableHead className="text-xs text-center">Saldo</TableHead>
+                    <TableHead className="text-xs">Referencia</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {kardexLoading && <TableRow><TableCell colSpan={7}><Skeleton className="h-8" /></TableCell></TableRow>}
+                  {(kardexData as any)?.kardex?.map((entry: any, idx: number) => (
+                    <TableRow key={idx} className="hover:bg-muted/50">
+                      <TableCell className="text-xs py-2">{formatDateTime(entry.fecha)}</TableCell>
+                      <TableCell className="text-xs py-2">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${tipoMovColors[entry.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800'}`}>
+                          {entry.tipoMovimiento?.nombre}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs py-2 text-center text-emerald-600 font-mono">
+                        {entry.tipoMovimiento?.nombre === 'ENTRADA' ? `+${entry.cantidad}` : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs py-2 text-center text-red-600 font-mono">
+                        {entry.tipoMovimiento?.nombre === 'SALIDA' ? `-${entry.cantidad}` : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs py-2 text-center font-bold">{entry.saldo}</TableCell>
+                      <TableCell className="text-xs py-2 text-muted-foreground">{entry.referencia ?? '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

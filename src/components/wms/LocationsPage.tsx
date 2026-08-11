@@ -115,6 +115,10 @@ export function LocationsPage() {
         </Button>
       </div>
 
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Mapa visual del almacén con stock por ubicación</p>
+      </div>
+
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
           {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
@@ -207,7 +211,7 @@ export function LocationsPage() {
                     <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-4">Sin stock en esta ubicación</TableCell></TableRow>
                   )}
                   {locationStock.map((s) => (
-                    <TableRow key={s.idProducto}>
+                    <TableRow key={s.idProducto} className="hover:bg-muted/50">
                       <TableCell className="text-xs font-mono py-2">{s.producto.sku}</TableCell>
                       <TableCell className="text-xs py-2">{s.producto.nombre}</TableCell>
                       <TableCell className="text-xs text-right font-mono py-2">{s.cantidad}</TableCell>

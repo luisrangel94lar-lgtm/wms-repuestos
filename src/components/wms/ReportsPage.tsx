@@ -116,6 +116,10 @@ export function ReportsPage() {
         </CardContent>
       </Card>
 
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Reportes operativos y estadísticas de rendimiento</p>
+      </div>
+
       <Tabs defaultValue="inventario-valorizado">
         <TabsList className="flex flex-wrap h-auto gap-1 bg-muted p-1 rounded-lg">
           <TabsTrigger value="inventario-valorizado" className="text-xs">Inventario Valorizado</TabsTrigger>
@@ -151,7 +155,7 @@ export function ReportsPage() {
                   <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs text-center">Stock</TableHead><TableHead className="text-xs text-right">Valor</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {inventoryTable.slice(0, 20).map((p: any) => (
-                      <TableRow key={p.id}><TableCell className="text-xs py-1.5 max-w-[180px] truncate">{p.nombre}</TableCell><TableCell className="text-xs text-center font-mono py-1.5">{p.totalStock}</TableCell><TableCell className="text-xs text-right py-1.5">{formatCurrency(p.valorTotal)}</TableCell></TableRow>
+                      <TableRow key={p.id} className="hover:bg-muted/50"><TableCell className="text-xs py-1.5 max-w-[180px] truncate">{p.nombre}</TableCell><TableCell className="text-xs text-center font-mono py-1.5">{p.totalStock}</TableCell><TableCell className="text-xs text-right py-1.5">{formatCurrency(p.valorTotal)}</TableCell></TableRow>
                     ))}
                   </TableBody>
                 </Table>
@@ -213,7 +217,7 @@ export function ReportsPage() {
                   <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs text-center">Cantidad</TableHead><TableHead className="text-xs text-right">Valor Total</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {topSellers.map((t: any, i: number) => (
-                      <TableRow key={i}><TableCell className="text-xs py-1.5">{t.producto?.nombre}</TableCell><TableCell className="text-xs text-center font-mono py-1.5">{t.cantidadVendida}</TableCell><TableCell className="text-xs text-right py-1.5">{formatCurrency(t.valorTotal)}</TableCell></TableRow>
+                      <TableRow key={i} className="hover:bg-muted/50"><TableCell className="text-xs py-1.5">{t.producto?.nombre}</TableCell><TableCell className="text-xs text-center font-mono py-1.5">{t.cantidadVendida}</TableCell><TableCell className="text-xs text-right py-1.5">{formatCurrency(t.valorTotal)}</TableCell></TableRow>
                     ))}
                     {topSellers.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Sin datos</TableCell></TableRow>}
                   </TableBody>

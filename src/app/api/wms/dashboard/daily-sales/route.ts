@@ -1,0 +1,44 @@
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+
+export async function GET() {
+  try {
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    sevenDaysAgo.setHours(0, 0, 0, 0)
+
+    const sales = await db.venta.findMany({
+      where: { fecha: { gte: sevenDaysAgo } },
+      include: { detalles: { include: { producto: { select: { id: true, nombre: true, precioVenta: true } } } } },
+      orderBy: { fecha: 'asc' },
+    })
+
+    // Group by day
+    const dayMap = new Map<string, { date: string; total: number; count: number }>()
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const key = d.toISOString().split('T')[0]
+      dayMap.set(key, { date: key, total: 0, count: 0 })
+    }
+
+    for (const sale of sales) {
+      const day = sale.fecha.toISOString().split('T')[0]
+      const entry = dayMap.get(day)
+      if (entry) {
+        entry.total += sale.total ?? 0
+        entry.count += 1
+      }
+    }
+
+    const daily = Array.from(dayMap.values()).map(d => ({
+      name: new Date(d.date + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' }),
+      ventas: Math.round(d.total),
+      count: d.count,
+    }))
+
+    return NextResponse.json(daily)
+  } catch (error) {
+    return NextResponse.json({ error: 'Error' }, { status: 500 })
+  }
+}

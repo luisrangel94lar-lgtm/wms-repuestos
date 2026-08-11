@@ -264,14 +264,86 @@ Stage Summary:
 - No authentication (acceptable for pilot)
 - No multi-warehouse support (Phase 2)
 - No ERP integration (Phase 2)
-- Dashboard charts use summary data (today/week/month) rather than daily granularity
-- "Ver Kardex" button on MovementsPage is a placeholder (shows toast)
-- "Pedido rápido" button on AlertsPage is a placeholder (shows toast)
+- Dashboard sales chart could show 30 days instead of 7
+- Barcode scanning not yet implemented
 
 ### Priority Recommendations for Next Phase
-1. Add kardex product detail view (full movement history with running balance)
-2. Enhance dashboard charts with daily granularity (last 7/30 days bar chart)
-3. Add barcode scanning support (using camera API)
-4. Implement physical inventory counting feature with variance report
-5. Add export to CSV/PDF for reports
-6. Implement user authentication (basic username/password for pilot)
+1. Add barcode scanning support (using camera API)
+2. Implement physical inventory counting feature with variance report
+3. Export to CSV/PDF for all reports
+4. Implement user authentication (basic username/password for pilot)
+5. Multi-warehouse support
+6. Integration with ERP/contabilidad
+7. Picking list generation with optimized routes
+
+---
+Task ID: review-round-2
+Agent: WebDev Review (cron)
+Task: QA testing, bug fixes, styling improvements, and new features
+
+Work Log:
+- QA tested via agent-browser: all 11 pages rendering, 0 console errors, 0 console warnings
+- Reduced Prisma query logging (was `['query']`, now `['warn', 'error']`) to prevent server instability
+- Fixed dashboard KPI card grid layout (4 cols → 3 cols for balanced 6-card 3×2 grid)
+- Created daily sales API endpoint with per-day data for last 7 days
+- Enhanced dashboard charts with warm color fills (teal and amber tones) and rounded corners
+- Added consistent hover:bg-muted/50 to all table rows across 10 pages
+- Added page descriptions to all 11 pages for better context
+- Implemented functional Kardex dialog in MovementsPage with running balance
+- Added Print Receipt button to Sales detail dialog (opens monospace receipt in new window)
+- Implemented "Pedido rápido" as functional quick-receive navigation (pre-selects product in Receiving form)
+- Added inventory stats bar (3 cards) above the inventory table
+- Extended Zustand store with receivingProductId for cross-page context
+
+Stage Summary:
+- 0 ESLint errors, 6 cosmetic warnings (unchanged React Hook Form watch compatibility)
+- All previously placeholder features now fully functional
+- 12 files modified, 1 new API endpoint created
+- Reduced Prisma logging improved server stability in sandbox environment
+
+---
+## Current Project Status (Updated - Round 2)
+
+### What's Working
+- **Database**: Complete normalized schema with 10 models, all indexes, seeded with realistic data
+- **API**: 25 endpoints for CRUD, movements, sales, reports, search, equipment compatibility, daily sales
+- **Frontend**: 11-page SPA with enhanced dashboard, catalog, operations, reports
+- **Dashboard**: 6 KPI cards in balanced 3×2 grid with colored borders + trend indicators, Quick Actions section (4 cards), daily sales bar chart (7 days), top sellers chart, recent movements table, low stock alerts table
+- **Sidebar**: Gradient header, active indicators, live clock, last sale display
+- **Header**: Global search with Ctrl+K shortcut, clear button
+- **Catalog**: Full product/equipment CRUD with brand Select dropdowns, compatibility management with clickable navigation
+- **Operations**: Receiving with recent entries table and product pre-selection from alerts, sales with summary badges + print receipt
+- **Reports**: 6 report types with charts, date filters, and page descriptions
+- **Alerts**: Enhanced cards with progress bars, quick-receive navigation to Receiving page
+- **Inventory**: Stats bar (3 summary cards), enhanced status badges with icons, alternating rows
+- **Movements**: Color-coded rows and badges, quick date filters, functional Kardex dialog with running balance
+- **Locations**: Visual warehouse grid with stock bars and color coding
+- **Styling**: Custom scrollbars, consistent table hover states, page descriptions on all pages
+
+### Code Quality
+- **0 ESLint errors**, 6 cosmetic warnings (React Hook Form watch() memoization)
+- All React console warnings/errors resolved
+- Proper accessibility with DialogDescription on all dialogs
+- Hydration-safe rendering
+- Reduced Prisma logging for better server stability
+
+### Architecture Decisions
+- **Single-page app**: All views in one route with Zustand-based navigation + cross-page context
+- **SQLite + Prisma**: Perfect for pilot-scale (low-medium volume)
+- **Desnormalized stock table + movement history**: Dual approach for fast reads + audit trail
+- **Recharts**: Native React charts without heavy dependencies
+- **TanStack Query**: Server state management with 15s stale time
+- **Print receipt**: Opens new window with monospace layout and auto-triggers window.print()
+
+### KPIs Available
+- Stock total valorizado, Products under minimum stock, Sales (day/week/month)
+- Movement count, Dead stock analysis, Top sellers, Client sales ranking
+- Equipment demand analysis, Inventory rotation
+- Daily sales trends (7-day view)
+
+### Known Issues / Future Work
+- No authentication (acceptable for pilot)
+- No multi-warehouse support (Phase 2)
+- No ERP integration (Phase 2)
+- Dashboard sales chart could show 30 days instead of 7
+- Barcode scanning not yet implemented

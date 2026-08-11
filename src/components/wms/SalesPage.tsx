@@ -18,8 +18,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Trash2, ShoppingCart, Eye } from 'lucide-react'
-import { formatCurrency, formatDate } from './lib/format'
+import { Plus, Trash2, ShoppingCart, Eye, Printer } from 'lucide-react'
+import { formatCurrency, formatDate, formatDateTime } from './lib/format'
 
 interface SaleLine {
   idProducto: number
@@ -125,6 +125,10 @@ export function SalesPage() {
           <Badge variant="outline" className="text-xs">Semana: {formatCurrency(salesSummary?.semana?.total ?? 0)}</Badge>
           <Badge variant="outline" className="text-xs">Mes: {formatCurrency(salesSummary?.mes?.total ?? 0)}</Badge>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Registro de ventas a técnicos con tracking de stock</p>
       </div>
 
       {/* Sales table */}
@@ -268,6 +272,35 @@ export function SalesPage() {
               <div className="flex justify-between text-sm font-semibold pt-2 border-t">
                 <span>Total:</span>
                 <span>{formatCurrency(viewVenta.total ?? 0)}</span>
+              </div>
+              <div className="flex justify-end pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const win = window.open('', '_blank', 'width=400,height=600')
+                    if (win && viewVenta) {
+                      win.document.write(`
+                        <html><head><title>Venta ${viewVenta.folio}</title>
+                        <style>body{font-family:monospace;padding:20px;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:4px 8px;text-align:left}th{background:#f5f5f5}.total{font-weight:bold;font-size:14px;text-align:right;padding-top:12px}</style>
+                        </head><body>
+                        <h2>Venta ${viewVenta.folio}</h2>
+                        <p>Fecha: ${formatDateTime(viewVenta.fecha)}</p>
+                        <p>Cliente: ${viewVenta.cliente?.nombre}</p>
+                        <table><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr>
+                        ${(viewVenta.detalles ?? []).map((d: any) => `<tr><td>${d.producto?.nombre}</td><td>${d.cantidad}</td><td>$${d.precioUnitario.toFixed(2)}</td><td>$${(d.cantidad * d.precioUnitario).toFixed(2)}</td></tr>`).join('')}
+                        </table>
+                        <div class="total">TOTAL: $${(viewVenta.total ?? 0).toFixed(2)}</div>
+                        <hr><p style="font-size:10px;color:#888">Generado por WMS Repuestos</p>
+                        <script>window.print();</script>
+                        </body></html>
+                      `)
+                      win.document.close()
+                    }
+                  }}
+                >
+                  <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir
+                </Button>
               </div>
             </div>
           )}

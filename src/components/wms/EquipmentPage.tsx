@@ -144,6 +144,10 @@ export function EquipmentPage() {
         </Button>
       </div>
 
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Modelos de equipos y sus repuestos compatibles</p>
+      </div>
+
       <Card className="rounded-xl shadow-sm">
         <CardContent className="p-0">
           <Table>

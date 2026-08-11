@@ -295,6 +295,10 @@ export function ProductsPage() {
         </Button>
       </div>
 
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Gestiona el catálogo de repuestos, equipos y compatibilidades</p>
+      </div>
+
       {/* Table */}
       <Card className="rounded-xl shadow-sm">
         <CardContent className="p-0">

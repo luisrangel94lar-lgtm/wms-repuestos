@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Download } from 'lucide-react'
 import { formatDateTime, formatCurrency, tipoMovColors } from './lib/format'
+import { useWmsStore } from '@/store/wms'
 
 const receivingSchema = z.object({
   idProducto: z.coerce.number().min(1, 'Producto requerido'),
@@ -35,6 +36,7 @@ type ReceivingFormData = z.infer<typeof receivingSchema>
 
 export function ReceivingPage() {
   const queryClient = useQueryClient()
+  const { receivingProductId, setReceivingProductId } = useWmsStore()
 
   const { data: tiposMov = [] } = useQuery({
     queryKey: ['tipos-movimiento'],
@@ -63,6 +65,13 @@ export function ReceivingPage() {
     defaultValues: { idProducto: 0, idUbicacion: 0, cantidad: 1, costoUnitario: 0, referencia: '', observacion: '' },
   })
 
+  useEffect(() => {
+    if (receivingProductId) {
+      form.setValue('idProducto', receivingProductId)
+      setReceivingProductId(null)
+    }
+  }, [receivingProductId, form, setReceivingProductId])
+
   const createMutation = useMutation({
     mutationFn: (values: ReceivingFormData) => {
       if (!entradaTipo) return Promise.reject({ error: 'Tipo ENTRADA no encontrado' })
@@ -83,6 +92,10 @@ export function ReceivingPage() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Recibir mercancía y actualizar inventario</p>
+      </div>
+
       {/* Form */}
       <Card className="rounded-xl shadow-sm">
         <CardHeader className="pb-3">

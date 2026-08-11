@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, ShoppingCart, Package, Zap } from 'lucide-react'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 interface Alerta {
@@ -21,7 +20,7 @@ interface Alerta {
 }
 
 export function AlertsPage() {
-  const { setCurrentPage } = useWmsStore()
+  const { setCurrentPage, setReceivingProductId } = useWmsStore()
 
   const { data: alertas = [], isLoading } = useQuery<Alerta[]>({
     queryKey: ['alertas'],
@@ -30,6 +29,10 @@ export function AlertsPage() {
 
   return (
     <div className="space-y-4">
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Productos que requieren reabastecimiento urgente</p>
+      </div>
+
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 text-destructive" />
         <h2 className="text-lg font-semibold">Productos Bajo Stock Mínimo</h2>
@@ -112,7 +115,7 @@ export function AlertsPage() {
                           size="sm"
                           variant="outline"
                           className="h-8 text-xs gap-1"
-                          onClick={() => toast.info('Función de pedido pendiente')}
+                          onClick={() => { setCurrentPage('receiving'); setReceivingProductId(a.id) }}
                         >
                           <Zap className="h-3 w-3" /> Pedido rápido
                         </Button>

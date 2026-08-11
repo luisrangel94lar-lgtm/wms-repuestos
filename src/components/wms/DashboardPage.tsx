@@ -75,20 +75,18 @@ export function DashboardPage() {
     refetchInterval: 30000,
   })
 
+  const { data: dailySales = [] } = useQuery({
+    queryKey: ['daily-sales'],
+    queryFn: () => fetch('/api/wms/dashboard/daily-sales').then(r => r.json()),
+  })
+
   const { data: topSellers = [] } = useQuery({
     queryKey: ['dashboard-top-sellers'],
     queryFn: () =>
       fetch('/api/wms/reportes/top-vendidos?limit=5').then((r) => r.json()),
   })
 
-  const salesChartData = (() => {
-    if (!data) return []
-    return [
-      { name: 'Hoy', ventas: data.ventasHoy.total },
-      { name: 'Semana', ventas: data.ventasSemana.total },
-      { name: 'Mes', ventas: data.ventasMes.total },
-    ]
-  })()
+  const salesChartData = dailySales
 
   const topSellersChart = topSellers.slice(0, 5).map((item: any) => ({
     nombre: item.producto?.nombre?.substring(0, 20) ?? 'N/A',
@@ -98,7 +96,7 @@ export function DashboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
@@ -114,7 +112,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Stock Total */}
         <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
           <CardContent className="p-4">
@@ -276,11 +274,13 @@ export function DashboardPage() {
         </Card>
       </div>
 
+      <p className="text-sm text-muted-foreground">Resumen operativo del almacén de repuestos</p>
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Ventas</CardTitle>
+            <CardTitle className="text-base">Ventas Últimos 7 Días</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -301,7 +301,7 @@ export function DashboardPage() {
                       color: 'var(--popover-foreground)',
                     }}
                   />
-                  <Bar dataKey="ventas" fill="var(--foreground)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="ventas" fill="oklch(0.55 0.15 145)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -332,7 +332,7 @@ export function DashboardPage() {
                       color: 'var(--popover-foreground)',
                     }}
                   />
-                  <Bar dataKey="cantidad" fill="var(--foreground)" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="cantidad" fill="oklch(0.65 0.12 35)" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -359,7 +359,7 @@ export function DashboardPage() {
               </TableHeader>
               <TableBody>
                 {recentMovements.slice(0, 10).map((m: any) => (
-                  <TableRow key={m.id}>
+                  <TableRow key={m.id} className="hover:bg-muted/50">
                     <TableCell className="text-xs py-2">
                       {formatDate(m.fecha)}
                     </TableCell>
@@ -421,7 +421,7 @@ export function DashboardPage() {
                   const totalStock = (p.stocks ?? []).reduce((s: number, st: any) => s + st.cantidad, 0)
                   const deficiencia = p.stockMinimo - totalStock
                   return (
-                    <TableRow key={p.id}>
+                    <TableRow key={p.id} className="hover:bg-muted/50">
                       <TableCell className="text-xs py-2 font-medium">
                         {p.nombre?.substring(0, 25)}
                       </TableCell>

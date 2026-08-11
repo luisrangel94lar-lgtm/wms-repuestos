@@ -68,10 +68,35 @@ export function InventoryPage() {
     return { ...p, totalStock, valorTotal, status, stocks }
   })
 
+  const { data: inventoryStats } = useQuery({
+    queryKey: ['inventory-stats'],
+    queryFn: () => fetch('/api/wms/dashboard').then(r => r.json()).then(d => ({
+      totalProducts: d.totalProductos,
+      stockValue: d.valorTotalStock,
+      bajoStock: d.productosBajoStock?.count ?? 0,
+    })),
+  })
+
   const totalValor = inventory.reduce((sum, p) => sum + p.valorTotal, 0)
 
   return (
     <div className="space-y-4">
+      {/* Stats Bar */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        <Card className="rounded-lg px-4 py-3 shadow-sm">
+          <p className="text-xs text-muted-foreground">Productos Activos</p>
+          <p className="text-lg font-bold">{products.length}</p>
+        </Card>
+        <Card className="rounded-lg px-4 py-3 shadow-sm">
+          <p className="text-xs text-muted-foreground">Valor Total</p>
+          <p className="text-lg font-bold">{formatCurrency(inventoryStats?.stockValue ?? totalValor)}</p>
+        </Card>
+        <Card className="rounded-lg px-4 py-3 shadow-sm">
+          <p className="text-xs text-muted-foreground">Bajo Mínimo</p>
+          <p className="text-lg font-bold text-destructive">{inventoryStats?.bajoStock ?? 0}</p>
+        </Card>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
@@ -81,6 +106,10 @@ export function InventoryPage() {
         <Button variant="outline" onClick={() => toast.success('Exportación no disponible aún')}>
           <Download className="h-4 w-4 mr-1" /> Exportar
         </Button>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Vista consolidada del inventario actual</p>
       </div>
 
       <Card className="rounded-xl shadow-sm">

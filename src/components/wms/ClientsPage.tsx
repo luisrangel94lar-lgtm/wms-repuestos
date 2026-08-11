@@ -104,6 +104,10 @@ export function ClientsPage() {
         <Button onClick={() => { form.reset(); setShowCreate(true) }}><Plus className="h-4 w-4 mr-1" /> Nuevo Cliente</Button>
       </div>
 
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Base de datos de técnicos y clientes</p>
+      </div>
+
       <Card className="rounded-xl shadow-sm">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
