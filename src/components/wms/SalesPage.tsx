@@ -22,7 +22,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle } from 'lucide-react'
+import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle, ClipboardList, MapPin, Target } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from './lib/format'
 import { SortableHeader } from './lib/SortableHeader'
 import { printReceipt, getWarehouseSettings } from './lib/print-receipt'
@@ -54,6 +54,7 @@ export function SalesPage() {
   const [lines, setLines] = useState<SaleLine[]>([])
   const [viewId, setViewId] = useState<number | null>(null)
   const [cancelId, setCancelId] = useState<number | null>(null)
+  const [pickingId, setPickingId] = useState<number | null>(null)
 
   // Sorting state
   const [sortField, setSortField] = useState<string>('fecha')
@@ -80,6 +81,12 @@ export function SalesPage() {
     queryKey: ['venta-detail', viewId],
     queryFn: () => fetch(`/api/wms/ventas/${viewId}`).then((r) => r.json()),
     enabled: !!viewId,
+  })
+
+  const { data: pickingData } = useQuery({
+    queryKey: ['picking-list', pickingId],
+    queryFn: () => fetch(`/api/wms/ventas/${pickingId}/picking`).then((r) => r.json()),
+    enabled: !!pickingId,
   })
 
   const createMutation = useMutation({
@@ -170,15 +177,51 @@ export function SalesPage() {
 
   return (
     <div className="space-y-4">
+      {/* Stats Bar with Daily Goal Progress */}
+      <div className="flex flex-wrap gap-3 items-stretch">
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Ventas Hoy</p>
+              <p className="text-lg font-bold">{formatCurrency(salesSummary?.hoy?.total ?? 0)}</p>
+              <p className="text-[10px] text-muted-foreground">{salesSummary?.hoy?.count ?? 0} venta(s)</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border flex-1 min-w-[220px]">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary shrink-0" />
+            <div className="flex-1">
+              <p className="text-[10px] text-muted-foreground uppercase">Meta Diaria: $5,000</p>
+              <div className="w-full bg-muted rounded-full h-2 mt-1">
+                <div
+                  className="h-2 rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${Math.min(100, ((salesSummary?.hoy?.total ?? 0) / 5000) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{Math.min(100, Math.round(((salesSummary?.hoy?.total ?? 0) / 5000) * 100))}% completado</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase">Semana</p>
+            <p className="text-base font-bold">{formatCurrency(salesSummary?.semana?.total ?? 0)}</p>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase">Mes</p>
+            <p className="text-base font-bold">{formatCurrency(salesSummary?.mes?.total ?? 0)}</p>
+          </div>
+        </Card>
+      </div>
+
       <div className="flex flex-wrap gap-3 items-center">
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 mr-1" /> Nueva Venta
         </Button>
-        <div className="flex gap-2 ml-auto">
-          <Badge variant="outline" className="text-xs">Hoy: {formatCurrency(salesSummary?.hoy?.total ?? 0)} ({salesSummary?.hoy?.count ?? 0})</Badge>
-          <Badge variant="outline" className="text-xs">Semana: {formatCurrency(salesSummary?.semana?.total ?? 0)}</Badge>
-          <Badge variant="outline" className="text-xs">Mes: {formatCurrency(salesSummary?.mes?.total ?? 0)}</Badge>
-        </div>
       </div>
 
       <div className="mb-4">
@@ -195,7 +238,7 @@ export function SalesPage() {
                   <SortableHeader field="folio" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Folio</SortableHeader>
                   <SortableHeader field="fecha" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Fecha</SortableHeader>
                   <SortableHeader field="cliente" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Cliente</SortableHeader>
-                  <TableHead className="text-xs text-right hidden sm:table-cell">Subtotal</TableHead>
+                  <TableHead className="text-xs text-right hidden md:table-cell">Subtotal</TableHead>
                   <SortableHeader field="total" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Total</SortableHeader>
                   <SortableHeader field="estado" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Estado</SortableHeader>
                   <TableHead className="text-xs text-right">Detalle</TableHead>
@@ -217,7 +260,7 @@ export function SalesPage() {
                     <TableCell className="text-xs font-mono py-2">{v.folio}</TableCell>
                     <TableCell className="text-xs py-2">{formatDate(v.fecha)}</TableCell>
                     <TableCell className="text-xs font-medium py-2">{v.cliente?.nombre}</TableCell>
-                    <TableCell className="text-xs text-right py-2 hidden sm:table-cell">{formatCurrency(v.subtotal ?? 0)}</TableCell>
+                    <TableCell className="text-xs text-right py-2 hidden md:table-cell">{formatCurrency(v.subtotal ?? 0)}</TableCell>
                     <TableCell className="text-xs text-right py-2 font-medium">{formatCurrency(v.total ?? 0)}</TableCell>
                     <TableCell className="text-xs text-center py-2">
                       <Badge variant={v.estado === 'COMPLETADA' ? 'default' : 'outline'} className="text-[10px]">{v.estado}</Badge>
@@ -333,13 +376,21 @@ export function SalesPage() {
               </div>
               <div className="flex justify-end gap-2 pt-3">
                 {viewVenta.estado === 'COMPLETADA' && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setCancelId(viewVenta.id)}
-                  >
-                    <XCircle className="h-3.5 w-3.5 mr-1" /> Cancelar Venta
-                  </Button>
+                  <>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setCancelId(viewVenta.id)}
+                    >
+                      <XCircle className="h-3.5 w-3.5 mr-1" /> Cancelar Venta
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setPickingId(viewVenta.id)}
+                    >
+                      <ClipboardList className="h-3.5 w-3.5 mr-1" /> Generar Lista de Picking
+                    </Button>
+                  </>
                 )}
                 <Button
                   variant="outline"
@@ -366,6 +417,100 @@ export function SalesPage() {
                 >
                   <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir
                 </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Picking List Dialog */}
+      <Dialog open={!!pickingId} onOpenChange={(open) => { if (!open) setPickingId(null) }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="dialog-header-accent">
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" /> Lista de Picking
+            </DialogTitle>
+            <DialogDescription className="sr-only">Lista de recolección de productos para la venta</DialogDescription>
+          </DialogHeader>
+          {pickingData && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 text-sm bg-muted/50 rounded-lg p-3">
+                <div><span className="text-muted-foreground">Folio:</span> <span className="font-mono font-medium">{pickingData.folio}</span></div>
+                <div><span className="text-muted-foreground">Fecha:</span> {formatDate(pickingData.fecha)}</div>
+                <div><span className="text-muted-foreground">Cliente:</span> <span className="font-medium">{pickingData.cliente?.nombre}</span></div>
+              </div>
+              <div id="picking-print-content">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs w-8">#</TableHead>
+                      <TableHead className="text-xs">Producto</TableHead>
+                      <TableHead className="text-xs">SKU</TableHead>
+                      <TableHead className="text-xs text-center">Cant. Necesaria</TableHead>
+                      <TableHead className="text-xs">Recoger De</TableHead>
+                      <TableHead className="text-xs text-center">Disponible</TableHead>
+                      <TableHead className="text-xs text-center">Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pickingData.items.map((item: any, idx: number) => (
+                      <TableRow key={item.idProducto} className={!item.suficiente ? 'bg-red-50/50 dark:bg-red-950/20' : ''}>
+                        <TableCell className="text-xs font-mono py-2">{idx + 1}</TableCell>
+                        <TableCell className="text-xs font-medium py-2">{item.producto.nombre}</TableCell>
+                        <TableCell className="text-xs font-mono py-2">{item.producto.sku}</TableCell>
+                        <TableCell className="text-xs text-center font-mono py-2 font-semibold">{item.cantidadNecesaria}</TableCell>
+                        <TableCell className="text-xs py-2">
+                          {item.ubicaciones.length > 0 ? (
+                            <div className="flex flex-col gap-0.5">
+                              {item.ubicaciones.map((loc: any) => (
+                                <span key={loc.idUbicacion} className="flex items-center gap-1 font-mono">
+                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                                  {loc.codigo}
+                                  <span className="text-muted-foreground">({loc.cantidad})</span>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Sin ubicación</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-center font-mono py-2">{item.cantidadDisponible}</TableCell>
+                        <TableCell className="text-xs text-center py-2">
+                          {item.suficiente ? (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]">OK</Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-[10px]">INSUFICIENTE</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const printContent = document.getElementById('picking-print-content')
+                    if (!printContent) return
+                    const win = window.open('', '_blank')
+                    if (!win) return
+                    win.document.write(`
+                      <html><head><title>Lista de Picking - ${pickingData.folio}</title></head><body>
+                      <h2 style="text-align:center">Lista de Picking</h2>
+                      <p><strong>Folio:</strong> ${pickingData.folio} &nbsp; <strong>Fecha:</strong> ${formatDate(pickingData.fecha)} &nbsp; <strong>Cliente:</strong> ${pickingData.cliente?.nombre}</p>
+                      <hr/>
+                      ${printContent.innerHTML}
+                      </body></html>
+                    `)
+                    win.document.close()
+                    win.print()
+                  }}
+                >
+                  <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir Picking
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setPickingId(null)}>Cerrar</Button>
               </div>
             </div>
           )}

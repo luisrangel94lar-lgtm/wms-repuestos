@@ -19,8 +19,9 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet'
 import {
-  Download, MapPin, Check, AlertTriangle, XCircle, SlidersHorizontal, ArrowRightLeft, Loader2, Eye, Clock, Package,
+  Download, MapPin, Check, AlertTriangle, XCircle, SlidersHorizontal, ArrowRightLeft, Loader2, Eye, Clock, Package, X as XIcon,
 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { formatCurrency, formatDateTime, tipoMovColors } from './lib/format'
 import { exportToCSV } from './lib/export-csv'
 import {
@@ -84,6 +85,13 @@ export function InventoryPage() {
   const [selectedProduct, setSelectedProduct] = useState<StockEntry['producto'] | null>(null)
   const [sheetProduct, setSheetProduct] = useState<InventoryItem | null>(null)
 
+  // Batch selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [batchQty, setBatchQty] = useState('')
+  const [batchType, setBatchType] = useState<'add' | 'subtract'>('add')
+  const [batchLoading, setBatchLoading] = useState(false)
+
   // Ajuste state
   const [ajusteProduct, setAjusteProduct] = useState<InventoryItem | null>(null)
   const [ajusteStock, setAjusteStock] = useState('')
@@ -110,6 +118,91 @@ export function InventoryPage() {
     queryKey: ['all-stock-inv'],
     queryFn: () => fetch('/api/wms/stock').then((r) => r.json()),
   })
+
+  function toggleSelectAll() {
+    if (selectedIds.size === sortedInventory.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(sortedInventory.map((p) => p.id)))
+    }
+  }
+
+  function toggleSelect(id: number) {
+    const next = new Set(selectedIds)
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
+    setSelectedIds(next)
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  async function submitBatchAdjust() {
+    if (selectedIds.size === 0 || !batchQty) return
+    const qty = parseInt(batchQty, 10)
+    if (isNaN(qty) || qty <= 0) {
+      toast.error('Cantidad inválida')
+      return
+    }
+
+    // Get stock entries for selected products
+    const selectedItems = sortedInventory
+      .filter((p) => selectedIds.has(p.id))
+      .flatMap((p) =>
+        p.stocks.map((s) => ({ idProducto: p.id, idUbicacion: s.idUbicacion }))
+      )
+
+    if (selectedItems.length === 0) {
+      toast.error('No hay stock entries para los productos seleccionados')
+      return
+    }
+
+    setBatchLoading(true)
+    try {
+      const res = await fetch('/api/wms/stock/batch-adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: selectedItems, cantidad: qty, tipo: batchType }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al ajustar stock')
+      }
+      toast.success(`Stock ajustado para ${selectedIds.size} productos`)
+      setBatchDialogOpen(false)
+      setBatchQty('')
+      setSelectedIds(new Set())
+      invalidateInventory()
+    } catch (e: any) {
+      toast.error(e.message || 'Error al ajustar stock')
+    } finally {
+      setBatchLoading(false)
+    }
+  }
+
+  function exportSelected() {
+    const selected = sortedInventory.filter((p) => selectedIds.has(p.id))
+    if (selected.length === 0) return
+    exportToCSV(
+      selected.map((p) => ({
+        producto: p.nombre,
+        sku: p.sku,
+        totalStock: p.totalStock,
+        valorTotal: p.valorTotal,
+      })),
+      'inventario-seleccion',
+      [
+        { key: 'producto', label: 'Producto' },
+        { key: 'sku', label: 'SKU' },
+        { key: 'totalStock', label: 'Stock Total' },
+        { key: 'valorTotal', label: 'Valor Total', format: 'currency' },
+      ],
+    )
+  }
 
   const { data: allLocations = [] } = useQuery({
     queryKey: ['all-locations'],
@@ -375,31 +468,44 @@ export function InventoryPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-xs w-10">
+                    <Checkbox
+                      checked={sortedInventory.length > 0 && selectedIds.size === sortedInventory.length}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <SortableHeader field="nombre" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Producto</SortableHeader>
                   <SortableHeader field="sku" sortField={sortField} sortDir={sortDir} onSort={handleSort}>SKU</SortableHeader>
                   <SortableHeader field="totalStock" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Total Stock</SortableHeader>
-                  <SortableHeader field="valorTotal" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Valor Total</SortableHeader>
-                  <SortableHeader field="margen" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Margen %</SortableHeader>
+                  <SortableHeader field="valorTotal" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="hidden md:table-cell">Valor Total</SortableHeader>
+                  <SortableHeader field="margen" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="hidden lg:table-cell">Margen %</SortableHeader>
                   <TableHead className="text-xs text-center">Estado</TableHead>
                   <TableHead className="text-xs text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading && Array.from({ length: 8 }).map((_, i) => (
-                  <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+                  <TableRow key={i}><TableCell colSpan={8}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
                 ))}
                 {!isLoading && sortedInventory.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Sin productos en inventario</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-12">
+                    <Package className="h-16 w-16 mx-auto mb-3 text-muted-foreground/30" />
+                    <p className="text-muted-foreground text-sm">Sin productos en inventario</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">Agrega productos desde la sección de Productos</p>
+                  </TableCell></TableRow>
                 )}
                 {!isLoading && sortedInventory.map((p, idx) => {
                   const margen = p.precioVenta > 0 ? ((p.precioVenta - p.costoUnitario) / p.precioVenta * 100) : 0
                   return (
-                    <TableRow key={p.id} className={cn('hover:bg-muted/50 cursor-pointer', idx % 2 === 1 && 'bg-muted/20')} onClick={() => openSheet(p)}>
+                    <TableRow key={p.id} className={cn('hover:bg-muted/50 cursor-pointer', idx % 2 === 1 && 'bg-muted/20', selectedIds.has(p.id) && 'bg-primary/5')} onClick={() => openSheet(p)}>
+                      <TableCell className="text-xs py-2" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox checked={selectedIds.has(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
+                      </TableCell>
                       <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{p.nombre}</TableCell>
                       <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
                       <TableCell className="text-xs text-center font-mono py-2">{p.totalStock}</TableCell>
-                      <TableCell className="text-xs text-right py-2">{formatCurrency(p.valorTotal)}</TableCell>
-                      <TableCell className="text-xs text-right py-2">
+                      <TableCell className="text-xs text-right py-2 hidden md:table-cell">{formatCurrency(p.valorTotal)}</TableCell>
+                      <TableCell className="text-xs text-right py-2 hidden lg:table-cell">
                         <span className={cn(
                           'font-mono',
                           margen >= 30 ? 'text-emerald-600 dark:text-emerald-400' :
@@ -436,6 +542,55 @@ export function InventoryPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Floating Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-xl border bg-background/95 backdrop-blur shadow-lg px-4 py-3">
+          <span className="text-sm font-medium">{selectedIds.size} seleccionados</span>
+          <Button size="sm" onClick={() => setBatchDialogOpen(true)}>
+            <SlidersHorizontal className="h-4 w-4 mr-1" /> Ajustar Stock
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportSelected}>
+            <Download className="h-4 w-4 mr-1" /> Exportar Seleccionados
+          </Button>
+          <Button size="sm" variant="ghost" onClick={clearSelection}>
+            <XIcon className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Batch Adjust Dialog */}
+      <Dialog open={batchDialogOpen} onOpenChange={(open) => { if (!open) setBatchDialogOpen(false) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader className="dialog-header-accent">
+            <DialogTitle>Ajustar Stock en Lote</DialogTitle>
+            <DialogDescription>Ajustar stock para {selectedIds.size} productos seleccionados</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Tipo de Ajuste</Label>
+              <Select value={batchType} onValueChange={(v: any) => setBatchType(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="add">Sumar</SelectItem>
+                  <SelectItem value="subtract">Restar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Cantidad</Label>
+              <Input type="number" min={1} value={batchQty} onChange={(e) => setBatchQty(e.target.value)} placeholder="Cantidad a {batchType === 'add' ? 'sumar' : 'restar'}" />
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setBatchDialogOpen(false)} disabled={batchLoading}>Cancelar</Button>
+              <Button onClick={submitBatchAdjust} disabled={batchLoading || !batchQty}>
+                {batchLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Aplicar Ajuste
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Stock by location dialog */}
       <Dialog open={!!selectedProduct} onOpenChange={(open) => { if (!open) setSelectedProduct(null) }}>

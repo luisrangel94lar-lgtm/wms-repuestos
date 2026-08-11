@@ -1,0 +1,777 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { useForm } from 'react-hook-form'
+     6→import { zodResolver } from '@hookform/resolvers/zod'
+     7→import { z } from 'zod'
+     8→import { toast } from 'sonner'
+     9→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    10→import {
+    11→  Table,
+    12→  TableBody,
+    13→  TableCell,
+    14→  TableHead,
+    15→  TableHeader,
+    16→  TableRow,
+    17→} from '@/components/ui/table'
+    18→import { Badge } from '@/components/ui/badge'
+    19→import { Button } from '@/components/ui/button'
+    20→import { Input } from '@/components/ui/input'
+    21→import { Label } from '@/components/ui/label'
+    22→import { Textarea } from '@/components/ui/textarea'
+    23→import {
+    24→  Select,
+    25→  SelectContent,
+    26→  SelectItem,
+    27→  SelectTrigger,
+    28→  SelectValue,
+    29→} from '@/components/ui/select'
+    30→import {
+    31→  Dialog,
+    32→  DialogContent,
+    33→  DialogDescription,
+    34→  DialogHeader,
+    35→  DialogTitle,
+    36→  DialogFooter,
+    37→} from '@/components/ui/dialog'
+    38→import {
+    39→  AlertDialog,
+    40→  AlertDialogAction,
+    41→  AlertDialogCancel,
+    42→  AlertDialogContent,
+    43→  AlertDialogDescription,
+    44→  AlertDialogFooter,
+    45→  AlertDialogHeader,
+    46→  AlertDialogTitle,
+    47→} from '@/components/ui/alert-dialog'
+    48→import { Skeleton } from '@/components/ui/skeleton'
+    49→import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode, Calculator } from 'lucide-react'
+    50→import { formatCurrency } from './lib/format'
+    51→import { cn } from '@/lib/utils'
+    52→import { BarcodeScanner } from './BarcodeScanner'
+    53→import {
+    54→  AreaChart,
+    55→  Area,
+    56→  XAxis,
+    57→  YAxis,
+    58→  CartesianGrid,
+    59→  Tooltip,
+    60→  ResponsiveContainer,
+    61→} from 'recharts'
+    62→
+    63→const productSchema = z.object({
+    64→  sku: z.string().min(1, 'SKU requerido'),
+    65→  nombre: z.string().min(1, 'Nombre requerido'),
+    66→  descripcion: z.string().optional(),
+    67→  idCategoria: z.coerce.number().nullable().optional(),
+    68→  idMarca: z.coerce.number().nullable().optional(),
+    69→  codigoBarras: z.string().optional(),
+    70→  unidadMedida: z.string().default('unidad'),
+    71→  costoUnitario: z.coerce.number().min(0),
+    72→  precioVenta: z.coerce.number().min(0),
+    73→  stockMinimo: z.coerce.number().min(0),
+    74→  stockMaximo: z.coerce.number().nullable().optional(),
+    75→  fotoUrl: z.string().optional(),
+    76→  activo: z.boolean().default(true),
+    77→})
+    78→
+    79→type ProductFormData = z.infer<typeof productSchema>
+    80→
+    81→interface Product {
+    82→  id: number
+    83→  sku: string
+    84→  nombre: string
+    85→  descripcion: string | null
+    86→  idCategoria: number | null
+    87→  idMarca: number | null
+    88→  codigoBarras: string | null
+    89→  unidadMedida: string
+    90→  costoUnitario: number
+    91→  precioVenta: number
+    92→  stockMinimo: number
+    93→  stockMaximo: number | null
+    94→  fotoUrl: string | null
+    95→  activo: boolean
+    96→  fechaCreacion: string
+    97→  categoria: { id: number; nombre: string } | null
+    98→  marca: { id: number; nombre: string } | null
+    99→  stocks: { idProducto: number; idUbicacion: number; cantidad: number }[]
+   100→  totalStock: number
+   101→}
+   102→
+   103→interface CategoriasResponse {
+   104→  items?: Product[]
+   105→  total: number
+   106→}
+   107→
+   108→function MarginCalculator({ costoUnitario, precioVenta }: { costoUnitario: number; precioVenta: number }) {
+   109→  const margen = precioVenta > 0 ? ((precioVenta - costoUnitario) / precioVenta) * 100 : 0
+   110→  const utilidad = precioVenta - costoUnitario
+   111→  const clampedMargin = Math.max(0, Math.min(100, margen))
+   112→
+   113→  let barColor = 'bg-red-500'
+   114→  let textColor = 'text-red-600 dark:text-red-400'
+   115→  if (margen > 40) {
+   116→    barColor = 'bg-emerald-500'
+   117→    textColor = 'text-emerald-600 dark:text-emerald-400'
+   118→  } else if (margen >= 20) {
+   119→    barColor = 'bg-amber-500'
+   120→    textColor = 'text-amber-600 dark:text-amber-400'
+   121→  }
+   122→
+   123→  return (
+   124→    <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+   125→      <div className="flex items-center gap-2 text-sm font-medium">
+   126→        <Calculator className="h-4 w-4 text-primary" />
+   127→        Calculadora de Margen
+   128→      </div>
+   129→      <div className="grid grid-cols-3 gap-4 text-center">
+   130→        <div>
+   131→          <p className="text-xs text-muted-foreground">Costo</p>
+   132→          <p className="text-sm font-mono font-semibold">{formatCurrency(costoUnitario)}</p>
+   133→        </div>
+   134→        <div>
+   135→          <p className="text-xs text-muted-foreground">Precio Venta</p>
+   136→          <p className="text-sm font-mono font-semibold">{formatCurrency(precioVenta)}</p>
+   137→        </div>
+   138→        <div>
+   139→          <p className="text-xs text-muted-foreground">Utilidad</p>
+   140→          <p className={cn('text-sm font-mono font-bold', utilidad > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+   141→            {formatCurrency(utilidad)}
+   142→          </p>
+   143→        </div>
+   144→      </div>
+   145→      <div className="space-y-1.5">
+   146→        <div className="flex items-center justify-between text-xs">
+   147→          <span className="text-muted-foreground">Margen</span>
+   148→          <span className={cn('font-bold font-mono', textColor)}>{margen.toFixed(1)}%</span>
+   149→        </div>
+   150→        <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+   151→          <div
+   152→            className={cn('h-full rounded-full transition-all duration-300', barColor)}
+   153→            style={{ width: `${clampedMargin}%` }}
+   154→          />
+   155→        </div>
+   156→        <div className="flex justify-between text-[10px] text-muted-foreground">
+   157→          <span>Bajo (&lt;20%)</span>
+   158→          <span>Medio (20-40%)</span>
+   159→          <span>Alto (&gt;40%)</span>
+   160→        </div>
+   161→      </div>
+   162→    </div>
+   163→  )
+   164→}
+   165→
+   166→export function ProductsPage() {
+   167→  const queryClient = useQueryClient()
+   168→  const [page, setPage] = useState(1)
+   169→  const [search, setSearch] = useState('')
+   170→  const [searchInput, setSearchInput] = useState('')
+   171→  const [idCategoria, setIdCategoria] = useState('')
+   172→  const [idMarca, setIdMarca] = useState('')
+   173→  const [bajoStock, setBajoStock] = useState(false)
+   174→  const [showCreate, setShowCreate] = useState(false)
+   175→  const [editId, setEditId] = useState<number | null>(null)
+   176→  const [deleteId, setDeleteId] = useState<number | null>(null)
+   177→  const [viewId, setViewId] = useState<number | null>(null)
+   178→  const [timelineId, setTimelineId] = useState<number | null>(null)
+   179→  const [showBarcode, setShowBarcode] = useState(false)
+   180→
+   181→  const { data, isLoading } = useQuery<CategoriasResponse>({
+   182→    queryKey: ['products', page, search, idCategoria, idMarca, bajoStock],
+   183→    queryFn: () => {
+   184→      const params = new URLSearchParams({
+   185→        page: String(page),
+   186→        pageSize: '20',
+   187→      })
+   188→      if (search) params.set('search', search)
+   189→      if (idCategoria) params.set('categoria', idCategoria)
+   190→      if (idMarca) params.set('marca', idMarca)
+   191→      if (bajoStock) params.set('bajoStock', 'true')
+   192→      return fetch(`/api/wms/productos?${params}`).then((r) => r.json())
+   193→    },
+   194→  })
+   195→
+   196→  const { data: viewProduct } = useQuery({
+   197→    queryKey: ['product-detail', viewId],
+   198→    queryFn: () => fetch(`/api/wms/productos/${viewId}`).then((r) => r.json()),
+   199→    enabled: !!viewId,
+   200→  })
+   201→
+   202→  const { data: timelineData } = useQuery({
+   203→    queryKey: ['product-timeline', timelineId],
+   204→    queryFn: () => fetch(`/api/wms/productos/${timelineId}/timeline`).then((r) => r.json()),
+   205→    enabled: !!timelineId,
+   206→  })
+   207→
+   208→  const { data: categorias = [] } = useQuery({
+   209→    queryKey: ['categorias-list'],
+   210→    queryFn: () => fetch('/api/wms/categorias').then((r) => r.json()),
+   211→  })
+   212→
+   213→  const { data: marcas = [] } = useQuery({
+   214→    queryKey: ['marcas-list'],
+   215→    queryFn: () => fetch('/api/wms/marcas').then((r) => r.json()),
+   216→  })
+   217→
+   218→  const form = useForm<ProductFormData>({
+   219→    resolver: zodResolver(productSchema) as any,
+   220→    defaultValues: {
+   221→      sku: '',
+   222→      nombre: '',
+   223→      descripcion: '',
+   224→      idCategoria: null,
+   225→      idMarca: null,
+   226→      codigoBarras: '',
+   227→      unidadMedida: 'unidad',
+   228→      costoUnitario: 0,
+   229→      precioVenta: 0,
+   230→      stockMinimo: 0,
+   231→      stockMaximo: null,
+   232→      fotoUrl: '',
+   233→      activo: true,
+   234→    },
+   235→  })
+   236→
+   237→  const createMutation = useMutation({
+   238→    mutationFn: (values: ProductFormData) =>
+   239→      fetch('/api/wms/productos', {
+   240→        method: 'POST',
+   241→        headers: { 'Content-Type': 'application/json' },
+   242→        body: JSON.stringify(values),
+   243→      }).then((r) => {
+   244→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   245→        return r.json()
+   246→      }),
+   247→    onSuccess: () => {
+   248→      toast.success('Producto creado correctamente')
+   249→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   250→      setShowCreate(false)
+   251→      form.reset()
+   252→    },
+   253→    onError: (err: any) => {
+   254→      toast.error(err.error ?? 'Error al crear producto')
+   255→    },
+   256→  })
+   257→
+   258→  const updateMutation = useMutation({
+   259→    mutationFn: ({ id, values }: { id: number; values: ProductFormData }) =>
+   260→      fetch(`/api/wms/productos/${id}`, {
+   261→        method: 'PUT',
+   262→        headers: { 'Content-Type': 'application/json' },
+   263→        body: JSON.stringify(values),
+   264→      }).then((r) => {
+   265→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   266→        return r.json()
+   267→      }),
+   268→    onSuccess: () => {
+   269→      toast.success('Producto actualizado correctamente')
+   270→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   271→      setEditId(null)
+   272→      form.reset()
+   273→    },
+   274→    onError: (err: any) => {
+   275→      toast.error(err.error ?? 'Error al actualizar producto')
+   276→    },
+   277→  })
+   278→
+   279→  const deleteMutation = useMutation({
+   280→    mutationFn: (id: number) =>
+   281→      fetch(`/api/wms/productos/${id}`, { method: 'DELETE' }).then((r) => {
+   282→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   283→        return r.json()
+   284→      }),
+   285→    onSuccess: () => {
+   286→      toast.success('Producto eliminado')
+   287→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   288→      setDeleteId(null)
+   289→    },
+   290→    onError: (err: any) => {
+   291→      toast.error(err.error ?? 'Error al eliminar producto')
+   292→    },
+   293→  })
+   294→
+   295→  function openEdit(product: Product) {
+   296→    setEditId(product.id)
+   297→    form.reset({
+   298→      sku: product.sku,
+   299→      nombre: product.nombre,
+   300→      descripcion: product.descripcion ?? '',
+   301→      idCategoria: product.idCategoria,
+   302→      idMarca: product.idMarca,
+   303→      codigoBarras: product.codigoBarras ?? '',
+   304→      unidadMedida: product.unidadMedida,
+   305→      costoUnitario: product.costoUnitario,
+   306→      precioVenta: product.precioVenta,
+   307→      stockMinimo: product.stockMinimo,
+   308→      stockMaximo: product.stockMaximo,
+   309→      fotoUrl: product.fotoUrl ?? '',
+   310→      activo: product.activo,
+   311→    })
+   312→  }
+   313→
+   314→  function handleSearch() {
+   315→    setSearch(searchInput)
+   316→    setPage(1)
+   317→  }
+   318→
+   319→  const items: Product[] = data?.items ?? []
+   320→  const totalPages = Math.ceil((data?.total ?? 0) / 20)
+   321→
+   322→  function getStockStatus(p: Product) {
+   323→    if (p.totalStock === 0) return 'out'
+   324→    if (p.totalStock < p.stockMinimo) return 'low'
+   325→    return 'ok'
+   326→  }
+   327→
+   328→  function StatusBadge({ status }: { status: string }) {
+   329→    if (status === 'out')
+   330→      return <Badge variant="destructive" className="text-[10px]">Sin Stock</Badge>
+   331→    if (status === 'low')
+   332→      return (
+   333→        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-[10px]">
+   334→          Bajo
+   335→        </Badge>
+   336→      )
+   337→    return (
+   338→      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]">
+   339→        OK
+   340→      </Badge>
+   341→    )
+   342→  }
+   343→
+   344→  const chartData = useMemo(() => {
+   345→    if (!timelineData?.timeline) return []
+   346→    return timelineData.timeline.map((t: any) => ({
+   347→      fecha: new Date(t.date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+   348→      stock: t.balance,
+   349→    }))
+   350→  }, [timelineData])
+   351→
+   352→  return (
+   353→    <div className="space-y-4">
+   354→      {/* Toolbar */}
+   355→      <div className="flex flex-col sm:flex-row gap-3">
+   356→        <div className="flex gap-2 flex-1 flex-wrap">
+   357→          <div className="relative flex-1 max-w-sm">
+   358→            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+   359→            <Input
+   360→              placeholder="Buscar por nombre o SKU..."
+   361→              className="pl-9"
+   362→              value={searchInput}
+   363→              onChange={(e) => setSearchInput(e.target.value)}
+   364→              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+   365→            />
+   366→          </div>
+   367→          <Button variant="outline" onClick={handleSearch}>
+   368→            <Search className="h-4 w-4" />
+   369→          </Button>
+   370→          <Button
+   371→            variant={bajoStock ? 'default' : 'outline'}
+   372→            onClick={() => { setBajoStock(!bajoStock); setPage(1) }}
+   373→          >
+   374→            <Filter className="h-4 w-4 mr-1" />
+   375→            Bajo Stock
+   376→          </Button>
+   377→          <Select value={idCategoria} onValueChange={(v) => { setIdCategoria(v === '_all' ? '' : v); setPage(1) }}>
+   378→            <SelectTrigger className="w-[140px] h-9 text-xs">
+   379→              <SelectValue placeholder="Categoría" />
+   380→            </SelectTrigger>
+   381→            <SelectContent>
+   382→              <SelectItem value="_all">Todas</SelectItem>
+   383→              {categorias.map((c: any) => (
+   384→                <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+   385→              ))}
+   386→            </SelectContent>
+   387→          </Select>
+   388→          <Select value={idMarca} onValueChange={(v) => { setIdMarca(v === '_all' ? '' : v); setPage(1) }}>
+   389→            <SelectTrigger className="w-[140px] h-9 text-xs">
+   390→              <SelectValue placeholder="Marca" />
+   391→            </SelectTrigger>
+   392→            <SelectContent>
+   393→              <SelectItem value="_all">Todas</SelectItem>
+   394→              {marcas.map((m: any) => (
+   395→                <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+   396→              ))}
+   397→            </SelectContent>
+   398→          </Select>
+   399→        </div>
+   400→        <div className="flex gap-2">
+   401→          <Button onClick={() => { form.reset(); setShowCreate(true) }}>
+   402→            <Plus className="h-4 w-4 mr-1" />
+   403→            Nuevo Producto
+   404→          </Button>
+   405→          <Button variant="outline" onClick={() => setShowBarcode(true)}>
+   406→            <Barcode className="h-4 w-4 mr-1" />
+   407→            Código de Barras
+   408→          </Button>
+   409→        </div>
+   410→      </div>
+   411→
+   412→      <div className="mb-4">
+   413→        <p className="text-sm text-muted-foreground">Gestiona el catálogo de repuestos, equipos y compatibilidades</p>
+   414→      </div>
+   415→
+   416→      {/* Table */}
+   417→      <Card className="rounded-xl shadow-sm transition-all duration-200">
+   418→        <CardContent className="p-0">
+   419→          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto overflow-x-auto">
+   420→            <Table>
+   421→              <TableHeader>
+   422→                <TableRow>
+   423→                  <TableHead className="text-xs">SKU</TableHead>
+   424→                  <TableHead className="text-xs">Nombre</TableHead>
+   425→                  <TableHead className="text-xs hidden md:table-cell">Categoría</TableHead>
+   426→                  <TableHead className="text-xs hidden lg:table-cell">Marca</TableHead>
+   427→                  <TableHead className="text-xs text-right hidden sm:table-cell">Costo</TableHead>
+   428→                  <TableHead className="text-xs text-right">Precio</TableHead>
+   429→                  <TableHead className="text-xs text-center">Stock</TableHead>
+   430→                  <TableHead className="text-xs text-center">Estado</TableHead>
+   431→                  <TableHead className="text-xs text-right">Acciones</TableHead>
+   432→                </TableRow>
+   433→              </TableHeader>
+   434→              <TableBody>
+   435→                {isLoading &&
+   436→                  Array.from({ length: 5 }).map((_, i) => (
+   437→                    <TableRow key={i}>
+   438→                      {Array.from({ length: 9 }).map((_, j) => (
+   439→                        <TableCell key={j} className="py-2">
+   440→                          <Skeleton className="h-4 w-full" />
+   441→                        </TableCell>
+   442→                      ))}
+   443→                    </TableRow>
+   444→                  ))}
+   445→                {!isLoading && items.length === 0 && (
+   446→                  <TableRow>
+   447→                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+   448→                      No se encontraron productos
+   449→                    </TableCell>
+   450→                  </TableRow>
+   451→                )}
+   452→                {!isLoading &&
+   453→                  items.map((p) => (
+   454→                    <TableRow key={p.id} className="hover:bg-muted/50">
+   455→                      <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
+   456→                      <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">
+   457→                        {p.nombre}
+   458→                      </TableCell>
+   459→                      <TableCell className="text-xs py-2 hidden md:table-cell">
+   460→                        {p.categoria?.nombre ?? '-'}
+   461→                      </TableCell>
+   462→                      <TableCell className="text-xs py-2 hidden lg:table-cell">
+   463→                        {p.marca?.nombre ?? '-'}
+   464→                      </TableCell>
+   465→                      <TableCell className="text-xs text-right py-2 hidden sm:table-cell">
+   466→                        {formatCurrency(p.costoUnitario)}
+   467→                      </TableCell>
+   468→                      <TableCell className="text-xs text-right py-2">
+   469→                        {formatCurrency(p.precioVenta)}
+   470→                      </TableCell>
+   471→                      <TableCell className="text-xs text-center font-mono py-2">
+   472→                        {p.totalStock}
+   473→                      </TableCell>
+   474→                      <TableCell className="text-xs text-center py-2">
+   475→                        <StatusBadge status={getStockStatus(p)} />
+   476→                      </TableCell>
+   477→                      <TableCell className="text-xs text-right py-2">
+   478→                        <div className="flex justify-end gap-1">
+   479→                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewId(p.id)}>
+   480→                            <Eye className="h-3.5 w-3.5" />
+   481→                          </Button>
+   482→                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
+   483→                            <Pencil className="h-3.5 w-3.5" />
+   484→                          </Button>
+   485→                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(p.id)}>
+   486→                            <Trash2 className="h-3.5 w-3.5" />
+   487→                          </Button>
+   488→                        </div>
+   489→                      </TableCell>
+   490→                    </TableRow>
+   491→                  ))}
+   492→              </TableBody>
+   493→            </Table>
+   494→          </div>
+   495→        </CardContent>
+   496→      </Card>
+   497→
+   498→      {/* Pagination */}
+   499→      <div className="flex items-center justify-between text-sm">
+   500→        <p className="text-muted-foreground">
+   501→          {(data?.total ?? 0)} productos encontrados
+   502→        </p>
+   503→        <div className="flex gap-2">
+   504→          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+   505→            Anterior
+   506→          </Button>
+   507→          <span className="px-3 py-1 text-sm">{page} / {totalPages || 1}</span>
+   508→          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+   509→            Siguiente
+   510→          </Button>
+   511→        </div>
+   512→      </div>
+   513→
+   514→      {/* Create/Edit Dialog */}
+   515→      <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
+   516→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   517→          <DialogHeader>
+   518→            <DialogTitle>{editId ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
+   519→            <DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del producto' : 'Formulario para crear un nuevo producto'}</DialogDescription>
+   520→          </DialogHeader>
+   521→          <form
+   522→            onSubmit={form.handleSubmit((values: any) => {
+   523→              if (editId) {
+   524→                updateMutation.mutate({ id: editId, values })
+   525→              } else {
+   526→                createMutation.mutate(values)
+   527→              }
+   528→            })}
+   529→            className="space-y-4"
+   530→          >
+   531→            <div className="grid grid-cols-2 gap-4">
+   532→              <div className="space-y-2">
+   533→                <Label className="text-sm font-medium">SKU *</Label>
+   534→                <Input {...form.register('sku')} />
+   535→                {form.formState.errors.sku && (
+   536→                  <p className="text-xs text-destructive">{form.formState.errors.sku.message}</p>
+   537→                )}
+   538→              </div>
+   539→              <div className="space-y-2">
+   540→                <Label className="text-sm font-medium">Unidad de Medida</Label>
+   541→                <Select value={form.watch('unidadMedida')} onValueChange={(v) => form.setValue('unidadMedida', v)}>
+   542→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   543→                  <SelectContent>
+   544→                    <SelectItem value="unidad">Unidad</SelectItem>
+   545→                    <SelectItem value="par">Par</SelectItem>
+   546→                    <SelectItem value="metro">Metro</SelectItem>
+   547→                    <SelectItem value="kg">Kg</SelectItem>
+   548→                    <SelectItem value="litro">Litro</SelectItem>
+   549→                  </SelectContent>
+   550→                </Select>
+   551→              </div>
+   552→            </div>
+   553→            <div className="space-y-2">
+   554→              <Label className="text-sm font-medium">Nombre *</Label>
+   555→              <Input {...form.register('nombre')} />
+   556→              {form.formState.errors.nombre && (
+   557→                <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>
+   558→              )}
+   559→            </div>
+   560→            <div className="space-y-2">
+   561→              <Label className="text-sm font-medium">Descripción</Label>
+   562→              <Textarea {...form.register('descripcion')} rows={2} />
+   563→            </div>
+   564→            <div className="grid grid-cols-2 gap-4">
+   565→              <div className="space-y-2">
+   566→                <Label className="text-sm font-medium">Código de Barras</Label>
+   567→                <Input {...form.register('codigoBarras')} />
+   568→              </div>
+   569→              <div className="space-y-2">
+   570→                <Label className="text-sm font-medium">URL de Foto</Label>
+   571→                <Input {...form.register('fotoUrl')} />
+   572→              </div>
+   573→            </div>
+   574→            {form.watch('fotoUrl') && (
+   575→              <div className="mt-2">
+   576→                <img
+   577→                  src={form.watch('fotoUrl')}
+   578→                  alt="Preview"
+   579→                  className="w-24 h-24 object-cover rounded-lg border"
+   580→                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+   581→                />
+   582→              </div>
+   583→            )}
+   584→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   585→              <div className="space-y-2">
+   586→                <Label className="text-sm font-medium">Costo Unitario</Label>
+   587→                <Input type="number" step="0.01" {...form.register('costoUnitario')} />
+   588→              </div>
+   589→              <div className="space-y-2">
+   590→                <Label className="text-sm font-medium">Precio de Venta</Label>
+   591→                <Input type="number" step="0.01" {...form.register('precioVenta')} />
+   592→              </div>
+   593→              <div className="space-y-2">
+   594→                <Label className="text-sm font-medium">Stock Mínimo</Label>
+   595→                <Input type="number" {...form.register('stockMinimo')} />
+   596→              </div>
+   597→              <div className="space-y-2">
+   598→                <Label className="text-sm font-medium">Stock Máximo</Label>
+   599→                <Input type="number" {...form.register('stockMaximo')} />
+   600→              </div>
+   601→            </div>
+   602→
+   603→            {/* Margin Calculator */}
+   604→            <MarginCalculator
+   605→              costoUnitario={Number(form.watch('costoUnitario')) || 0}
+   606→              precioVenta={Number(form.watch('precioVenta')) || 0}
+   607→            />
+   608→
+   609→            <DialogFooter>
+   610→              <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setEditId(null); form.reset() }}>
+   611→                Cancelar
+   612→              </Button>
+   613→              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+   614→                {createMutation.isPending || updateMutation.isPending ? 'Guardando...' : editId ? 'Actualizar' : 'Crear'}
+   615→              </Button>
+   616→            </DialogFooter>
+   617→          </form>
+   618→        </DialogContent>
+   619→      </Dialog>
+   620→
+   621→      {/* View Detail Dialog */}
+   622→      <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
+   623→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   624→          <DialogHeader>
+   625→            <DialogTitle>Detalle del Producto</DialogTitle>
+   626→            <DialogDescription className="sr-only">Información detallada del producto seleccionado</DialogDescription>
+   627→          </DialogHeader>
+   628→          {viewProduct && (
+   629→            <div className="space-y-4">
+   630→              {viewProduct.fotoUrl && (
+   631→                <div className="flex justify-center">
+   632→                  <img
+   633→                    src={viewProduct.fotoUrl}
+   634→                    alt={viewProduct.nombre}
+   635→                    className="w-32 h-32 object-cover rounded-lg border"
+   636→                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+   637→                  />
+   638→                </div>
+   639→              )}
+   640→              <div className="grid grid-cols-2 gap-3 text-sm">
+   641→                <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono font-medium">{viewProduct.sku}</span></div>
+   642→                <div><span className="text-muted-foreground">Nombre:</span> <span className="font-medium">{viewProduct.nombre}</span></div>
+   643→                <div><span className="text-muted-foreground">Categoría:</span> {viewProduct.categoria?.nombre ?? '-'}</div>
+   644→                <div><span className="text-muted-foreground">Marca:</span> {viewProduct.marca?.nombre ?? '-'}</div>
+   645→                <div><span className="text-muted-foreground">Costo:</span> {formatCurrency(viewProduct.costoUnitario)}</div>
+   646→                <div><span className="text-muted-foreground">Precio:</span> {formatCurrency(viewProduct.precioVenta)}</div>
+   647→                <div><span className="text-muted-foreground">Stock Mínimo:</span> {viewProduct.stockMinimo}</div>
+   648→                <div><span className="text-muted-foreground">Unidad:</span> {viewProduct.unidadMedida}</div>
+   649→              </div>
+   650→              {viewProduct.descripcion && (
+   651→                <div className="text-sm">
+   652→                  <span className="text-muted-foreground">Descripción:</span>
+   653→                  <p className="mt-1">{viewProduct.descripcion}</p>
+   654→                </div>
+   655→              )}
+   656→              {viewProduct.stocks && viewProduct.stocks.length > 0 && (
+   657→                <div className="text-sm">
+   658→                  <p className="font-medium mb-2">Stock por Ubicación</p>
+   659→                  <div className="flex gap-2 flex-wrap">
+   660→                    {viewProduct.stocks.map((s: any) => (
+   661→                      <Badge key={s.idUbicacion} variant="outline">
+   662→                        Pasillo {s.ubicacion?.pasillo} - Estante {s.ubicacion?.estante} - Nivel {s.ubicacion?.nivel}: {s.cantidad}
+   663→                      </Badge>
+   664→                    ))}
+   665→                  </div>
+   666→                </div>
+   667→              )}
+   668→              {viewProduct.productoEquipo && viewProduct.productoEquipo.length > 0 && (
+   669→                <div className="text-sm">
+   670→                  <p className="font-medium mb-2">Compatible con Equipos</p>
+   671→                  <div className="flex gap-2 flex-wrap">
+   672→                    {viewProduct.productoEquipo.map((pe: any) => (
+   673→                      <Badge key={pe.idEquipo} variant="secondary">
+   674→                        {pe.equipo?.marca?.nombre} {pe.equipo?.modelo}
+   675→                      </Badge>
+   676→                    ))}
+   677→                  </div>
+   678→                </div>
+   679→              )}
+   680→              <div className="flex justify-end pt-2 border-t">
+   681→                <Button
+   682→                  variant="outline"
+   683→                  size="sm"
+   684→                  onClick={() => { setTimelineId(viewProduct.id); setViewId(null) }}
+   685→                >
+   686→                  <Activity className="h-4 w-4 mr-1" />
+   687→                  Ver Timeline
+   688→                </Button>
+   689→              </div>
+   690→            </div>
+   691→          )}
+   692→        </DialogContent>
+   693→      </Dialog>
+   694→
+   695→      {/* Timeline Dialog */}
+   696→      <Dialog open={!!timelineId} onOpenChange={(open) => { if (!open) setTimelineId(null) }}>
+   697→        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+   698→          <DialogHeader>
+   699→            <DialogTitle>Timeline de Stock</DialogTitle>
+   700→            <DialogDescription className="sr-only">Evolución del stock del producto en los últimos 30 movimientos</DialogDescription>
+   701→          </DialogHeader>
+   702→          {timelineData && (
+   703→            <div className="space-y-4">
+   704→              <div className="flex items-center justify-between text-sm">
+   705→                <div>
+   706→                  <p className="text-muted-foreground">Stock Actual</p>
+   707→                  <p className="text-2xl font-bold">{timelineData.currentStock}</p>
+   708→                </div>
+   709→                <div className="text-right">
+   710→                  <p className="text-muted-foreground">Producto ID</p>
+   711→                  <p className="font-mono">#{timelineData.productoId}</p>
+   712→                </div>
+   713→              </div>
+   714→              {chartData.length > 0 ? (
+   715→                <div className="h-64">
+   716→                  <ResponsiveContainer width="100%" height="100%">
+   717→                    <AreaChart data={chartData}>
+   718→                      <defs>
+   719→                        <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
+   720→                          <stop offset="5%" stopColor="oklch(0.55 0.15 145)" stopOpacity={0.3} />
+   721→                          <stop offset="95%" stopColor="oklch(0.55 0.15 145)" stopOpacity={0} />
+   722→                        </linearGradient>
+   723→                      </defs>
+   724→                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+   725→                      <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
+   726→                      <YAxis tick={{ fontSize: 11 }} />
+   727→                      <Tooltip
+   728→                        contentStyle={{
+   729→                          borderRadius: '8px',
+   730→                          border: '1px solid var(--border)',
+   731→                          background: 'var(--popover)',
+   732→                          color: 'var(--popover-foreground)',
+   733→                        }}
+   734→                      />
+   735→                      <Area
+   736→                        type="stepAfter"
+   737→                        dataKey="stock"
+   738→                        stroke="oklch(0.55 0.15 145)"
+   739→                        fill="url(#stockGradient)"
+   740→                        strokeWidth={2}
+   741→                      />
+   742→                    </AreaChart>
+   743→                  </ResponsiveContainer>
+   744→                </div>
+   745→              ) : (
+   746→                <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
+   747→                  Sin datos de movimiento para mostrar
+   748→                </div>
+   749→              )}
+   750→            </div>
+   751→          )}
+   752→        </DialogContent>
+   753→      </Dialog>
+   754→
+   755→      {/* Delete Alert */}
+   756→      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
+   757→        <AlertDialogContent>
+   758→          <AlertDialogHeader>
+   759→            <AlertDialogTitle>¿Eliminar producto?</AlertDialogTitle>
+   760→            <AlertDialogDescription>
+   761→              Esta acción no se puede deshacer. El producto será eliminado permanentemente.
+   762→            </AlertDialogDescription>
+   763→          </AlertDialogHeader>
+   764→          <AlertDialogFooter>
+   765→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+   766→            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)}>
+   767→              Eliminar
+   768→            </AlertDialogAction>
+   769→          </AlertDialogFooter>
+   770→        </AlertDialogContent>
+   771→      </AlertDialog>
+   772→
+   773→      <BarcodeScanner open={showBarcode} onOpenChange={setShowBarcode} />
+   774→    </div>
+   775→  )
+   776→}
+   777→

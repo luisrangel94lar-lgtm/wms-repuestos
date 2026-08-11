@@ -10,9 +10,10 @@ interface SortableHeaderProps {
   sortField: string
   sortDir: 'asc' | 'desc'
   onSort: (field: string) => void
+  className?: string
 }
 
-export function SortableHeader({ field, children, align = 'left', sortField, sortDir, onSort }: SortableHeaderProps) {
+export function SortableHeader({ field, children, align = 'left', sortField, sortDir, onSort, className }: SortableHeaderProps) {
   const isActive = sortField === field
   return (
     <TableHead
@@ -20,7 +21,8 @@ export function SortableHeader({ field, children, align = 'left', sortField, sor
         'text-xs cursor-pointer select-none hover:text-foreground transition-colors',
         align === 'right' && 'text-right',
         align === 'center' && 'text-center',
-        isActive && 'text-foreground'
+        isActive && 'text-foreground',
+        className
       )}
       onClick={() => onSort(field)}
     >

@@ -24,7 +24,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Pencil, Trash2, Eye, History, ChevronDown, ChevronRight, Users } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Eye, History, ChevronDown, ChevronRight, Users, Wallet, TrendingUp, UserCircle, Contact, BadgeCheck } from 'lucide-react'
 import { formatCurrency, formatDate } from './lib/format'
 
 const clienteSchema = z.object({
@@ -110,6 +110,37 @@ export function ClientsPage() {
 
   return (
     <div className="space-y-4">
+      {/* Stats Bar */}
+      <div className="flex flex-wrap gap-3">
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Total Clientes</p>
+              <p className="text-lg font-bold">{clientes.length}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Total Compras</p>
+              <p className="text-lg font-bold">{clientes.reduce((s: number, c: any) => s + ((c as any)._count?.ventas ?? 0), 0)}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Promedio Compras</p>
+              <p className="text-lg font-bold">{clientes.length > 0 ? (clientes.reduce((s: number, c: any) => s + ((c as any)._count?.ventas ?? 0), 0) / clientes.length).toFixed(1) : '0'}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex gap-2 flex-1">
           <div className="relative flex-1 max-w-sm">
@@ -180,9 +211,18 @@ export function ClientsPage() {
         <DialogContent className="max-w-md">
           <DialogHeader className="dialog-header-accent"><DialogTitle>{editId ? 'Editar Cliente' : 'Nuevo Cliente'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del cliente' : 'Formulario para crear un nuevo cliente'}</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
+            <div className="form-section-header"><UserCircle className="h-3.5 w-3.5" /> Información Personal</div>
             <div className="space-y-2"><Label className="text-sm font-medium">Nombre *</Label><Input {...form.register('nombre')} />{form.formState.errors.nombre && <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>}</div>
+
+            <hr className="form-section-divider" />
+
+            <div className="form-section-header"><Contact className="h-3.5 w-3.5" /> Contacto</div>
             <div className="space-y-2"><Label className="text-sm font-medium">Teléfono</Label><Input {...form.register('telefono')} /></div>
             <div className="space-y-2"><Label className="text-sm font-medium">Email</Label><Input {...form.register('email')} type="email" />{form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}</div>
+
+            <hr className="form-section-divider" />
+
+            <div className="form-section-header"><BadgeCheck className="h-3.5 w-3.5" /> Clasificación</div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Tipo de Cliente</Label>
               <Select value={form.watch('tipoCliente')} onValueChange={(v) => form.setValue('tipoCliente', v)}>

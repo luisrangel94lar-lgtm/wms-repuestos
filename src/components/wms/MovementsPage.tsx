@@ -16,7 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Search, ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, RefreshCw, BookOpen } from 'lucide-react'
+import { Search, ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, RefreshCw, BookOpen, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react'
 import { formatDateTime, tipoMovColors } from './lib/format'
 import { cn } from '@/lib/utils'
 import { SortableHeader } from './lib/SortableHeader'
@@ -131,6 +131,37 @@ export function MovementsPage() {
 
   return (
     <div className="space-y-4">
+      {/* Stats Bar */}
+      <div className="flex flex-wrap gap-3">
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Total</p>
+              <p className="text-lg font-bold">{movimientos.length}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Entradas</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{movimientos.filter((m: any) => m.tipoMovimiento?.nombre === 'ENTRADA').length}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Salidas</p>
+              <p className="text-lg font-bold text-red-600 dark:text-red-400">{movimientos.filter((m: any) => m.tipoMovimiento?.nombre === 'SALIDA').length}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
       {/* Quick date filters */}
       <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setQuickDate('today')}>
@@ -198,7 +229,7 @@ export function MovementsPage() {
                   <SortableHeader field="cantidad" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Cantidad</SortableHeader>
                   <TableHead className="text-xs hidden md:table-cell">Ubicación</TableHead>
                   <TableHead className="text-xs hidden lg:table-cell">Usuario</TableHead>
-                  <TableHead className="text-xs hidden sm:table-cell">Referencia</TableHead>
+                  <TableHead className="text-xs hidden md:table-cell">Referencia</TableHead>
                   <TableHead className="text-xs text-center">Kardex</TableHead>
                 </TableRow>
               </TableHeader>
@@ -210,6 +241,7 @@ export function MovementsPage() {
                   <TableRow><TableCell colSpan={8} className="text-center py-12">
                     <ArrowLeftRight className="h-16 w-16 mx-auto mb-3 text-muted-foreground/30" />
                     <p className="text-muted-foreground text-sm">No hay movimientos en este período</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">Ajusta los filtros de fecha o tipo para encontrar movimientos</p>
                   </TableCell></TableRow>
                 )}
                 {!isLoading && sortedFiltered.slice(0, 100).map((m: any) => {
@@ -238,7 +270,7 @@ export function MovementsPage() {
                         {m.ubicacion ? `${m.ubicacion.pasillo}-${m.ubicacion.estante}-${m.ubicacion.nivel}` : '-'}
                       </TableCell>
                       <TableCell className="text-xs py-2 hidden lg:table-cell">{m.usuario ?? '-'}</TableCell>
-                      <TableCell className="text-xs py-2 hidden sm:table-cell text-muted-foreground">{m.referencia ?? '-'}</TableCell>
+                      <TableCell className="text-xs py-2 hidden md:table-cell text-muted-foreground">{m.referencia ?? '-'}</TableCell>
                       <TableCell className="text-xs text-center py-2">
                         <Button
                           size="icon"

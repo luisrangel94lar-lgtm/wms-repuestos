@@ -204,6 +204,12 @@ export function DashboardPage() {
       fetch(`/api/wms/dashboard/daily-sales?days=${chartDays}`).then((r) => r.json()),
   })
 
+  const { data: salesComparison } = useQuery({
+    queryKey: ['sales-comparison', chartDays],
+    queryFn: () =>
+      fetch(`/api/wms/dashboard/sales-comparison?days=${chartDays}`).then((r) => r.json()),
+  })
+
   const { data: topSellers = [] } = useQuery({
     queryKey: ['dashboard-top-sellers'],
     queryFn: () =>
@@ -348,21 +354,36 @@ export function DashboardPage() {
                 <CardTitle className="text-base">Ventas Últimos {chartDays} Días</CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">Ingresos por día</p>
               </div>
-              <div className="flex items-center gap-1">
-                {([7, 30, 90] as const).map((d) => (
-                  <button
-                    key={d}
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-1">
+                  {([7, 30, 90] as const).map((d) => (
+                    <button
+                      key={d}
+                      className={cn(
+                        'text-xs px-2.5 py-1 rounded-md transition-all duration-150',
+                        chartDays === d
+                          ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+                          : 'text-muted-foreground hover:bg-muted'
+                      )}
+                      onClick={() => setChartDays(d)}
+                    >
+                      {d}d
+                    </button>
+                  ))}
+                </div>
+                {salesComparison && salesComparison.changePercent !== undefined && (
+                  <span
                     className={cn(
-                      'text-xs px-2.5 py-1 rounded-md transition-all duration-150',
-                      chartDays === d
-                        ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
-                        : 'text-muted-foreground hover:bg-muted'
+                      'text-[10px] font-medium flex items-center gap-0.5',
+                      salesComparison.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' :
+                      salesComparison.trend === 'down' ? 'text-red-600 dark:text-red-400' :
+                      'text-muted-foreground'
                     )}
-                    onClick={() => setChartDays(d)}
                   >
-                    {d}d
-                  </button>
-                ))}
+                    {salesComparison.trend === 'up' ? '↑' : salesComparison.trend === 'down' ? '↓' : '='}{' '}
+                    {salesComparison.changePercent > 0 ? '+' : ''}{salesComparison.changePercent}% vs anterior
+                  </span>
+                )}
               </div>
             </div>
           </CardHeader>

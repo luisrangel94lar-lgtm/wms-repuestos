@@ -90,7 +90,7 @@ export default function Home() {
           <WmsSidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <WmsHeader />
-            <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in">
+            <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-page-transition">
               <PageComponent />
             </main>
             <footer className="relative px-4 md:px-6 py-3 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm flex items-center justify-between mt-auto">

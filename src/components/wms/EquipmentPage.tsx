@@ -25,7 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, ChevronDown, ChevronRight, Pencil, Trash2, Link as LinkIcon } from 'lucide-react'
+import { Plus, Search, ChevronDown, ChevronRight, Pencil, Trash2, Link as LinkIcon, Tag, Cpu } from 'lucide-react'
 import { useWmsStore } from '@/store/wms'
 
 const equipoSchema = z.object({
@@ -235,6 +235,7 @@ export function EquipmentPage() {
         <DialogContent className="max-w-md">
           <DialogHeader className="dialog-header-accent"><DialogTitle>{editId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del equipo' : 'Formulario para crear un nuevo equipo'}</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
+            <div className="form-section-header"><Tag className="h-3.5 w-3.5" /> Identificación</div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Marca *</Label>
               <Select value={form.watch('idMarca') ? String(form.watch('idMarca')) : ''} onValueChange={(v) => form.setValue('idMarca', Number(v))}>
@@ -247,6 +248,8 @@ export function EquipmentPage() {
               </Select>
               {form.formState.errors.idMarca && <p className="text-xs text-destructive">{form.formState.errors.idMarca.message}</p>}
             </div>
+            <hr className="form-section-divider" />
+            <div className="form-section-header"><Cpu className="h-3.5 w-3.5" /> Detalles del Equipo</div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Modelo *</Label>
               <Input {...form.register('modelo')} />

@@ -1,0 +1,709 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState } from 'react'
+     4→     4→import { useQuery, useQueryClient } from '@tanstack/react-query'
+     5→     5→import { useWmsStore } from '@/store/wms'
+     6→     6→import { toast } from 'sonner'
+     7→     7→import { Card, CardContent } from '@/components/ui/card'
+     8→     8→import {
+     9→     9→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    10→    10→} from '@/components/ui/table'
+    11→    11→import { Button } from '@/components/ui/button'
+    12→    12→import { Badge } from '@/components/ui/badge'
+    13→    13→import { Skeleton } from '@/components/ui/skeleton'
+    14→    14→import { Input } from '@/components/ui/input'
+    15→    15→import { Label } from '@/components/ui/label'
+    16→    16→import { ScrollArea } from '@/components/ui/scroll-area'
+    17→    17→import { Separator } from '@/components/ui/separator'
+    18→    18→import {
+    19→    19→  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+    20→    20→} from '@/components/ui/sheet'
+    21→    21→import {
+    22→    22→  Download, MapPin, Check, AlertTriangle, XCircle, SlidersHorizontal, ArrowRightLeft, Loader2, Eye, Clock, Package,
+    23→    23→} from 'lucide-react'
+    24→    24→import { formatCurrency, formatDateTime, tipoMovColors } from './lib/format'
+    25→    25→import { exportToCSV } from './lib/export-csv'
+    26→    26→import {
+    27→    27→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    28→    28→} from '@/components/ui/dialog'
+    29→    29→import {
+    30→    30→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    31→    31→} from '@/components/ui/select'
+    32→    32→import { cn } from '@/lib/utils'
+    33→    33→import { SortableHeader } from './lib/SortableHeader'
+    34→    34→
+    35→    35→interface StockEntry {
+    36→    36→  idProducto: number
+    37→    37→  idUbicacion: number
+    38→    38→  cantidad: number
+    39→    39→  producto: { id: number; sku: string; nombre: string; costoUnitario: number; precioVenta: number; stockMinimo: number }
+    40→    40→  ubicacion: { id: number; pasillo: string; estante: string; nivel: string }
+    41→    41→}
+    42→    42→
+    43→    43→interface InventoryItem {
+    44→    44→  id: number
+    45→    45→  sku: string
+    46→    46→  nombre: string
+    47→    47→  descripcion: string | null
+    48→    48→  idCategoria: number | null
+    49→    49→  idMarca: number | null
+    50→    50→  costoUnitario: number
+    51→    51→  precioVenta: number
+    52→    52→  stockMinimo: number
+    53→    53→  totalStock: number
+    54→    54→  valorTotal: number
+    55→    55→  status: 'ok' | 'low' | 'out'
+    56→    56→  stocks: StockEntry[]
+    57→    57→  categoria?: { id: number; nombre: string } | null
+    58→    58→  marca?: { id: number; nombre: string } | null
+    59→    59→}
+    60→    60→
+    61→    61→function StatusBadge({ status }: { status: string }) {
+    62→    62→  if (status === 'out')
+    63→    63→    return (
+    64→    64→      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-danger">
+    65→    65→        <XCircle className="h-3 w-3" /> Sin Stock
+    66→    66→      </span>
+    67→    67→    )
+    68→    68→  if (status === 'low')
+    69→    69→    return (
+    70→    70→      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-warning">
+    71→    71→        <AlertTriangle className="h-3 w-3" /> Bajo Stock
+    72→    72→      </span>
+    73→    73→    )
+    74→    74→  return (
+    75→    75→    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-success">
+    76→    76→      <Check className="h-3 w-3" /> OK
+    77→    77→    </span>
+    78→    78→  )
+    79→    79→}
+    80→    80→
+    81→    81→export function InventoryPage() {
+    82→    82→  const queryClient = useQueryClient()
+    83→    83→  const { setCurrentPage, setReceivingProductId } = useWmsStore()
+    84→    84→  const [selectedProduct, setSelectedProduct] = useState<StockEntry['producto'] | null>(null)
+    85→    85→  const [sheetProduct, setSheetProduct] = useState<InventoryItem | null>(null)
+    86→    86→
+    87→    87→  // Ajuste state
+    88→    88→  const [ajusteProduct, setAjusteProduct] = useState<InventoryItem | null>(null)
+    89→    89→  const [ajusteStock, setAjusteStock] = useState('')
+    90→    90→  const [ajusteMotivo, setAjusteMotivo] = useState('')
+    91→    91→  const [ajusteLoading, setAjusteLoading] = useState(false)
+    92→    92→
+    93→    93→  // Traslado state
+    94→    94→  const [trasladoProduct, setTrasladoProduct] = useState<InventoryItem | null>(null)
+    95→    95→  const [trasladoOrigen, setTrasladoOrigen] = useState('')
+    96→    96→  const [trasladoDestino, setTrasladoDestino] = useState('')
+    97→    97→  const [trasladoCantidad, setTrasladoCantidad] = useState('')
+    98→    98→  const [trasladoLoading, setTrasladoLoading] = useState(false)
+    99→    99→
+   100→   100→  // Sorting state
+   101→   101→  const [sortField, setSortField] = useState<string>('nombre')
+   102→   102→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+   103→   103→
+   104→   104→  const { data: products = [], isLoading } = useQuery({
+   105→   105→    queryKey: ['products-inventory'],
+   106→   106→    queryFn: () => fetch('/api/wms/productos?pageSize=500').then((r) => r.json()).then((d: any) => d.items ?? []),
+   107→   107→  })
+   108→   108→
+   109→   109→  const { data: stockEntries = [] } = useQuery<StockEntry[]>({
+   110→   110→    queryKey: ['all-stock-inv'],
+   111→   111→    queryFn: () => fetch('/api/wms/stock').then((r) => r.json()),
+   112→   112→  })
+   113→   113→
+   114→   114→  const { data: allLocations = [] } = useQuery({
+   115→   115→    queryKey: ['all-locations'],
+   116→   116→    queryFn: () => fetch('/api/wms/ubicaciones?activos=true').then((r) => r.json()),
+   117→   117→  })
+   118→   118→
+   119→   119→  const { data: productMovements = [] } = useQuery({
+   120→   120→    queryKey: ['product-movements-sheet', sheetProduct?.id],
+   121→   121→    queryFn: () => fetch(`/api/wms/movimientos?idProducto=${sheetProduct?.id}&limit=5`).then((r) => r.json()),
+   122→   122→    enabled: !!sheetProduct?.id,
+   123→   123→  })
+   124→   124→
+   125→   125→  // Build inventory view
+   126→   126→  const inventory: InventoryItem[] = products.map((p: any) => {
+   127→   127→    const stocks = stockEntries.filter((s) => s.idProducto === p.id)
+   128→   128→    const totalStock = stocks.reduce((sum, s) => sum + s.cantidad, 0)
+   129→   129→    const valorTotal = totalStock * p.costoUnitario
+   130→   130→    let status: 'ok' | 'low' | 'out' = 'ok'
+   131→   131→    if (totalStock === 0) status = 'out'
+   132→   132→    else if (totalStock < p.stockMinimo) status = 'low'
+   133→   133→    return { ...p, totalStock, valorTotal, status, stocks }
+   134→   134→  })
+   135→   135→
+   136→   136→  const { data: inventoryStats } = useQuery({
+   137→   137→    queryKey: ['inventory-stats'],
+   138→   138→    queryFn: () => fetch('/api/wms/dashboard').then(r => r.json()).then(d => ({
+   139→   139→      totalProducts: d.totalProductos,
+   140→   140→      stockValue: d.valorTotalStock,
+   141→   141→      bajoStock: d.productosBajoStock?.count ?? 0,
+   142→   142→    })),
+   143→   143→  })
+   144→   144→
+   145→   145→  const totalValor = inventory.reduce((sum, p) => sum + p.valorTotal, 0)
+   146→   146→
+   147→   147→  function invalidateInventory() {
+   148→   148→    queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+   149→   149→    queryClient.invalidateQueries({ queryKey: ['all-stock-inv'] })
+   150→   150→    queryClient.invalidateQueries({ queryKey: ['inventory-stats'] })
+   151→   151→    queryClient.invalidateQueries({ queryKey: ['product-movements-sheet'] })
+   152→   152→  }
+   153→   153→
+   154→   154→  // --- Sorting ---
+   155→   155→  function handleSort(field: string) {
+   156→   156→    if (sortField === field) {
+   157→   157→      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+   158→   158→    } else {
+   159→   159→      setSortField(field)
+   160→   160→      setSortDir('asc')
+   161→   161→    }
+   162→   162→  }
+   163→   163→  function getSortValue(item: InventoryItem, field: string): any {
+   164→   164→    if (field === 'margen') {
+   165→   165→      return item.precioVenta > 0 ? ((item.precioVenta - item.costoUnitario) / item.precioVenta * 100) : 0
+   166→   166→    }
+   167→   167→    return item[field as keyof InventoryItem]
+   168→   168→  }
+   169→   169→
+   170→   170→  const sortedInventory = [...inventory].sort((a, b) => {
+   171→   171→    let aVal: any = getSortValue(a, sortField)
+   172→   172→    let bVal: any = getSortValue(b, sortField)
+   173→   173→    if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = (bVal as string).toLowerCase() }
+   174→   174→    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+   175→   175→    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+   176→   176→    return 0
+   177→   177→  })
+   178→   178→
+   179→   179→  // --- AJUSTE handlers ---
+   180→   180→  function openAjuste(item: InventoryItem) {
+   181→   181→    setAjusteProduct(item)
+   182→   182→    setAjusteStock(String(item.totalStock))
+   183→   183→    setAjusteMotivo('')
+   184→   184→  }
+   185→   185→
+   186→   186→  async function submitAjuste() {
+   187→   187→    if (!ajusteProduct || ajusteStock === '') return
+   188→   188→    const newStock = parseInt(ajusteStock, 10)
+   189→   189→    if (isNaN(newStock) || newStock < 0) {
+   190→   190→      toast.error('Cantidad inválida')
+   191→   191→      return
+   192→   192→    }
+   193→   193→
+   194→   194→    const locationId = ajusteProduct.stocks.length > 0
+   195→   195→      ? ajusteProduct.stocks[0].idUbicacion
+   196→   196→      : allLocations[0]?.id
+   197→   197→
+   198→   198→    if (!locationId) {
+   199→   199→      toast.error('No hay ubicaciones disponibles')
+   200→   200→      return
+   201→   201→    }
+   202→   202→
+   203→   203→    setAjusteLoading(true)
+   204→   204→    try {
+   205→   205→      const res = await fetch('/api/wms/movimientos', {
+   206→   206→        method: 'POST',
+   207→   207→        headers: { 'Content-Type': 'application/json' },
+   208→   208→        body: JSON.stringify({
+   209→   209→          idProducto: ajusteProduct.id,
+   210→   210→          idUbicacion: locationId,
+   211→   211→          idTipo: 3,
+   212→   212→          cantidad: newStock,
+   213→   213→          referencia: 'Ajuste manual',
+   214→   214→          observacion: ajusteMotivo || null,
+   215→   215→        }),
+   216→   216→      })
+   217→   217→      if (!res.ok) {
+   218→   218→        const err = await res.json()
+   219→   219→        throw new Error(err.error || 'Error al ajustar stock')
+   220→   220→      }
+   221→   221→      toast.success('Stock ajustado correctamente')
+   222→   222→      setAjusteProduct(null)
+   223→   223→      invalidateInventory()
+   224→   224→    } catch (e: any) {
+   225→   225→      toast.error(e.message || 'Error al ajustar stock')
+   226→   226→    } finally {
+   227→   227→      setAjusteLoading(false)
+   228→   228→    }
+   229→   229→  }
+   230→   230→
+   231→   231→  // --- TRASLADO handlers ---
+   232→   232→  function openTraslado(item: InventoryItem) {
+   233→   233→    if (item.stocks.length < 1) return
+   234→   234→    setTrasladoProduct(item)
+   235→   235→    setTrasladoOrigen(String(item.stocks[0].idUbicacion))
+   236→   236→    setTrasladoDestino('')
+   237→   237→    setTrasladoCantidad('')
+   238→   238→  }
+   239→   239→
+   240→   240→  function getOrigenStock(): number {
+   241→   241→    if (!trasladoProduct) return 0
+   242→   242→    const entry = trasladoProduct.stocks.find((s) => String(s.idUbicacion) === trasladoOrigen)
+   243→   243→    return entry?.cantidad ?? 0
+   244→   244→  }
+   245→   245→
+   246→   246→  async function submitTraslado() {
+   247→   247→    if (!trasladoProduct || !trasladoOrigen || !trasladoDestino || !trasladoCantidad) return
+   248→   248→    if (trasladoOrigen === trasladoDestino) {
+   249→   249→      toast.error('El origen y destino no pueden ser iguales')
+   250→   250→      return
+   251→   251→    }
+   252→   252→    const qty = parseInt(trasladoCantidad, 10)
+   253→   253→    if (isNaN(qty) || qty <= 0) {
+   254→   254→      toast.error('Cantidad inválida')
+   255→   255→      return
+   256→   256→    }
+   257→   257→    const origenStock = getOrigenStock()
+   258→   258→    if (qty > origenStock) {
+   259→   259→      toast.error(`Stock insuficiente en origen (disponible: ${origenStock})`)
+   260→   260→      return
+   261→   261→    }
+   262→   262→
+   263→   263→    setTrasladoLoading(true)
+   264→   264→    try {
+   265→   265→      const res = await fetch('/api/wms/stock/transfer', {
+   266→   266→        method: 'POST',
+   267→   267→        headers: { 'Content-Type': 'application/json' },
+   268→   268→        body: JSON.stringify({
+   269→   269→          idProducto: trasladoProduct.id,
+   270→   270→          idUbicacionOrigen: parseInt(trasladoOrigen, 10),
+   271→   271→          idUbicacionDestino: parseInt(trasladoDestino, 10),
+   272→   272→          cantidad: qty,
+   273→   273→        }),
+   274→   274→      })
+   275→   275→      if (!res.ok) {
+   276→   276→        const err = await res.json()
+   277→   277→        throw new Error(err.error || 'Error en traslado')
+   278→   278→      }
+   279→   279→      toast.success('Traslado realizado correctamente')
+   280→   280→      setTrasladoProduct(null)
+   281→   281→      invalidateInventory()
+   282→   282→    } catch (e: any) {
+   283→   283→      toast.error(e.message || 'Error en traslado')
+   284→   284→    } finally {
+   285→   285→      setTrasladoLoading(false)
+   286→   286→    }
+   287→   287→  }
+   288→   288→
+   289→   289→  // --- CSV Export ---
+   290→   290→  function exportInventory() {
+   291→   291→    exportToCSV(
+   292→   292→      inventory.map((p) => ({
+   293→   293→        producto: p.nombre,
+   294→   294→        sku: p.sku,
+   295→   295→        totalStock: p.totalStock,
+   296→   296→        valorTotal: p.valorTotal,
+   297→   297→      })),
+   298→   298→      'inventario',
+   299→   299→      [
+   300→   300→        { key: 'producto', label: 'Producto' },
+   301→   301→        { key: 'sku', label: 'SKU' },
+   302→   302→        { key: 'totalStock', label: 'Stock Total' },
+   303→   303→        { key: 'valorTotal', label: 'Valor Total', format: 'currency' },
+   304→   304→      ],
+   305→   305→    )
+   306→   306→  }
+   307→   307→
+   308→   308→  function openSheet(item: InventoryItem) {
+   309→   309→    setSheetProduct(item)
+   310→   310→  }
+   311→   311→
+   312→   312→  function quickGoToReceiving() {
+   313→   313→    if (!sheetProduct) return
+   314→   314→    const deficiency = sheetProduct.stockMinimo - sheetProduct.totalStock
+   315→   315→    setReceivingProductId(sheetProduct.id, deficiency > 0 ? deficiency : null)
+   316→   316→    setCurrentPage('receiving')
+   317→   317→    setSheetProduct(null)
+   318→   318→  }
+   319→   319→
+   320→   320→  function quickAdjust() {
+   321→   321→    if (!sheetProduct) return
+   322→   322→    setSheetProduct(null)
+   323→   323→    openAjuste(sheetProduct)
+   324→   324→  }
+   325→   325→
+   326→   326→  function quickTransfer() {
+   327→   327→    if (!sheetProduct) return
+   328→   328→    setSheetProduct(null)
+   329→   329→    openTraslado(sheetProduct)
+   330→   330→  }
+   331→   331→
+   332→   332→  // Find max stock for the location bars
+   333→   333→  function getMaxStock(): number {
+   334→   334→    if (!sheetProduct) return 1
+   335→   335→    const max = Math.max(...sheetProduct.stocks.map((s) => s.cantidad), sheetProduct.stockMinimo)
+   336→   336→    return max || 1
+   337→   337→  }
+   338→   338→
+   339→   339→  return (
+   340→   340→    <div className="space-y-4">
+   341→   341→      {/* Stats Bar */}
+   342→   342→      <div className="flex flex-wrap gap-3 mb-4">
+   343→   343→        <Card className="rounded-lg px-4 py-3 shadow-sm">
+   344→   344→          <p className="text-xs text-muted-foreground">Productos Activos</p>
+   345→   345→          <p className="text-lg font-bold">{products.length}</p>
+   346→   346→        </Card>
+   347→   347→        <Card className="rounded-lg px-4 py-3 shadow-sm">
+   348→   348→          <p className="text-xs text-muted-foreground">Valor Total</p>
+   349→   349→          <p className="text-lg font-bold">{formatCurrency(inventoryStats?.stockValue ?? totalValor)}</p>
+   350→   350→        </Card>
+   351→   351→        <Card className="rounded-lg px-4 py-3 shadow-sm">
+   352→   352→          <p className="text-xs text-muted-foreground">Bajo Mínimo</p>
+   353→   353→          <p className="text-lg font-bold text-destructive">{inventoryStats?.bajoStock ?? 0}</p>
+   354→   354→        </Card>
+   355→   355→      </div>
+   356→   356→
+   357→   357→      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+   358→   358→        <div>
+   359→   359→          <p className="text-sm text-muted-foreground">
+   360→   360→            {inventory.length} productos · Valor total: <span className="font-semibold text-foreground">{formatCurrency(totalValor)}</span>
+   361→   361→          </p>
+   362→   362→        </div>
+   363→   363→        <Button variant="outline" onClick={exportInventory}>
+   364→   364→          <Download className="h-4 w-4 mr-1" /> Exportar CSV
+   365→   365→        </Button>
+   366→   366→      </div>
+   367→   367→
+   368→   368→      <div className="mb-4">
+   369→   369→        <p className="text-sm text-muted-foreground">Vista consolidada del inventario actual</p>
+   370→   370→      </div>
+   371→   371→
+   372→   372→      <Card className="rounded-xl shadow-sm">
+   373→   373→        <CardContent className="p-0">
+   374→   374→          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
+   375→   375→            <Table>
+   376→   376→              <TableHeader>
+   377→   377→                <TableRow>
+   378→   378→                  <SortableHeader field="nombre" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Producto</SortableHeader>
+   379→   379→                  <SortableHeader field="sku" sortField={sortField} sortDir={sortDir} onSort={handleSort}>SKU</SortableHeader>
+   380→   380→                  <SortableHeader field="totalStock" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Total Stock</SortableHeader>
+   381→   381→                  <SortableHeader field="valorTotal" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Valor Total</SortableHeader>
+   382→   382→                  <SortableHeader field="margen" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Margen %</SortableHeader>
+   383→   383→                  <TableHead className="text-xs text-center">Estado</TableHead>
+   384→   384→                  <TableHead className="text-xs text-right">Acciones</TableHead>
+   385→   385→                </TableRow>
+   386→   386→              </TableHeader>
+   387→   387→              <TableBody>
+   388→   388→                {isLoading && Array.from({ length: 8 }).map((_, i) => (
+   389→   389→                  <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+   390→   390→                ))}
+   391→   391→                {!isLoading && sortedInventory.length === 0 && (
+   392→   392→                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Sin productos en inventario</TableCell></TableRow>
+   393→   393→                )}
+   394→   394→                {!isLoading && sortedInventory.map((p, idx) => {
+   395→   395→                  const margen = p.precioVenta > 0 ? ((p.precioVenta - p.costoUnitario) / p.precioVenta * 100) : 0
+   396→   396→                  return (
+   397→   397→                    <TableRow key={p.id} className={cn('hover:bg-muted/50 cursor-pointer', idx % 2 === 1 && 'bg-muted/20')} onClick={() => openSheet(p)}>
+   398→   398→                      <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{p.nombre}</TableCell>
+   399→   399→                      <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
+   400→   400→                      <TableCell className="text-xs text-center font-mono py-2">{p.totalStock}</TableCell>
+   401→   401→                      <TableCell className="text-xs text-right py-2">{formatCurrency(p.valorTotal)}</TableCell>
+   402→   402→                      <TableCell className="text-xs text-right py-2">
+   403→   403→                        <span className={cn(
+   404→   404→                          'font-mono',
+   405→   405→                          margen >= 30 ? 'text-emerald-600 dark:text-emerald-400' :
+   406→   406→                          margen >= 15 ? 'text-amber-600 dark:text-amber-400' :
+   407→   407→                          'text-red-600 dark:text-red-400'
+   408→   408→                        )}>
+   409→   409→                          {margen.toFixed(1)}%
+   410→   410→                        </span>
+   411→   411→                      </TableCell>
+   412→   412→                      <TableCell className="text-xs text-center py-2"><StatusBadge status={p.status} /></TableCell>
+   413→   413→                      <TableCell className="text-xs text-right py-2">
+   414→   414→                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+   415→   415→                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver detalle" onClick={() => openSheet(p)}>
+   416→   416→                            <Eye className="h-3.5 w-3.5" />
+   417→   417→                          </Button>
+   418→   418→                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver ubicaciones" onClick={() => setSelectedProduct(p)}>
+   419→   419→                            <MapPin className="h-3.5 w-3.5" />
+   420→   420→                          </Button>
+   421→   421→                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ajustar stock" onClick={() => openAjuste(p)}>
+   422→   422→                            <SlidersHorizontal className="h-3.5 w-3.5" />
+   423→   423→                          </Button>
+   424→   424→                          {p.stocks.length > 1 && (
+   425→   425→                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Trasladar" onClick={() => openTraslado(p)}>
+   426→   426→                              <ArrowRightLeft className="h-3.5 w-3.5" />
+   427→   427→                            </Button>
+   428→   428→                          )}
+   429→   429→                        </div>
+   430→   430→                      </TableCell>
+   431→   431→                    </TableRow>
+   432→   432→                  )
+   433→   433→                })}
+   434→   434→              </TableBody>
+   435→   435→            </Table>
+   436→   436→          </div>
+   437→   437→        </CardContent>
+   438→   438→      </Card>
+   439→   439→
+   440→   440→      {/* Stock by location dialog */}
+   441→   441→      <Dialog open={!!selectedProduct} onOpenChange={(open) => { if (!open) setSelectedProduct(null) }}>
+   442→   442→        <DialogContent className="max-w-md">
+   443→   443→          <DialogHeader className="dialog-header-accent"><DialogTitle>Stock por Ubicación</DialogTitle><DialogDescription>Detalle de stock por ubicación del producto</DialogDescription></DialogHeader>
+   444→   444→          {selectedProduct && (
+   445→   445→            <div className="space-y-3">
+   446→   446→              <p className="text-sm"><span className="text-muted-foreground">Producto:</span> <span className="font-medium">{selectedProduct.nombre}</span></p>
+   447→   447→              <p className="text-sm"><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{selectedProduct.sku}</span></p>
+   448→   448→              <Table>
+   449→   449→                <TableHeader>
+   450→   450→                  <TableRow>
+   451→   451→                    <TableHead className="text-xs">Pasillo</TableHead>
+   452→   452→                    <TableHead className="text-xs">Estante</TableHead>
+   453→   453→                    <TableHead className="text-xs">Nivel</TableHead>
+   454→   454→                    <TableHead className="text-xs text-right">Cantidad</TableHead>
+   455→   455→                  </TableRow>
+   456→   456→                </TableHeader>
+   457→   457→                <TableBody>
+   458→   458→                  {(() => {
+   459→   459→                    const stocks = stockEntries.filter((s) => s.idProducto === selectedProduct.id)
+   460→   460→                    if (stocks.length === 0) return <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sin stock</TableCell></TableRow>
+   461→   461→                    return stocks.map((s) => (
+   462→   462→                      <TableRow key={s.idUbicacion}>
+   463→   463→                        <TableCell className="text-xs py-2">{s.ubicacion.pasillo}</TableCell>
+   464→   464→                        <TableCell className="text-xs py-2">{s.ubicacion.estante}</TableCell>
+   465→   465→                        <TableCell className="text-xs py-2">{s.ubicacion.nivel}</TableCell>
+   466→   466→                        <TableCell className="text-xs text-right font-mono py-2">{s.cantidad}</TableCell>
+   467→   467→                      </TableRow>
+   468→   468→                    ))
+   469→   469→                  })()}
+   470→   470→                </TableBody>
+   471→   471→              </Table>
+   472→   472→            </div>
+   473→   473→          )}
+   474→   474→        </DialogContent>
+   475→   475→      </Dialog>
+   476→   476→
+   477→   477→      {/* Ajuste Dialog */}
+   478→   478→      <Dialog open={!!ajusteProduct} onOpenChange={(open) => { if (!open) setAjusteProduct(null) }}>
+   479→   479→        <DialogContent className="max-w-sm">
+   480→   480→          <DialogHeader className="dialog-header-accent"><DialogTitle>Ajustar Stock</DialogTitle><DialogDescription>Modificar la cantidad de stock del producto</DialogDescription></DialogHeader>
+   481→   481→          {ajusteProduct && (
+   482→   482→            <div className="space-y-4">
+   483→   483→              <div className="space-y-1">
+   484→   484→                <Label className="text-xs text-muted-foreground">Producto</Label>
+   485→   485→                <p className="text-sm font-medium">{ajusteProduct.nombre}</p>
+   486→   486→              </div>
+   487→   487→              <div className="space-y-1">
+   488→   488→                <Label className="text-xs text-muted-foreground">Stock Actual</Label>
+   489→   489→                <p className="text-sm font-mono">{ajusteProduct.totalStock}</p>
+   490→   490→              </div>
+   491→   491→              <div className="space-y-1">
+   492→   492→                <Label className="text-sm font-medium">Nuevo Stock</Label>
+   493→   493→                <Input type="number" min="0" value={ajusteStock} onChange={(e) => setAjusteStock(e.target.value)} placeholder="Nueva cantidad" />
+   494→   494→              </div>
+   495→   495→              <div className="space-y-1">
+   496→   496→                <Label className="text-sm font-medium">Motivo (opcional)</Label>
+   497→   497→                <Input value={ajusteMotivo} onChange={(e) => setAjusteMotivo(e.target.value)} placeholder="Razón del ajuste" />
+   498→   498→              </div>
+   499→   499→              <DialogFooter className="gap-2">
+   500→   500→                <Button variant="outline" onClick={() => setAjusteProduct(null)} disabled={ajusteLoading}>Cancelar</Button>
+   501→   501→                <Button onClick={submitAjuste} disabled={ajusteLoading}>
+   502→   502→                  {ajusteLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+   503→   503→                  Guardar Ajuste
+   504→   504→                </Button>
+   505→   505→              </DialogFooter>
+   506→   506→            </div>
+   507→   507→          )}
+   508→   508→        </DialogContent>
+   509→   509→      </Dialog>
+   510→   510→
+   511→   511→      {/* Traslado Dialog */}
+   512→   512→      <Dialog open={!!trasladoProduct} onOpenChange={(open) => { if (!open) setTrasladoProduct(null) }}>
+   513→   513→        <DialogContent className="max-w-sm">
+   514→   514→          <DialogHeader className="dialog-header-accent"><DialogTitle>Trasladar Stock</DialogTitle><DialogDescription>Mover stock entre ubicaciones</DialogDescription></DialogHeader>
+   515→   515→          {trasladoProduct && (
+   516→   516→            <div className="space-y-4">
+   517→   517→              <div className="space-y-1">
+   518→   518→                <Label className="text-xs text-muted-foreground">Producto</Label>
+   519→   519→                <p className="text-sm font-medium">{trasladoProduct.nombre}</p>
+   520→   520→              </div>
+   521→   521→              <div className="space-y-1">
+   522→   522→                <Label className="text-sm font-medium">Ubicación Origen</Label>
+   523→   523→                <Select value={trasladoOrigen} onValueChange={(v) => { setTrasladoOrigen(v); setTrasladoCantidad('') }}>
+   524→   524→                  <SelectTrigger><SelectValue placeholder="Seleccionar origen" /></SelectTrigger>
+   525→   525→                  <SelectContent>
+   526→   526→                    {trasladoProduct.stocks.filter((s) => s.cantidad > 0).map((s) => (
+   527→   527→                      <SelectItem key={s.idUbicacion} value={String(s.idUbicacion)}>
+   528→   528→                        {s.ubicacion.pasillo}-{s.ubicacion.estante}-{s.ubicacion.nivel} ({s.cantidad})
+   529→   529→                      </SelectItem>
+   530→   530→                    ))}
+   531→   531→                  </SelectContent>
+   532→   532→                </Select>
+   533→   533→              </div>
+   534→   534→              <div className="space-y-1">
+   535→   535→                <Label className="text-sm font-medium">Ubicación Destino</Label>
+   536→   536→                <Select value={trasladoDestino} onValueChange={setTrasladoDestino}>
+   537→   537→                  <SelectTrigger><SelectValue placeholder="Seleccionar destino" /></SelectTrigger>
+   538→   538→                  <SelectContent>
+   539→   539→                    {allLocations.map((loc: any) => (
+   540→   540→                      <SelectItem key={loc.id} value={String(loc.id)} disabled={String(loc.id) === trasladoOrigen}>
+   541→   541→                        {loc.pasillo}-{loc.estante}-{loc.nivel}
+   542→   542→                      </SelectItem>
+   543→   543→                    ))}
+   544→   544→                  </SelectContent>
+   545→   545→                </Select>
+   546→   546→              </div>
+   547→   547→              <div className="space-y-1">
+   548→   548→                <Label className="text-sm font-medium">Cantidad (máx: {getOrigenStock()})</Label>
+   549→   549→                <Input type="number" min="1" max={getOrigenStock()} value={trasladoCantidad} onChange={(e) => setTrasladoCantidad(e.target.value)} placeholder="Cantidad a trasladar" />
+   550→   550→              </div>
+   551→   551→              <DialogFooter className="gap-2">
+   552→   552→                <Button variant="outline" onClick={() => setTrasladoProduct(null)} disabled={trasladoLoading}>Cancelar</Button>
+   553→   553→                <Button onClick={submitTraslado} disabled={trasladoLoading}>
+   554→   554→                  {trasladoLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+   555→   555→                  Trasladar
+   556→   556→                </Button>
+   557→   557→              </DialogFooter>
+   558→   558→            </div>
+   559→   559→          )}
+   560→   560→        </DialogContent>
+   561→   561→      </Dialog>
+   562→   562→
+   563→   563→      {/* Product Detail Sheet */}
+   564→   564→      <Sheet open={!!sheetProduct} onOpenChange={(open) => { if (!open) setSheetProduct(null) }}>
+   565→   565→        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+   566→   566→          <SheetHeader className="dialog-header-accent">
+   567→   567→            <SheetTitle>Detalle de Producto</SheetTitle>
+   568→   568→            <SheetDescription>Información completa del producto</SheetDescription>
+   569→   569→          </SheetHeader>
+   570→   570→          {sheetProduct && (
+   571→   571→            <div className="space-y-6 mt-4">
+   572→   572→              {/* Product Info */}
+   573→   573→              <div className="space-y-2">
+   574→   574→                <h3 className="text-base font-semibold">{sheetProduct.nombre}</h3>
+   575→   575→                <div className="grid grid-cols-2 gap-2 text-xs">
+   576→   576→                  <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{sheetProduct.sku}</span></div>
+   577→   577→                  <div><span className="text-muted-foreground">Categoría:</span> {sheetProduct.categoria?.nombre ?? '-'}</div>
+   578→   578→                  <div><span className="text-muted-foreground">Marca:</span> {sheetProduct.marca?.nombre ?? '-'}</div>
+   579→   579→                  <div><span className="text-muted-foreground">Unidad:</span> {sheetProduct.unidadMedida ?? 'unidad'}</div>
+   580→   580→                  <div><span className="text-muted-foreground">Costo:</span> {formatCurrency(sheetProduct.costoUnitario)}</div>
+   581→   581→                  <div><span className="text-muted-foreground">Precio Venta:</span> <span className="font-semibold">{formatCurrency(sheetProduct.precioVenta)}</span></div>
+   582→   582→                </div>
+   583→   583→                {sheetProduct.descripcion && (
+   584→   584→                  <p className="text-xs text-muted-foreground mt-1">{sheetProduct.descripcion}</p>
+   585→   585→                )}
+   586→   586→                <div className="flex items-center gap-2 mt-1">
+   587→   587→                  <StatusBadge status={sheetProduct.status} />
+   588→   588→                  <Badge variant="outline" className="text-[10px]">
+   589→   589→                    Stock Total: <span className="font-mono font-semibold">{sheetProduct.totalStock}</span>
+   590→   590→                  </Badge>
+   591→   591→                  <Badge variant="outline" className="text-[10px]">
+   592→   592→                    Mínimo: <span className="font-mono">{sheetProduct.stockMinimo}</span>
+   593→   593→                  </Badge>
+   594→   594→                </div>
+   595→   595→              </div>
+   596→   596→
+   597→   597→              <Separator />
+   598→   598→
+   599→   599→              {/* Stock by Location - Visual Bars */}
+   600→   600→              <div className="space-y-3">
+   601→   601→                <h4 className="text-sm font-semibold flex items-center gap-2">
+   602→   602→                  <MapPin className="h-4 w-4" /> Stock por Ubicación
+   603→   603→                </h4>
+   604→   604→                {sheetProduct.stocks.length === 0 ? (
+   605→   605→                  <div className="text-center py-4 text-muted-foreground text-xs">
+   606→   606→                    <Package className="h-8 w-8 mx-auto mb-1 opacity-30" />
+   607→   607→                    <p>Sin stock registrado</p>
+   608→   608→                  </div>
+   609→   609→                ) : (
+   610→   610→                  <div className="space-y-2">
+   611→   611→                    {sheetProduct.stocks.map((s) => {
+   612→   612→                      const maxStock = getMaxStock()
+   613→   613→                      const pct = Math.round((s.cantidad / maxStock) * 100)
+   614→   614→                      return (
+   615→   615→                        <div key={s.idUbicacion} className="space-y-1">
+   616→   616→                          <div className="flex items-center justify-between text-xs">
+   617→   617→                            <span className="font-mono text-muted-foreground">
+   618→   618→                              {s.ubicacion.pasillo}-{s.ubicacion.estante}-{s.ubicacion.nivel}
+   619→   619→                            </span>
+   620→   620→                            <span className="font-mono font-semibold">{s.cantidad}</span>
+   621→   621→                          </div>
+   622→   622→                          <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+   623→   623→                            <div
+   624→   624→                              className={cn(
+   625→   625→                                'h-full rounded-full transition-all duration-500',
+   626→   626→                                s.cantidad === 0 ? 'bg-red-500' :
+   627→   627→                                s.cantidad < sheetProduct.stockMinimo ? 'bg-amber-500' :
+   628→   628→                                'bg-emerald-500'
+   629→   629→                              )}
+   630→   630→                              style={{ width: `${Math.max(2, pct)}%` }}
+   631→   631→                            />
+   632→   632→                          </div>
+   633→   633→                        </div>
+   634→   634→                      )
+   635→   635→                    })}
+   636→   636→                    {sheetProduct.stockMinimo > 0 && (
+   637→   637→                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-1">
+   638→   638→                        <div className="h-1 w-3 bg-amber-500 rounded" />
+   639→   639→                        <span>Línea de mínimo ({sheetProduct.stockMinimo})</span>
+   640→   640→                      </div>
+   641→   641→                    )}
+   642→   642→                  </div>
+   643→   643→                )}
+   644→   644→              </div>
+   645→   645→
+   646→   646→              <Separator />
+   647→   647→
+   648→   648→              {/* Recent Movements */}
+   649→   649→              <div className="space-y-3">
+   650→   650→                <h4 className="text-sm font-semibold flex items-center gap-2">
+   651→   651→                  <Clock className="h-4 w-4" /> Últimos Movimientos
+   652→   652→                </h4>
+   653→   653→                {productMovements.length === 0 ? (
+   654→   654→                  <p className="text-xs text-muted-foreground">Sin movimientos registrados</p>
+   655→   655→                ) : (
+   656→   656→                  <ScrollArea className="max-h-48">
+   657→   657→                    <div className="space-y-1">
+   658→   658→                      {productMovements.slice(0, 5).map((m: any) => (
+   659→   659→                        <div key={m.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/50">
+   660→   660→                          <div className="flex items-center gap-2">
+   661→   661→                            <span className={cn('inline-block px-1.5 py-0 rounded text-[10px] font-semibold', tipoMovColors[m.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800')}>
+   662→   662→                              {m.tipoMovimiento?.nombre}
+   663→   663→                            </span>
+   664→   664→                            <span className="text-[10px] text-muted-foreground">
+   665→   665→                              {m.ubicacion ? `${m.ubicacion.pasillo}-${m.ubicacion.estante}` : '-'}
+   666→   666→                            </span>
+   667→   667→                          </div>
+   668→   668→                          <div className="flex items-center gap-2">
+   669→   669→                            <span className={cn('text-xs font-mono font-semibold',
+   670→   670→                              m.tipoMovimiento?.nombre === 'ENTRADA' || m.tipoMovimiento?.nombre === 'DEVOLUCION'
+   671→   671→                                ? 'text-emerald-600 dark:text-emerald-400'
+   672→   672→                                : 'text-red-600 dark:text-red-400'
+   673→   673→                            )}>
+   674→   674→                              {m.tipoMovimiento?.nombre === 'ENTRADA' || m.tipoMovimiento?.nombre === 'DEVOLUCION' ? '+' : '-'}{m.cantidad}
+   675→   675→                            </span>
+   676→   676→                            <span className="text-[10px] text-muted-foreground">{formatDateTime(m.fecha)}</span>
+   677→   677→                          </div>
+   678→   678→                        </div>
+   679→   679→                      ))}
+   680→   680→                    </div>
+   681→   681→                  </ScrollArea>
+   682→   682→                )}
+   683→   683→              </div>
+   684→   684→
+   685→   685→              <Separator />
+   686→   686→
+   687→   687→              {/* Quick Actions */}
+   688→   688→              <div className="space-y-3">
+   689→   689→                <h4 className="text-sm font-semibold">Acciones Rápidas</h4>
+   690→   690→                <div className="grid grid-cols-2 gap-2">
+   691→   691→                  <Button variant="outline" size="sm" className="text-xs" onClick={quickAdjust}>
+   692→   692→                    <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Ajustar Stock
+   693→   693→                  </Button>
+   694→   694→                  <Button variant="outline" size="sm" className="text-xs" onClick={quickTransfer} disabled={sheetProduct.stocks.length <= 1}>
+   695→   695→                    <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
+   696→   696→                  </Button>
+   697→   697→                  <Button size="sm" className="text-xs col-span-2" onClick={quickGoToReceiving}>
+   698→   698→                    <Download className="h-3.5 w-3.5 mr-1" /> Ir a Recepción
+   699→   699→                  </Button>
+   700→   700→                </div>
+   701→   701→              </div>
+   702→   702→            </div>
+   703→   703→          )}
+   704→   704→        </SheetContent>
+   705→   705→      </Sheet>
+   706→   706→    </div>
+   707→   707→  )
+   708→   708→}
+   709→   709→

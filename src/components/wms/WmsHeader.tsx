@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useWmsStore } from '@/store/wms'
 import { pageTitles } from './WmsSidebar'
 import { SearchResults } from './SearchResults'
-import { Menu, Search, X, Sun, Moon, ChevronRight, ChevronDown, Bell, AlertTriangle, ShoppingCart, Download, CheckCheck } from 'lucide-react'
+import { Menu, Search, X, Sun, Moon, ChevronRight, ChevronDown, Bell, AlertTriangle, ShoppingCart, Download, CheckCheck, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -13,6 +13,7 @@ import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 import type { WmsPage } from '@/types/wms'
 import { cn } from '@/lib/utils'
+import { KeyboardShortcutsDialog } from './KeyboardShortcuts'
 
 const breadcrumbs: Record<WmsPage, { path: string; description: string }> = {
   dashboard: { path: 'Inicio', description: 'Resumen general del almacén y métricas clave' },
@@ -72,6 +73,18 @@ function timeAgo(timestamp: string): string {
   return `Hace ${diffDays}d`
 }
 
+const pageMapping: Record<string, WmsPage> = {
+  '1': 'dashboard',
+  '2': 'products',
+  '3': 'equipment',
+  '4': 'receiving',
+  '5': 'sales',
+  '6': 'inventory',
+  '7': 'movements',
+  '8': 'reports',
+  '9': 'alerts',
+}
+
 export function WmsHeader() {
   const { currentPage, toggleSidebar, searchQuery, setSearchQuery, setCurrentPage } = useWmsStore()
   const [localQuery, setLocalQuery] = useState(searchQuery)
@@ -80,6 +93,7 @@ export function WmsHeader() {
   const [avatarOpen, setAvatarOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [seenIds, setSeenIdsState] = useState<string[]>(() => getSeenIds())
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -153,8 +167,24 @@ export function WmsHeader() {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault()
       inputRef.current?.focus()
+      return
     }
-  }, [])
+    // Ctrl+1-9 navigation
+    if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
+      e.preventDefault()
+      const page = pageMapping[e.key]
+      if (page) setCurrentPage(page)
+      return
+    }
+    // ? key opens shortcuts (only when not typing in an input)
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+        e.preventDefault()
+        setShortcutsOpen(true)
+      }
+    }
+  }, [setCurrentPage])
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown)
@@ -306,6 +336,19 @@ export function WmsHeader() {
             </div>
           )}
         </div>
+
+        {/* Help / Keyboard Shortcuts */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 h-9 w-9"
+          onClick={() => setShortcutsOpen(true)}
+          aria-label="Atajos de teclado"
+        >
+          <HelpCircle className="h-4 w-4" />
+        </Button>
+
+        <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
         {/* Theme toggle */}
         <Button

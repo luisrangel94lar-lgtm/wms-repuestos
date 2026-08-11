@@ -1,0 +1,646 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import { useQuery } from '@tanstack/react-query'
+     5→import { useWmsStore } from '@/store/wms'
+     6→import { formatCurrency, formatDate, formatDateTime, tipoMovColors } from './lib/format'
+     7→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     8→import {
+     9→  Table,
+    10→  TableBody,
+    11→  TableCell,
+    12→  TableHead,
+    13→  TableHeader,
+    14→  TableRow,
+    15→} from '@/components/ui/table'
+    16→import { Badge } from '@/components/ui/badge'
+    17→import { ScrollArea } from '@/components/ui/scroll-area'
+    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→import {
+    20→  DollarSign,
+    21→  AlertTriangle,
+    22→  ShoppingCart,
+    23→  ArrowLeftRight,
+    24→  Package,
+    25→  Users,
+    26→  Download,
+    27→  BarChart3,
+    28→  PackageOpen,
+    29→  Inbox,
+    30→  ArrowDownCircle,
+    31→  ArrowUpCircle,
+    32→  RefreshCw,
+    33→  SlidersHorizontal,
+    34→  RotateCcw,
+    35→} from 'lucide-react'
+    36→import {
+    37→  BarChart,
+    38→  Bar,
+    39→  XAxis,
+    40→  YAxis,
+    41→  CartesianGrid,
+    42→  Tooltip,
+    43→  ResponsiveContainer,
+    44→} from 'recharts'
+    45→import { cn } from '@/lib/utils'
+    46→
+    47→interface DashboardData {
+    48→  valorTotalStock: number
+    49→  productosBajoStock: { count: number; items: any[] }
+    50→  ventasHoy: { count: number; total: number }
+    51→  ventasSemana: { count: number; total: number }
+    52→  ventasMes: { count: number; total: number }
+    53→  movimientosHoy: number
+    54→  totalProductos: number
+    55→  totalClientes: number
+    56→}
+    57→
+    58→const colorMap: Record<string, { border: string; iconBg: string; iconColor: string; bg: string; ring: string; hoverBg: string; gradient: string }> = {
+    59→  emerald: {
+    60→    border: 'border-t-emerald-500',
+    61→    iconBg: 'bg-emerald-500/15',
+    62→    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    63→    bg: 'from-emerald-50/60 to-transparent dark:from-emerald-950/20 dark:to-transparent',
+    64→    ring: 'ring-emerald-500/20',
+    65→    hoverBg: 'group-hover:bg-emerald-500/5',
+    66→    gradient: 'bg-gradient-to-br from-emerald-50/80 via-white dark:via-background to-emerald-100/30 dark:to-emerald-950/10',
+    67→  },
+    68→  red: {
+    69→    border: 'border-t-red-500',
+    70→    iconBg: 'bg-red-500/15',
+    71→    iconColor: 'text-red-600 dark:text-red-400',
+    72→    bg: 'from-red-50/60 to-transparent dark:from-red-950/20 dark:to-transparent',
+    73→    ring: 'ring-red-500/20',
+    74→    hoverBg: 'group-hover:bg-red-500/5',
+    75→    gradient: 'bg-gradient-to-br from-red-50/80 via-white dark:via-background to-red-100/30 dark:to-red-950/10',
+    76→  },
+    77→  primary: {
+    78→    border: 'border-t-primary',
+    79→    iconBg: 'bg-primary/15',
+    80→    iconColor: 'text-primary',
+    81→    bg: 'from-primary/5 to-transparent dark:from-primary/950/20 dark:to-transparent',
+    82→    ring: 'ring-primary/20',
+    83→    hoverBg: 'group-hover:bg-primary/5',
+    84→    gradient: 'bg-gradient-to-br from-primary/5 via-white dark:via-background to-primary/3 dark:to-primary/5',
+    85→  },
+    86→  amber: {
+    87→    border: 'border-t-amber-500',
+    88→    iconBg: 'bg-amber-500/15',
+    89→    iconColor: 'text-amber-600 dark:text-amber-400',
+    90→    bg: 'from-amber-50/60 to-transparent dark:from-amber-950/20 dark:to-transparent',
+    91→    ring: 'ring-amber-500/20',
+    92→    hoverBg: 'group-hover:bg-amber-500/5',
+    93→    gradient: 'bg-gradient-to-br from-amber-50/80 via-white dark:via-background to-amber-100/30 dark:to-amber-950/10',
+    94→  },
+    95→  purple: {
+    96→    border: 'border-t-purple-500',
+    97→    iconBg: 'bg-purple-500/15',
+    98→    iconColor: 'text-purple-600 dark:text-purple-400',
+    99→    bg: 'from-purple-50/60 to-transparent dark:from-purple-950/20 dark:to-transparent',
+   100→    ring: 'ring-purple-500/20',
+   101→    hoverBg: 'group-hover:bg-purple-500/5',
+   102→    gradient: 'bg-gradient-to-br from-purple-50/80 via-white dark:via-background to-purple-100/30 dark:to-purple-950/10',
+   103→  },
+   104→}
+   105→
+   106→/* Custom tooltip style for charts */
+   107→const tooltipStyle: React.CSSProperties = {
+   108→  borderRadius: '10px',
+   109→  border: '1px solid var(--border)',
+   110→  background: 'var(--popover)',
+   111→  color: 'var(--popover-foreground)',
+   112→  boxShadow: '0 4px 16px oklch(0 0 0 / 10%), 0 0 0 1px oklch(0.55 0.15 160 / 8%)',
+   113→  padding: '10px 14px',
+   114→  fontSize: '13px',
+   115→}
+   116→
+   117→function KpiCard({
+   118→  label,
+   119→  value,
+   120→  icon,
+   121→  color,
+   122→  subtitle,
+   123→  onClick,
+   124→  valueClassName,
+   125→  pulse,
+   126→}: {
+   127→  label: string
+   128→  value: React.ReactNode
+   129→  icon: React.ReactNode
+   130→  color: string
+   131→  subtitle?: string
+   132→  onClick?: () => void
+   133→  valueClassName?: string
+   134→  pulse?: boolean
+   135→}) {
+   136→  const c = colorMap[color] || colorMap.primary
+   137→  return (
+   138→    <Card
+   139→      onClick={onClick}
+   140→      className={cn(
+   141→        'rounded-xl shadow-sm border-t-2 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-default hover:shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)] dark:hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+   142→        c.border,
+   143→        c.gradient,
+   144→        onClick && 'cursor-pointer',
+   145→        pulse && 'pulse-glow'
+   146→      )}
+   147→    >
+   148→      <CardContent className="p-5">
+   149→        <div className="flex items-start justify-between">
+   150→          <div className="space-y-1.5">
+   151→            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+   152→              {label}
+   153→            </p>
+   154→            <p className={cn('text-2xl font-bold tracking-tight animate-count-up', valueClassName)}>
+   155→              {value}
+   156→            </p>
+   157→            {subtitle && (
+   158→              <p className="text-xs text-muted-foreground">{subtitle}</p>
+   159→            )}
+   160→          </div>
+   161→          <div
+   162→            className={cn(
+   163→              'h-11 w-11 rounded-xl flex items-center justify-center ring-1 shrink-0',
+   164→              c.iconBg,
+   165→              c.ring
+   166→            )}
+   167→          >
+   168→            {icon}
+   169→          </div>
+   170→        </div>
+   171→      </CardContent>
+   172→    </Card>
+   173→  )
+   174→}
+   175→
+   176→export function DashboardPage() {
+   177→  const { setCurrentPage } = useWmsStore()
+   178→  const [chartDays, setChartDays] = useState(7)
+   179→
+   180→  const { data, isLoading } = useQuery<DashboardData>({
+   181→    queryKey: ['dashboard'],
+   182→    queryFn: () => fetch('/api/wms/dashboard').then((r) => r.json()),
+   183→    refetchInterval: 30000,
+   184→  })
+   185→
+   186→  const { data: recentMovements = [] } = useQuery({
+   187→    queryKey: ['recent-movements'],
+   188→    queryFn: () =>
+   189→      fetch('/api/wms/movimientos?limit=10')
+   190→        .then((r) => r.json())
+   191→        .then((items: any[]) => items.slice(0, 10)),
+   192→    refetchInterval: 30000,
+   193→  })
+   194→
+   195→  const { data: activityFeed = [] } = useQuery({
+   196→    queryKey: ['activity-feed'],
+   197→    queryFn: () => fetch('/api/wms/dashboard/activity').then((r) => r.json()),
+   198→    refetchInterval: 30000,
+   199→  })
+   200→
+   201→  const { data: dailySales = [] } = useQuery({
+   202→    queryKey: ['daily-sales', chartDays],
+   203→    queryFn: () =>
+   204→      fetch(`/api/wms/dashboard/daily-sales?days=${chartDays}`).then((r) => r.json()),
+   205→  })
+   206→
+   207→  const { data: topSellers = [] } = useQuery({
+   208→    queryKey: ['dashboard-top-sellers'],
+   209→    queryFn: () =>
+   210→      fetch('/api/wms/reportes/top-vendidos?limit=5').then((r) => r.json()),
+   211→  })
+   212→
+   213→  const salesChartData = dailySales
+   214→
+   215→  const topSellersChart = topSellers.slice(0, 5).map((item: any) => ({
+   216→    nombre: item.producto?.nombre?.substring(0, 20) ?? 'N/A',
+   217→    cantidad: item.cantidadVendida,
+   218→  }))
+   219→
+   220→  const quickActions = [
+   221→    { id: 'receiving', icon: Download, color: 'emerald', label: 'Nueva Recepción', desc: 'Registrar entrada de mercancía' },
+   222→    { id: 'sales', icon: ShoppingCart, color: 'primary', label: 'Nueva Venta', desc: 'Registrar venta a técnico' },
+   223→    { id: 'products', icon: Package, color: 'amber', label: 'Agregar Producto', desc: 'Dar de alta un nuevo repuesto' },
+   224→    { id: 'reports', icon: BarChart3, color: 'purple', label: 'Ver Reportes', desc: 'Reportes operativos y KPIs' },
+   225→  ]
+   226→
+   227→  if (isLoading) {
+   228→    return (
+   229→      <div className="space-y-6">
+   230→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   231→          {Array.from({ length: 6 }).map((_, i) => (
+   232→            <Skeleton key={i} className="h-28 rounded-xl shimmer" />
+   233→          ))}
+   234→        </div>
+   235→        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   236→          <Skeleton className="h-72 rounded-xl shimmer" />
+   237→          <Skeleton className="h-72 rounded-xl shimmer" />
+   238→        </div>
+   239→      </div>
+   240→    )
+   241→  }
+   242→
+   243→  return (
+   244→    <div className="space-y-6">
+   245→      {/* KPI Cards Section */}
+   246→      <div className="dot-pattern -mx-6 -mt-2 px-6 py-6 rounded-xl">
+   247→        <h2 className="text-sm font-semibold text-foreground mb-3 gradient-text inline-block">Resumen del Almacén</h2>
+   248→        <div className="h-0.5 w-12 bg-primary/30 rounded-full mt-1 -mb-2" />
+   249→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   250→          <KpiCard
+   251→            label="Stock Total Valorizado"
+   252→            value={formatCurrency(data?.valorTotalStock ?? 0)}
+   253→            icon={<DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+   254→            color="emerald"
+   255→            subtitle="Valor de todo el inventario"
+   256→          />
+   257→          <KpiCard
+   258→            label="Bajo Mínimo"
+   259→            pulse={(data?.productosBajoStock?.count ?? 0) > 0}
+   260→            value={
+   261→              <span className="inline-flex items-center gap-2">
+   262→                <span className="relative flex h-2.5 w-2.5">
+   263→                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+   264→                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+   265→                </span>
+   266→                {data?.productosBajoStock?.count ?? 0}
+   267→              </span>
+   268→            }
+   269→            icon={<AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />}
+   270→            color="red"
+   271→            subtitle="Requieren reabastecimiento"
+   272→            onClick={() => setCurrentPage('alerts')}
+   273→            valueClassName="text-red-600 dark:text-red-400"
+   274→          />
+   275→          <KpiCard
+   276→            label="Ventas del Mes"
+   277→            value={formatCurrency(data?.ventasMes?.total ?? 0)}
+   278→            icon={<ShoppingCart className="h-5 w-5 text-primary" />}
+   279→            color="primary"
+   280→            subtitle={`Hoy: ${formatCurrency(data?.ventasHoy?.total ?? 0)} · Sem: ${formatCurrency(data?.ventasSemana?.total ?? 0)}`}
+   281→          />
+   282→          <KpiCard
+   283→            label="Movimientos del Día"
+   284→            value={data?.movimientosHoy ?? 0}
+   285→            icon={<ArrowLeftRight className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
+   286→            color="amber"
+   287→            subtitle="Entradas y salidas de hoy"
+   288→          />
+   289→          <KpiCard
+   290→            label="Total Productos"
+   291→            value={data?.totalProductos ?? 0}
+   292→            icon={<Package className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+   293→            color="emerald"
+   294→            subtitle="En catálogo activo"
+   295→          />
+   296→          <KpiCard
+   297→            label="Total Clientes"
+   298→            value={data?.totalClientes ?? 0}
+   299→            icon={<Users className="h-5 w-5 text-primary" />}
+   300→            color="primary"
+   301→            subtitle="Técnicos registrados"
+   302→          />
+   303→        </div>
+   304→      </div>
+   305→
+   306→      {/* Quick Actions Section */}
+   307→      <div>
+   308→        <h2 className="text-sm font-semibold text-foreground mb-3 gradient-text inline-block">Acciones Rápidas</h2>
+   309→        <div className="h-0.5 w-12 bg-primary/30 rounded-full mt-1 -mb-2" />
+   310→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   311→          {quickActions.map((action) => {
+   312→            const c = colorMap[action.color] || colorMap.primary
+   313→            return (
+   314→              <Card
+   315→                key={action.id}
+   316→                className={cn(
+   317→                  'card-hover rounded-xl shadow-sm border border-dashed hover:border-solid cursor-pointer group',
+   318→                  c.hoverBg
+   319→                )}
+   320→                onClick={() => setCurrentPage(action.id as any)}
+   321→              >
+   322→                <CardContent className="p-5 flex flex-col items-center gap-2">
+   323→                  <div
+   324→                    className={cn(
+   325→                      'h-10 w-10 rounded-lg flex items-center justify-center transition-colors',
+   326→                      c.iconBg
+   327→                    )}
+   328→                  >
+   329→                    <action.icon className={cn('h-5 w-5', c.iconColor)} />
+   330→                  </div>
+   331→                  <div className="text-center">
+   332→                    <span className="text-xs font-medium">{action.label}</span>
+   333→                    <p className="text-[10px] text-muted-foreground mt-0.5">{action.desc}</p>
+   334→                  </div>
+   335→                </CardContent>
+   336→              </Card>
+   337→            )
+   338→          })}
+   339→        </div>
+   340→      </div>
+   341→
+   342→      {/* Charts — with thin left-border color accent */}
+   343→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   344→        <Card className="rounded-xl shadow-sm border-l-2 border-l-emerald-500 bg-gradient-to-br from-emerald-50/30 to-transparent dark:from-emerald-950/10 dark:to-transparent">
+   345→          <CardHeader className="pb-2">
+   346→            <div className="flex items-center justify-between">
+   347→              <div>
+   348→                <CardTitle className="text-base">Ventas Últimos {chartDays} Días</CardTitle>
+   349→                <p className="text-xs text-muted-foreground mt-0.5">Ingresos por día</p>
+   350→              </div>
+   351→              <div className="flex items-center gap-1">
+   352→                {([7, 30, 90] as const).map((d) => (
+   353→                  <button
+   354→                    key={d}
+   355→                    className={cn(
+   356→                      'text-xs px-2.5 py-1 rounded-md transition-all duration-150',
+   357→                      chartDays === d
+   358→                        ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+   359→                        : 'text-muted-foreground hover:bg-muted'
+   360→                    )}
+   361→                    onClick={() => setChartDays(d)}
+   362→                  >
+   363→                    {d}d
+   364→                  </button>
+   365→                ))}
+   366→              </div>
+   367→            </div>
+   368→          </CardHeader>
+   369→          <CardContent>
+   370→            <div className="h-64">
+   371→              <ResponsiveContainer width="100%" height="100%">
+   372→                <BarChart data={salesChartData}>
+   373→                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+   374→                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+   375→                  <YAxis
+   376→                    tick={{ fontSize: 12 }}
+   377→                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+   378→                  />
+   379→                  <Tooltip
+   380→                    formatter={(value: number) => [formatCurrency(value), 'Ventas']}
+   381→                    contentStyle={tooltipStyle}
+   382→                  />
+   383→                  <Bar dataKey="ventas" fill="oklch(0.55 0.15 160)" radius={[6, 6, 0, 0]} />
+   384→                </BarChart>
+   385→              </ResponsiveContainer>
+   386→            </div>
+   387→          </CardContent>
+   388→        </Card>
+   389→
+   390→        <Card className="rounded-xl shadow-sm border-l-2 border-l-amber-500 bg-gradient-to-br from-amber-50/30 to-transparent dark:from-amber-950/10 dark:to-transparent">
+   391→          <CardHeader className="pb-2">
+   392→            <div className="flex items-center justify-between">
+   393→              <div>
+   394→                <CardTitle className="text-base">Top 5 Productos Vendidos</CardTitle>
+   395→                <p className="text-xs text-muted-foreground mt-0.5">Más vendidos del período</p>
+   396→              </div>
+   397→            </div>
+   398→          </CardHeader>
+   399→          <CardContent>
+   400→            <div className="h-64">
+   401→              <ResponsiveContainer width="100%" height="100%">
+   402→                <BarChart data={topSellersChart} layout="vertical" margin={{ left: 20 }}>
+   403→                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+   404→                  <XAxis type="number" tick={{ fontSize: 12 }} />
+   405→                  <YAxis
+   406→                    type="category"
+   407→                    dataKey="nombre"
+   408→                    tick={{ fontSize: 11 }}
+   409→                    width={120}
+   410→                  />
+   411→                  <Tooltip
+   412→                    formatter={(value: number) => [value, 'Cantidad']}
+   413→                    contentStyle={tooltipStyle}
+   414→                  />
+   415→                  <Bar dataKey="cantidad" fill="oklch(0.78 0.14 75)" radius={[0, 6, 6, 0]} />
+   416→                </BarChart>
+   417→              </ResponsiveContainer>
+   418→            </div>
+   419→          </CardContent>
+   420→        </Card>
+   421→      </div>
+   422→
+   423→      {/* Bottom tables */}
+   424→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   425→        {/* Recent movements */}
+   426→        <Card className="rounded-xl shadow-sm border-l-2 border-l-primary">
+   427→          <CardHeader className="pb-2">
+   428→            <div className="flex items-center justify-between">
+   429→              <div>
+   430→                <CardTitle className="text-base">Últimos Movimientos</CardTitle>
+   431→                <p className="text-xs text-muted-foreground mt-0.5">Actividad reciente del almacén</p>
+   432→              </div>
+   433→            </div>
+   434→          </CardHeader>
+   435→          <CardContent className="p-4">
+   436→            <div className="table-container max-h-[calc(100vh-18rem)] overflow-y-auto rounded-lg border">
+   437→            <Table>
+   438→              <TableHeader>
+   439→                <TableRow>
+   440→                  <TableHead className="text-xs">Fecha</TableHead>
+   441→                  <TableHead className="text-xs">Producto</TableHead>
+   442→                  <TableHead className="text-xs">Tipo</TableHead>
+   443→                  <TableHead className="text-xs text-right">Cant.</TableHead>
+   444→                </TableRow>
+   445→              </TableHeader>
+   446→              <TableBody>
+   447→                {recentMovements.slice(0, 10).map((m: any) => (
+   448→                  <TableRow key={m.id}>
+   449→                    <TableCell className="text-xs py-2">
+   450→                      {formatDate(m.fecha)}
+   451→                    </TableCell>
+   452→                    <TableCell className="text-xs py-2 font-medium">
+   453→                      {m.producto?.nombre?.substring(0, 25)}
+   454→                    </TableCell>
+   455→                    <TableCell className="text-xs py-2">
+   456→                      <span
+   457→                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+   458→                          tipoMovColors[m.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800'
+   459→                        }`}
+   460→                      >
+   461→                        {m.tipoMovimiento?.nombre}
+   462→                      </span>
+   463→                    </TableCell>
+   464→                    <TableCell className="text-xs py-2 text-right font-mono">
+   465→                      {m.cantidad}
+   466→                    </TableCell>
+   467→                  </TableRow>
+   468→                ))}
+   469→                {recentMovements.length === 0 && (
+   470→                  <TableRow>
+   471→                    <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
+   472→                      <Inbox className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+   473→                      <p className="text-sm font-medium">Sin movimientos registrados</p>
+   474→                      <p className="text-xs text-muted-foreground/60 mt-0.5">Los movimientos aparecerán aquí cuando se registren</p>
+   475→                    </TableCell>
+   476→                  </TableRow>
+   477→                )}
+   478→              </TableBody>
+   479→            </Table>
+   480→            </div>
+   481→          </CardContent>
+   482→        </Card>
+   483→
+   484→        {/* Low stock alerts */}
+   485→        <Card className="rounded-xl shadow-sm border-l-2 border-l-red-500">
+   486→          <CardHeader className="pb-2">
+   487→            <div className="flex items-center justify-between">
+   488→              <div>
+   489→                <CardTitle className="text-base">Alertas de Stock</CardTitle>
+   490→                <p className="text-xs text-muted-foreground mt-0.5">Productos bajo mínimo</p>
+   491→              </div>
+   492→              <Badge
+   493→                variant="destructive"
+   494→                className="cursor-pointer"
+   495→                onClick={() => setCurrentPage('alerts')}
+   496→              >
+   497→                Ver todas
+   498→              </Badge>
+   499→            </div>
+   500→          </CardHeader>
+   501→          <CardContent className="p-4">
+   502→            <div className="table-container max-h-[calc(100vh-18rem)] overflow-y-auto rounded-lg border">
+   503→            <Table>
+   504→              <TableHeader>
+   505→                <TableRow>
+   506→                  <TableHead className="text-xs">Producto</TableHead>
+   507→                  <TableHead className="text-xs text-center">Actual</TableHead>
+   508→                  <TableHead className="text-xs text-center">Mínimo</TableHead>
+   509→                  <TableHead className="text-xs text-center">Faltan</TableHead>
+   510→                </TableRow>
+   511→              </TableHeader>
+   512→              <TableBody>
+   513→                {(data?.productosBajoStock?.items ?? []).slice(0, 10).map((p: any) => {
+   514→                  const totalStock = (p.stocks ?? []).reduce((s: number, st: any) => s + st.cantidad, 0)
+   515→                  const deficiencia = p.stockMinimo - totalStock
+   516→                  return (
+   517→                    <TableRow key={p.id}>
+   518→                      <TableCell className="text-xs py-2 font-medium">
+   519→                        {p.nombre?.substring(0, 25)}
+   520→                      </TableCell>
+   521→                      <TableCell className="text-xs py-2 text-center font-mono">
+   522→                        {totalStock}
+   523→                      </TableCell>
+   524→                      <TableCell className="text-xs py-2 text-center font-mono">
+   525→                        {p.stockMinimo}
+   526→                      </TableCell>
+   527→                      <TableCell className="text-xs py-2 text-center">
+   528→                        <span className="text-destructive font-semibold">-{deficiencia}</span>
+   529→                      </TableCell>
+   530→                    </TableRow>
+   531→                  )
+   532→                })}
+   533→                {(!data?.productosBajoStock?.items || data.productosBajoStock.items.length === 0) && (
+   534→                  <TableRow>
+   535→                    <TableCell colSpan={4} className="text-center text-muted-foreground py-10">
+   536→                      <PackageOpen className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+   537→                      <p className="text-sm font-medium">Sin alertas de stock</p>
+   538→                      <p className="text-xs text-muted-foreground/60 mt-0.5">Todos los productos están por encima del mínimo</p>
+   539→                    </TableCell>
+   540→                  </TableRow>
+   541→                )}
+   542→              </TableBody>
+   543→            </Table>
+   544→            </div>
+   545→          </CardContent>
+   546→        </Card>
+   547→      </div>
+   548→
+   549→      {/* Activity Feed */}
+   550→      <Card className="rounded-xl shadow-sm border">
+   551→        <CardHeader className="pb-2">
+   552→          <div className="flex items-center justify-between">
+   553→            <div>
+   554→              <CardTitle className="text-base flex items-center gap-2">
+   555→                <RefreshCw className="h-4 w-4 text-muted-foreground" />
+   556→                Actividad Reciente
+   557→              </CardTitle>
+   558→              <p className="text-xs text-muted-foreground mt-0.5">Feed en tiempo real · Actualiza cada 30s</p>
+   559→            </div>
+   560→            <Badge
+   561→              variant="outline"
+   562→              className="cursor-pointer"
+   563→              onClick={() => setCurrentPage('movements')}
+   564→            >
+   565→              Ver todo
+   566→            </Badge>
+   567→          </div>
+   568→        </CardHeader>
+   569→        <CardContent className="p-4">
+   570→          <ScrollArea className="max-h-80">
+   571→            {activityFeed.length === 0 ? (
+   572→              <div className="py-8 text-center text-muted-foreground">
+   573→                <Inbox className="h-10 w-10 mx-auto mb-2 opacity-30" />
+   574→                <p className="text-sm">Sin actividad registrada</p>
+   575→              </div>
+   576→            ) : (
+   577→              <div className="relative space-y-0">
+   578→                {activityFeed.map((activity: any, idx: number) => {
+   579→                  const tipo = activity.tipoMovimiento?.nombre ?? 'N/A'
+   580→
+   581→                  const iconMap: Record<string, { icon: React.ReactNode; color: string }> = {
+   582→                    ENTRADA: { icon: <ArrowDownCircle className="h-4 w-4" />, color: 'text-emerald-500' },
+   583→                    SALIDA: { icon: <ArrowUpCircle className="h-4 w-4" />, color: 'text-red-500' },
+   584→                    AJUSTE: { icon: <SlidersHorizontal className="h-4 w-4" />, color: 'text-amber-500' },
+   585→                    TRASLADO: { icon: <RefreshCw className="h-4 w-4" />, color: 'text-gray-500' },
+   586→                    DEVOLUCION: { icon: <RotateCcw className="h-4 w-4" />, color: 'text-purple-500' },
+   587→                  }
+   588→                  const iconInfo = iconMap[tipo] ?? { icon: <ArrowLeftRight className="h-4 w-4" />, color: 'text-gray-500' }
+   589→
+   590→                  const isPositive = tipo === 'ENTRADA' || tipo === 'DEVOLUCION'
+   591→                  const qtyLabel = isPositive
+   592→                    ? `+${activity.cantidad}`
+   593→                    : `-${activity.cantidad}`
+   594→                  const qtyColor = isPositive
+   595→                    ? 'text-emerald-600 dark:text-emerald-400'
+   596→                    : 'text-red-600 dark:text-red-400'
+   597→
+   598→                  const timeLabel = formatDateTime(activity.fecha)
+   599→
+   600→                  return (
+   601→                    <div key={activity.id} className="flex items-start gap-3 py-2.5 group">
+   602→                      {/* Timeline line and dot */}
+   603→                      <div className="flex flex-col items-center">
+   604→                        <div className={cn('h-8 w-8 rounded-full flex items-center justify-center bg-muted/50 group-hover:bg-muted transition-colors shrink-0', iconInfo.color)}>
+   605→                          {iconInfo.icon}
+   606→                        </div>
+   607→                        {idx < activityFeed.length - 1 && (
+   608→                          <div className="w-px h-full min-h-[12px] bg-border mt-1" />
+   609→                        )}
+   610→                      </div>
+   611→
+   612→                      {/* Content */}
+   613→                      <div className="flex-1 min-w-0 pb-1">
+   614→                        <div className="flex items-center justify-between gap-2">
+   615→                          <p className="text-xs font-medium truncate">
+   616→                            {activity.producto?.nombre?.substring(0, 30)}
+   617→                          </p>
+   618→                          <span className={cn('text-xs font-mono font-semibold shrink-0', qtyColor)}>
+   619→                            {tipo.substring(0, 4)} {qtyLabel}
+   620→                          </span>
+   621→                        </div>
+   622→                        <div className="flex items-center gap-2 mt-0.5">
+   623→                          <span className={cn('inline-block px-1.5 py-0 rounded text-[10px] font-semibold', tipoMovColors[tipo] ?? 'bg-gray-100 text-gray-800')}>
+   624→                            {tipo}
+   625→                          </span>
+   626→                          {activity.ubicacion && (
+   627→                            <span className="text-[10px] text-muted-foreground">
+   628→                              {activity.ubicacion.pasillo}-{activity.ubicacion.estante}-{activity.ubicacion.nivel}
+   629→                            </span>
+   630→                          )}
+   631→                          <span className="text-[10px] text-muted-foreground ml-auto">
+   632→                            {timeLabel}
+   633→                          </span>
+   634→                        </div>
+   635→                      </div>
+   636→                    </div>
+   637→                  )
+   638→                })}
+   639→              </div>
+   640→            )}
+   641→          </ScrollArea>
+   642→        </CardContent>
+   643→      </Card>
+   644→    </div>
+   645→  )
+   646→}

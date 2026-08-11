@@ -1,0 +1,711 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { useForm } from 'react-hook-form'
+     6→import { zodResolver } from '@hookform/resolvers/zod'
+     7→import { z } from 'zod'
+     8→import { toast } from 'sonner'
+     9→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    10→import {
+    11→  Table,
+    12→  TableBody,
+    13→  TableCell,
+    14→  TableHead,
+    15→  TableHeader,
+    16→  TableRow,
+    17→} from '@/components/ui/table'
+    18→import { Badge } from '@/components/ui/badge'
+    19→import { Button } from '@/components/ui/button'
+    20→import { Input } from '@/components/ui/input'
+    21→import { Label } from '@/components/ui/label'
+    22→import { Textarea } from '@/components/ui/textarea'
+    23→import {
+    24→  Select,
+    25→  SelectContent,
+    26→  SelectItem,
+    27→  SelectTrigger,
+    28→  SelectValue,
+    29→} from '@/components/ui/select'
+    30→import {
+    31→  Dialog,
+    32→  DialogContent,
+    33→  DialogDescription,
+    34→  DialogHeader,
+    35→  DialogTitle,
+    36→  DialogFooter,
+    37→} from '@/components/ui/dialog'
+    38→import {
+    39→  AlertDialog,
+    40→  AlertDialogAction,
+    41→  AlertDialogCancel,
+    42→  AlertDialogContent,
+    43→  AlertDialogDescription,
+    44→  AlertDialogFooter,
+    45→  AlertDialogHeader,
+    46→  AlertDialogTitle,
+    47→} from '@/components/ui/alert-dialog'
+    48→import { Skeleton } from '@/components/ui/skeleton'
+    49→import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode } from 'lucide-react'
+    50→import { formatCurrency } from './lib/format'
+    51→import { BarcodeScanner } from './BarcodeScanner'
+    52→import {
+    53→  AreaChart,
+    54→  Area,
+    55→  XAxis,
+    56→  YAxis,
+    57→  CartesianGrid,
+    58→  Tooltip,
+    59→  ResponsiveContainer,
+    60→} from 'recharts'
+    61→
+    62→const productSchema = z.object({
+    63→  sku: z.string().min(1, 'SKU requerido'),
+    64→  nombre: z.string().min(1, 'Nombre requerido'),
+    65→  descripcion: z.string().optional(),
+    66→  idCategoria: z.coerce.number().nullable().optional(),
+    67→  idMarca: z.coerce.number().nullable().optional(),
+    68→  codigoBarras: z.string().optional(),
+    69→  unidadMedida: z.string().default('unidad'),
+    70→  costoUnitario: z.coerce.number().min(0),
+    71→  precioVenta: z.coerce.number().min(0),
+    72→  stockMinimo: z.coerce.number().min(0),
+    73→  stockMaximo: z.coerce.number().nullable().optional(),
+    74→  fotoUrl: z.string().optional(),
+    75→  activo: z.boolean().default(true),
+    76→})
+    77→
+    78→type ProductFormData = z.infer<typeof productSchema>
+    79→
+    80→interface Product {
+    81→  id: number
+    82→  sku: string
+    83→  nombre: string
+    84→  descripcion: string | null
+    85→  idCategoria: number | null
+    86→  idMarca: number | null
+    87→  codigoBarras: string | null
+    88→  unidadMedida: string
+    89→  costoUnitario: number
+    90→  precioVenta: number
+    91→  stockMinimo: number
+    92→  stockMaximo: number | null
+    93→  fotoUrl: string | null
+    94→  activo: boolean
+    95→  fechaCreacion: string
+    96→  categoria: { id: number; nombre: string } | null
+    97→  marca: { id: number; nombre: string } | null
+    98→  stocks: { idProducto: number; idUbicacion: number; cantidad: number }[]
+    99→  totalStock: number
+   100→}
+   101→
+   102→interface CategoriasResponse {
+   103→  items?: Product[]
+   104→  total: number
+   105→}
+   106→
+   107→export function ProductsPage() {
+   108→  const queryClient = useQueryClient()
+   109→  const [page, setPage] = useState(1)
+   110→  const [search, setSearch] = useState('')
+   111→  const [searchInput, setSearchInput] = useState('')
+   112→  const [idCategoria, setIdCategoria] = useState('')
+   113→  const [idMarca, setIdMarca] = useState('')
+   114→  const [bajoStock, setBajoStock] = useState(false)
+   115→  const [showCreate, setShowCreate] = useState(false)
+   116→  const [editId, setEditId] = useState<number | null>(null)
+   117→  const [deleteId, setDeleteId] = useState<number | null>(null)
+   118→  const [viewId, setViewId] = useState<number | null>(null)
+   119→  const [timelineId, setTimelineId] = useState<number | null>(null)
+   120→  const [showBarcode, setShowBarcode] = useState(false)
+   121→
+   122→  const { data, isLoading } = useQuery<CategoriasResponse>({
+   123→    queryKey: ['products', page, search, idCategoria, idMarca, bajoStock],
+   124→    queryFn: () => {
+   125→      const params = new URLSearchParams({
+   126→        page: String(page),
+   127→        pageSize: '20',
+   128→      })
+   129→      if (search) params.set('search', search)
+   130→      if (idCategoria) params.set('categoria', idCategoria)
+   131→      if (idMarca) params.set('marca', idMarca)
+   132→      if (bajoStock) params.set('bajoStock', 'true')
+   133→      return fetch(`/api/wms/productos?${params}`).then((r) => r.json())
+   134→    },
+   135→  })
+   136→
+   137→  const { data: viewProduct } = useQuery({
+   138→    queryKey: ['product-detail', viewId],
+   139→    queryFn: () => fetch(`/api/wms/productos/${viewId}`).then((r) => r.json()),
+   140→    enabled: !!viewId,
+   141→  })
+   142→
+   143→  const { data: timelineData } = useQuery({
+   144→    queryKey: ['product-timeline', timelineId],
+   145→    queryFn: () => fetch(`/api/wms/productos/${timelineId}/timeline`).then((r) => r.json()),
+   146→    enabled: !!timelineId,
+   147→  })
+   148→
+   149→  const { data: categorias = [] } = useQuery({
+   150→    queryKey: ['categorias-list'],
+   151→    queryFn: () => fetch('/api/wms/categorias').then((r) => r.json()),
+   152→  })
+   153→
+   154→  const { data: marcas = [] } = useQuery({
+   155→    queryKey: ['marcas-list'],
+   156→    queryFn: () => fetch('/api/wms/marcas').then((r) => r.json()),
+   157→  })
+   158→
+   159→  const form = useForm<ProductFormData>({
+   160→    resolver: zodResolver(productSchema) as any,
+   161→    defaultValues: {
+   162→      sku: '',
+   163→      nombre: '',
+   164→      descripcion: '',
+   165→      idCategoria: null,
+   166→      idMarca: null,
+   167→      codigoBarras: '',
+   168→      unidadMedida: 'unidad',
+   169→      costoUnitario: 0,
+   170→      precioVenta: 0,
+   171→      stockMinimo: 0,
+   172→      stockMaximo: null,
+   173→      fotoUrl: '',
+   174→      activo: true,
+   175→    },
+   176→  })
+   177→
+   178→  const createMutation = useMutation({
+   179→    mutationFn: (values: ProductFormData) =>
+   180→      fetch('/api/wms/productos', {
+   181→        method: 'POST',
+   182→        headers: { 'Content-Type': 'application/json' },
+   183→        body: JSON.stringify(values),
+   184→      }).then((r) => {
+   185→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   186→        return r.json()
+   187→      }),
+   188→    onSuccess: () => {
+   189→      toast.success('Producto creado correctamente')
+   190→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   191→      setShowCreate(false)
+   192→      form.reset()
+   193→    },
+   194→    onError: (err: any) => {
+   195→      toast.error(err.error ?? 'Error al crear producto')
+   196→    },
+   197→  })
+   198→
+   199→  const updateMutation = useMutation({
+   200→    mutationFn: ({ id, values }: { id: number; values: ProductFormData }) =>
+   201→      fetch(`/api/wms/productos/${id}`, {
+   202→        method: 'PUT',
+   203→        headers: { 'Content-Type': 'application/json' },
+   204→        body: JSON.stringify(values),
+   205→      }).then((r) => {
+   206→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   207→        return r.json()
+   208→      }),
+   209→    onSuccess: () => {
+   210→      toast.success('Producto actualizado correctamente')
+   211→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   212→      setEditId(null)
+   213→      form.reset()
+   214→    },
+   215→    onError: (err: any) => {
+   216→      toast.error(err.error ?? 'Error al actualizar producto')
+   217→    },
+   218→  })
+   219→
+   220→  const deleteMutation = useMutation({
+   221→    mutationFn: (id: number) =>
+   222→      fetch(`/api/wms/productos/${id}`, { method: 'DELETE' }).then((r) => {
+   223→        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+   224→        return r.json()
+   225→      }),
+   226→    onSuccess: () => {
+   227→      toast.success('Producto eliminado')
+   228→      queryClient.invalidateQueries({ queryKey: ['products'] })
+   229→      setDeleteId(null)
+   230→    },
+   231→    onError: (err: any) => {
+   232→      toast.error(err.error ?? 'Error al eliminar producto')
+   233→    },
+   234→  })
+   235→
+   236→  function openEdit(product: Product) {
+   237→    setEditId(product.id)
+   238→    form.reset({
+   239→      sku: product.sku,
+   240→      nombre: product.nombre,
+   241→      descripcion: product.descripcion ?? '',
+   242→      idCategoria: product.idCategoria,
+   243→      idMarca: product.idMarca,
+   244→      codigoBarras: product.codigoBarras ?? '',
+   245→      unidadMedida: product.unidadMedida,
+   246→      costoUnitario: product.costoUnitario,
+   247→      precioVenta: product.precioVenta,
+   248→      stockMinimo: product.stockMinimo,
+   249→      stockMaximo: product.stockMaximo,
+   250→      fotoUrl: product.fotoUrl ?? '',
+   251→      activo: product.activo,
+   252→    })
+   253→  }
+   254→
+   255→  function handleSearch() {
+   256→    setSearch(searchInput)
+   257→    setPage(1)
+   258→  }
+   259→
+   260→  const items: Product[] = data?.items ?? []
+   261→  const totalPages = Math.ceil((data?.total ?? 0) / 20)
+   262→
+   263→  function getStockStatus(p: Product) {
+   264→    if (p.totalStock === 0) return 'out'
+   265→    if (p.totalStock < p.stockMinimo) return 'low'
+   266→    return 'ok'
+   267→  }
+   268→
+   269→  function StatusBadge({ status }: { status: string }) {
+   270→    if (status === 'out')
+   271→      return <Badge variant="destructive" className="text-[10px]">Sin Stock</Badge>
+   272→    if (status === 'low')
+   273→      return (
+   274→        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-[10px]">
+   275→          Bajo
+   276→        </Badge>
+   277→      )
+   278→    return (
+   279→      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]">
+   280→        OK
+   281→      </Badge>
+   282→    )
+   283→  }
+   284→
+   285→  const chartData = useMemo(() => {
+   286→    if (!timelineData?.timeline) return []
+   287→    return timelineData.timeline.map((t: any) => ({
+   288→      fecha: new Date(t.date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+   289→      stock: t.balance,
+   290→    }))
+   291→  }, [timelineData])
+   292→
+   293→  return (
+   294→    <div className="space-y-4">
+   295→      {/* Toolbar */}
+   296→      <div className="flex flex-col sm:flex-row gap-3">
+   297→        <div className="flex gap-2 flex-1 flex-wrap">
+   298→          <div className="relative flex-1 max-w-sm">
+   299→            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+   300→            <Input
+   301→              placeholder="Buscar por nombre o SKU..."
+   302→              className="pl-9"
+   303→              value={searchInput}
+   304→              onChange={(e) => setSearchInput(e.target.value)}
+   305→              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+   306→            />
+   307→          </div>
+   308→          <Button variant="outline" onClick={handleSearch}>
+   309→            <Search className="h-4 w-4" />
+   310→          </Button>
+   311→          <Button
+   312→            variant={bajoStock ? 'default' : 'outline'}
+   313→            onClick={() => { setBajoStock(!bajoStock); setPage(1) }}
+   314→          >
+   315→            <Filter className="h-4 w-4 mr-1" />
+   316→            Bajo Stock
+   317→          </Button>
+   318→          <Select value={idCategoria} onValueChange={(v) => { setIdCategoria(v === '_all' ? '' : v); setPage(1) }}>
+   319→            <SelectTrigger className="w-[140px] h-9 text-xs">
+   320→              <SelectValue placeholder="Categoría" />
+   321→            </SelectTrigger>
+   322→            <SelectContent>
+   323→              <SelectItem value="_all">Todas</SelectItem>
+   324→              {categorias.map((c: any) => (
+   325→                <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+   326→              ))}
+   327→            </SelectContent>
+   328→          </Select>
+   329→          <Select value={idMarca} onValueChange={(v) => { setIdMarca(v === '_all' ? '' : v); setPage(1) }}>
+   330→            <SelectTrigger className="w-[140px] h-9 text-xs">
+   331→              <SelectValue placeholder="Marca" />
+   332→            </SelectTrigger>
+   333→            <SelectContent>
+   334→              <SelectItem value="_all">Todas</SelectItem>
+   335→              {marcas.map((m: any) => (
+   336→                <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+   337→              ))}
+   338→            </SelectContent>
+   339→          </Select>
+   340→        </div>
+   341→        <div className="flex gap-2">
+   342→          <Button onClick={() => { form.reset(); setShowCreate(true) }}>
+   343→            <Plus className="h-4 w-4 mr-1" />
+   344→            Nuevo Producto
+   345→          </Button>
+   346→          <Button variant="outline" onClick={() => setShowBarcode(true)}>
+   347→            <Barcode className="h-4 w-4 mr-1" />
+   348→            Código de Barras
+   349→          </Button>
+   350→        </div>
+   351→      </div>
+   352→
+   353→      <div className="mb-4">
+   354→        <p className="text-sm text-muted-foreground">Gestiona el catálogo de repuestos, equipos y compatibilidades</p>
+   355→      </div>
+   356→
+   357→      {/* Table */}
+   358→      <Card className="rounded-xl shadow-sm transition-all duration-200">
+   359→        <CardContent className="p-0">
+   360→          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto overflow-x-auto">
+   361→            <Table>
+   362→              <TableHeader>
+   363→                <TableRow>
+   364→                  <TableHead className="text-xs">SKU</TableHead>
+   365→                  <TableHead className="text-xs">Nombre</TableHead>
+   366→                  <TableHead className="text-xs hidden md:table-cell">Categoría</TableHead>
+   367→                  <TableHead className="text-xs hidden lg:table-cell">Marca</TableHead>
+   368→                  <TableHead className="text-xs text-right hidden sm:table-cell">Costo</TableHead>
+   369→                  <TableHead className="text-xs text-right">Precio</TableHead>
+   370→                  <TableHead className="text-xs text-center">Stock</TableHead>
+   371→                  <TableHead className="text-xs text-center">Estado</TableHead>
+   372→                  <TableHead className="text-xs text-right">Acciones</TableHead>
+   373→                </TableRow>
+   374→              </TableHeader>
+   375→              <TableBody>
+   376→                {isLoading &&
+   377→                  Array.from({ length: 5 }).map((_, i) => (
+   378→                    <TableRow key={i}>
+   379→                      {Array.from({ length: 9 }).map((_, j) => (
+   380→                        <TableCell key={j} className="py-2">
+   381→                          <Skeleton className="h-4 w-full" />
+   382→                        </TableCell>
+   383→                      ))}
+   384→                    </TableRow>
+   385→                  ))}
+   386→                {!isLoading && items.length === 0 && (
+   387→                  <TableRow>
+   388→                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+   389→                      No se encontraron productos
+   390→                    </TableCell>
+   391→                  </TableRow>
+   392→                )}
+   393→                {!isLoading &&
+   394→                  items.map((p) => (
+   395→                    <TableRow key={p.id} className="hover:bg-muted/50">
+   396→                      <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
+   397→                      <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">
+   398→                        {p.nombre}
+   399→                      </TableCell>
+   400→                      <TableCell className="text-xs py-2 hidden md:table-cell">
+   401→                        {p.categoria?.nombre ?? '-'}
+   402→                      </TableCell>
+   403→                      <TableCell className="text-xs py-2 hidden lg:table-cell">
+   404→                        {p.marca?.nombre ?? '-'}
+   405→                      </TableCell>
+   406→                      <TableCell className="text-xs text-right py-2 hidden sm:table-cell">
+   407→                        {formatCurrency(p.costoUnitario)}
+   408→                      </TableCell>
+   409→                      <TableCell className="text-xs text-right py-2">
+   410→                        {formatCurrency(p.precioVenta)}
+   411→                      </TableCell>
+   412→                      <TableCell className="text-xs text-center font-mono py-2">
+   413→                        {p.totalStock}
+   414→                      </TableCell>
+   415→                      <TableCell className="text-xs text-center py-2">
+   416→                        <StatusBadge status={getStockStatus(p)} />
+   417→                      </TableCell>
+   418→                      <TableCell className="text-xs text-right py-2">
+   419→                        <div className="flex justify-end gap-1">
+   420→                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewId(p.id)}>
+   421→                            <Eye className="h-3.5 w-3.5" />
+   422→                          </Button>
+   423→                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
+   424→                            <Pencil className="h-3.5 w-3.5" />
+   425→                          </Button>
+   426→                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(p.id)}>
+   427→                            <Trash2 className="h-3.5 w-3.5" />
+   428→                          </Button>
+   429→                        </div>
+   430→                      </TableCell>
+   431→                    </TableRow>
+   432→                  ))}
+   433→              </TableBody>
+   434→            </Table>
+   435→          </div>
+   436→        </CardContent>
+   437→      </Card>
+   438→
+   439→      {/* Pagination */}
+   440→      <div className="flex items-center justify-between text-sm">
+   441→        <p className="text-muted-foreground">
+   442→          {(data?.total ?? 0)} productos encontrados
+   443→        </p>
+   444→        <div className="flex gap-2">
+   445→          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+   446→            Anterior
+   447→          </Button>
+   448→          <span className="px-3 py-1 text-sm">{page} / {totalPages || 1}</span>
+   449→          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+   450→            Siguiente
+   451→          </Button>
+   452→        </div>
+   453→      </div>
+   454→
+   455→      {/* Create/Edit Dialog */}
+   456→      <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
+   457→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   458→          <DialogHeader>
+   459→            <DialogTitle>{editId ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
+   460→            <DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del producto' : 'Formulario para crear un nuevo producto'}</DialogDescription>
+   461→          </DialogHeader>
+   462→          <form
+   463→            onSubmit={form.handleSubmit((values: any) => {
+   464→              if (editId) {
+   465→                updateMutation.mutate({ id: editId, values })
+   466→              } else {
+   467→                createMutation.mutate(values)
+   468→              }
+   469→            })}
+   470→            className="space-y-4"
+   471→          >
+   472→            <div className="grid grid-cols-2 gap-4">
+   473→              <div className="space-y-2">
+   474→                <Label className="text-sm font-medium">SKU *</Label>
+   475→                <Input {...form.register('sku')} />
+   476→                {form.formState.errors.sku && (
+   477→                  <p className="text-xs text-destructive">{form.formState.errors.sku.message}</p>
+   478→                )}
+   479→              </div>
+   480→              <div className="space-y-2">
+   481→                <Label className="text-sm font-medium">Unidad de Medida</Label>
+   482→                <Select value={form.watch('unidadMedida')} onValueChange={(v) => form.setValue('unidadMedida', v)}>
+   483→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   484→                  <SelectContent>
+   485→                    <SelectItem value="unidad">Unidad</SelectItem>
+   486→                    <SelectItem value="par">Par</SelectItem>
+   487→                    <SelectItem value="metro">Metro</SelectItem>
+   488→                    <SelectItem value="kg">Kg</SelectItem>
+   489→                    <SelectItem value="litro">Litro</SelectItem>
+   490→                  </SelectContent>
+   491→                </Select>
+   492→              </div>
+   493→            </div>
+   494→            <div className="space-y-2">
+   495→              <Label className="text-sm font-medium">Nombre *</Label>
+   496→              <Input {...form.register('nombre')} />
+   497→              {form.formState.errors.nombre && (
+   498→                <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>
+   499→              )}
+   500→            </div>
+   501→            <div className="space-y-2">
+   502→              <Label className="text-sm font-medium">Descripción</Label>
+   503→              <Textarea {...form.register('descripcion')} rows={2} />
+   504→            </div>
+   505→            <div className="grid grid-cols-2 gap-4">
+   506→              <div className="space-y-2">
+   507→                <Label className="text-sm font-medium">Código de Barras</Label>
+   508→                <Input {...form.register('codigoBarras')} />
+   509→              </div>
+   510→              <div className="space-y-2">
+   511→                <Label className="text-sm font-medium">URL de Foto</Label>
+   512→                <Input {...form.register('fotoUrl')} />
+   513→              </div>
+   514→            </div>
+   515→            {form.watch('fotoUrl') && (
+   516→              <div className="mt-2">
+   517→                <img
+   518→                  src={form.watch('fotoUrl')}
+   519→                  alt="Preview"
+   520→                  className="w-24 h-24 object-cover rounded-lg border"
+   521→                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+   522→                />
+   523→              </div>
+   524→            )}
+   525→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   526→              <div className="space-y-2">
+   527→                <Label className="text-sm font-medium">Costo Unitario</Label>
+   528→                <Input type="number" step="0.01" {...form.register('costoUnitario')} />
+   529→              </div>
+   530→              <div className="space-y-2">
+   531→                <Label className="text-sm font-medium">Precio de Venta</Label>
+   532→                <Input type="number" step="0.01" {...form.register('precioVenta')} />
+   533→              </div>
+   534→              <div className="space-y-2">
+   535→                <Label className="text-sm font-medium">Stock Mínimo</Label>
+   536→                <Input type="number" {...form.register('stockMinimo')} />
+   537→              </div>
+   538→              <div className="space-y-2">
+   539→                <Label className="text-sm font-medium">Stock Máximo</Label>
+   540→                <Input type="number" {...form.register('stockMaximo')} />
+   541→              </div>
+   542→            </div>
+   543→            <DialogFooter>
+   544→              <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setEditId(null); form.reset() }}>
+   545→                Cancelar
+   546→              </Button>
+   547→              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+   548→                {createMutation.isPending || updateMutation.isPending ? 'Guardando...' : editId ? 'Actualizar' : 'Crear'}
+   549→              </Button>
+   550→            </DialogFooter>
+   551→          </form>
+   552→        </DialogContent>
+   553→      </Dialog>
+   554→
+   555→      {/* View Detail Dialog */}
+   556→      <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
+   557→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   558→          <DialogHeader>
+   559→            <DialogTitle>Detalle del Producto</DialogTitle>
+   560→            <DialogDescription className="sr-only">Información detallada del producto seleccionado</DialogDescription>
+   561→          </DialogHeader>
+   562→          {viewProduct && (
+   563→            <div className="space-y-4">
+   564→              {viewProduct.fotoUrl && (
+   565→                <div className="flex justify-center">
+   566→                  <img
+   567→                    src={viewProduct.fotoUrl}
+   568→                    alt={viewProduct.nombre}
+   569→                    className="w-32 h-32 object-cover rounded-lg border"
+   570→                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+   571→                  />
+   572→                </div>
+   573→              )}
+   574→              <div className="grid grid-cols-2 gap-3 text-sm">
+   575→                <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono font-medium">{viewProduct.sku}</span></div>
+   576→                <div><span className="text-muted-foreground">Nombre:</span> <span className="font-medium">{viewProduct.nombre}</span></div>
+   577→                <div><span className="text-muted-foreground">Categoría:</span> {viewProduct.categoria?.nombre ?? '-'}</div>
+   578→                <div><span className="text-muted-foreground">Marca:</span> {viewProduct.marca?.nombre ?? '-'}</div>
+   579→                <div><span className="text-muted-foreground">Costo:</span> {formatCurrency(viewProduct.costoUnitario)}</div>
+   580→                <div><span className="text-muted-foreground">Precio:</span> {formatCurrency(viewProduct.precioVenta)}</div>
+   581→                <div><span className="text-muted-foreground">Stock Mínimo:</span> {viewProduct.stockMinimo}</div>
+   582→                <div><span className="text-muted-foreground">Unidad:</span> {viewProduct.unidadMedida}</div>
+   583→              </div>
+   584→              {viewProduct.descripcion && (
+   585→                <div className="text-sm">
+   586→                  <span className="text-muted-foreground">Descripción:</span>
+   587→                  <p className="mt-1">{viewProduct.descripcion}</p>
+   588→                </div>
+   589→              )}
+   590→              {viewProduct.stocks && viewProduct.stocks.length > 0 && (
+   591→                <div className="text-sm">
+   592→                  <p className="font-medium mb-2">Stock por Ubicación</p>
+   593→                  <div className="flex gap-2 flex-wrap">
+   594→                    {viewProduct.stocks.map((s: any) => (
+   595→                      <Badge key={s.idUbicacion} variant="outline">
+   596→                        Pasillo {s.ubicacion?.pasillo} - Estante {s.ubicacion?.estante} - Nivel {s.ubicacion?.nivel}: {s.cantidad}
+   597→                      </Badge>
+   598→                    ))}
+   599→                  </div>
+   600→                </div>
+   601→              )}
+   602→              {viewProduct.productoEquipo && viewProduct.productoEquipo.length > 0 && (
+   603→                <div className="text-sm">
+   604→                  <p className="font-medium mb-2">Compatible con Equipos</p>
+   605→                  <div className="flex gap-2 flex-wrap">
+   606→                    {viewProduct.productoEquipo.map((pe: any) => (
+   607→                      <Badge key={pe.idEquipo} variant="secondary">
+   608→                        {pe.equipo?.marca?.nombre} {pe.equipo?.modelo}
+   609→                      </Badge>
+   610→                    ))}
+   611→                  </div>
+   612→                </div>
+   613→              )}
+   614→              <div className="flex justify-end pt-2 border-t">
+   615→                <Button
+   616→                  variant="outline"
+   617→                  size="sm"
+   618→                  onClick={() => { setTimelineId(viewProduct.id); setViewId(null) }}
+   619→                >
+   620→                  <Activity className="h-4 w-4 mr-1" />
+   621→                  Ver Timeline
+   622→                </Button>
+   623→              </div>
+   624→            </div>
+   625→          )}
+   626→        </DialogContent>
+   627→      </Dialog>
+   628→
+   629→      {/* Timeline Dialog */}
+   630→      <Dialog open={!!timelineId} onOpenChange={(open) => { if (!open) setTimelineId(null) }}>
+   631→        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+   632→          <DialogHeader>
+   633→            <DialogTitle>Timeline de Stock</DialogTitle>
+   634→            <DialogDescription className="sr-only">Evolución del stock del producto en los últimos 30 movimientos</DialogDescription>
+   635→          </DialogHeader>
+   636→          {timelineData && (
+   637→            <div className="space-y-4">
+   638→              <div className="flex items-center justify-between text-sm">
+   639→                <div>
+   640→                  <p className="text-muted-foreground">Stock Actual</p>
+   641→                  <p className="text-2xl font-bold">{timelineData.currentStock}</p>
+   642→                </div>
+   643→                <div className="text-right">
+   644→                  <p className="text-muted-foreground">Producto ID</p>
+   645→                  <p className="font-mono">#{timelineData.productoId}</p>
+   646→                </div>
+   647→              </div>
+   648→              {chartData.length > 0 ? (
+   649→                <div className="h-64">
+   650→                  <ResponsiveContainer width="100%" height="100%">
+   651→                    <AreaChart data={chartData}>
+   652→                      <defs>
+   653→                        <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
+   654→                          <stop offset="5%" stopColor="oklch(0.55 0.15 145)" stopOpacity={0.3} />
+   655→                          <stop offset="95%" stopColor="oklch(0.55 0.15 145)" stopOpacity={0} />
+   656→                        </linearGradient>
+   657→                      </defs>
+   658→                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+   659→                      <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
+   660→                      <YAxis tick={{ fontSize: 11 }} />
+   661→                      <Tooltip
+   662→                        contentStyle={{
+   663→                          borderRadius: '8px',
+   664→                          border: '1px solid var(--border)',
+   665→                          background: 'var(--popover)',
+   666→                          color: 'var(--popover-foreground)',
+   667→                        }}
+   668→                      />
+   669→                      <Area
+   670→                        type="stepAfter"
+   671→                        dataKey="stock"
+   672→                        stroke="oklch(0.55 0.15 145)"
+   673→                        fill="url(#stockGradient)"
+   674→                        strokeWidth={2}
+   675→                      />
+   676→                    </AreaChart>
+   677→                  </ResponsiveContainer>
+   678→                </div>
+   679→              ) : (
+   680→                <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
+   681→                  Sin datos de movimiento para mostrar
+   682→                </div>
+   683→              )}
+   684→            </div>
+   685→          )}
+   686→        </DialogContent>
+   687→      </Dialog>
+   688→
+   689→      {/* Delete Alert */}
+   690→      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
+   691→        <AlertDialogContent>
+   692→          <AlertDialogHeader>
+   693→            <AlertDialogTitle>¿Eliminar producto?</AlertDialogTitle>
+   694→            <AlertDialogDescription>
+   695→              Esta acción no se puede deshacer. El producto será eliminado permanentemente.
+   696→            </AlertDialogDescription>
+   697→          </AlertDialogHeader>
+   698→          <AlertDialogFooter>
+   699→            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+   700→            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)}>
+   701→              Eliminar
+   702→            </AlertDialogAction>
+   703→          </AlertDialogFooter>
+   704→        </AlertDialogContent>
+   705→      </AlertDialog>
+   706→
+   707→      <BarcodeScanner open={showBarcode} onOpenChange={setShowBarcode} />
+   708→    </div>
+   709→  )
+   710→}
+   711→

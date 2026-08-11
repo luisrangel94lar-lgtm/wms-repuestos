@@ -19,7 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Download, Plus, Trash2, PackagePlus } from 'lucide-react'
+import { Download, Plus, Trash2, PackagePlus, Inbox, Package, CalendarDays } from 'lucide-react'
 import { formatDateTime, formatCurrency, tipoMovColors } from './lib/format'
 import { useWmsStore } from '@/store/wms'
 
@@ -64,6 +64,21 @@ export function ReceivingPage() {
   const { data: recentEntries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ['recent-entries'],
     queryFn: () => fetch('/api/wms/movimientos?idTipo=1&limit=10').then(r => r.json()),
+  })
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const weekStart = new Date()
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+  const weekStartStr = weekStart.toISOString().split('T')[0]
+
+  const { data: todayMovements = [] } = useQuery({
+    queryKey: ['today-entries-count'],
+    queryFn: () => fetch(`/api/wms/movimientos?idTipo=1&fechaDesde=${todayStr}&fechaHasta=${todayStr}`).then(r => r.json()),
+  })
+
+  const { data: weekMovements = [] } = useQuery({
+    queryKey: ['week-entries-count'],
+    queryFn: () => fetch(`/api/wms/movimientos?idTipo=1&fechaDesde=${weekStartStr}`).then(r => r.json()),
   })
 
   const form = useForm<ReceivingFormData>({
@@ -155,6 +170,37 @@ export function ReceivingPage() {
     <div className="space-y-6">
       <div className="mb-4">
         <p className="text-sm text-muted-foreground">Recibir mercancía y actualizar inventario</p>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="flex flex-wrap gap-3">
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <Inbox className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Entradas Hoy</p>
+              <p className="text-lg font-bold">{Array.isArray(todayMovements) ? todayMovements.length : 0}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Unidades Hoy</p>
+              <p className="text-lg font-bold">{Array.isArray(todayMovements) ? (todayMovements as any[]).reduce((s: number, m: any) => s + (m.cantidad || 0), 0) : 0}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Esta Semana</p>
+              <p className="text-lg font-bold">{Array.isArray(weekMovements) ? weekMovements.length : 0} <span className="text-xs font-normal text-muted-foreground">mov.</span></p>
+            </div>
+          </div>
+        </Card>
       </div>
 
       <Tabs defaultValue="individual" className="w-full">
@@ -350,7 +396,11 @@ export function ReceivingPage() {
                 <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
               ))}
               {!entriesLoading && recentEntries.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sin entradas registradas</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-12">
+                  <Download className="h-16 w-16 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="text-muted-foreground text-sm">Sin entradas registradas</p>
+                  <p className="text-muted-foreground/60 text-xs mt-1">Las recepciones de mercancía aparecerán aquí</p>
+                </TableCell></TableRow>
               )}
               {!entriesLoading && recentEntries.map((m: any) => (
                 <TableRow key={m.id} className="hover:bg-muted/50">

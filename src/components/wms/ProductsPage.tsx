@@ -46,8 +46,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode, Calculator, Package, DollarSign, Layers, Tag, ScanBarcode, Image } from 'lucide-react'
 import { formatCurrency } from './lib/format'
+import { cn } from '@/lib/utils'
 import { BarcodeScanner } from './BarcodeScanner'
 import {
   AreaChart,
@@ -102,6 +103,64 @@ interface Product {
 interface CategoriasResponse {
   items?: Product[]
   total: number
+}
+
+function MarginCalculator({ costoUnitario, precioVenta }: { costoUnitario: number; precioVenta: number }) {
+  const margen = precioVenta > 0 ? ((precioVenta - costoUnitario) / precioVenta) * 100 : 0
+  const utilidad = precioVenta - costoUnitario
+  const clampedMargin = Math.max(0, Math.min(100, margen))
+
+  let barColor = 'bg-red-500'
+  let textColor = 'text-red-600 dark:text-red-400'
+  if (margen > 40) {
+    barColor = 'bg-emerald-500'
+    textColor = 'text-emerald-600 dark:text-emerald-400'
+  } else if (margen >= 20) {
+    barColor = 'bg-amber-500'
+    textColor = 'text-amber-600 dark:text-amber-400'
+  }
+
+  return (
+    <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Calculator className="h-4 w-4 text-primary" />
+        Calculadora de Margen
+      </div>
+      <div className="grid grid-cols-3 gap-4 text-center">
+        <div>
+          <p className="text-xs text-muted-foreground">Costo</p>
+          <p className="text-sm font-mono font-semibold">{formatCurrency(costoUnitario)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Precio Venta</p>
+          <p className="text-sm font-mono font-semibold">{formatCurrency(precioVenta)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Utilidad</p>
+          <p className={cn('text-sm font-mono font-bold', utilidad > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+            {formatCurrency(utilidad)}
+          </p>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Margen</span>
+          <span className={cn('font-bold font-mono', textColor)}>{margen.toFixed(1)}%</span>
+        </div>
+        <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+          <div
+            className={cn('h-full rounded-full transition-all duration-300', barColor)}
+            style={{ width: `${clampedMargin}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>Bajo (&lt;20%)</span>
+          <span>Medio (20-40%)</span>
+          <span>Alto (&gt;40%)</span>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function ProductsPage() {
@@ -365,7 +424,7 @@ export function ProductsPage() {
                   <TableHead className="text-xs">Nombre</TableHead>
                   <TableHead className="text-xs hidden md:table-cell">Categoría</TableHead>
                   <TableHead className="text-xs hidden lg:table-cell">Marca</TableHead>
-                  <TableHead className="text-xs text-right hidden sm:table-cell">Costo</TableHead>
+                  <TableHead className="text-xs text-right hidden md:table-cell">Costo</TableHead>
                   <TableHead className="text-xs text-right">Precio</TableHead>
                   <TableHead className="text-xs text-center">Stock</TableHead>
                   <TableHead className="text-xs text-center">Estado</TableHead>
@@ -403,7 +462,7 @@ export function ProductsPage() {
                       <TableCell className="text-xs py-2 hidden lg:table-cell">
                         {p.marca?.nombre ?? '-'}
                       </TableCell>
-                      <TableCell className="text-xs text-right py-2 hidden sm:table-cell">
+                      <TableCell className="text-xs text-right py-2 hidden md:table-cell">
                         {formatCurrency(p.costoUnitario)}
                       </TableCell>
                       <TableCell className="text-xs text-right py-2">
@@ -455,7 +514,7 @@ export function ProductsPage() {
       {/* Create/Edit Dialog */}
       <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="dialog-header-accent">
             <DialogTitle>{editId ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
             <DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del producto' : 'Formulario para crear un nuevo producto'}</DialogDescription>
           </DialogHeader>
@@ -469,6 +528,8 @@ export function ProductsPage() {
             })}
             className="space-y-4"
           >
+            {/* Section: Información Básica */}
+            <div className="form-section-header"><Tag className="h-3.5 w-3.5" /> Información Básica</div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">SKU *</Label>
@@ -502,6 +563,11 @@ export function ProductsPage() {
               <Label className="text-sm font-medium">Descripción</Label>
               <Textarea {...form.register('descripcion')} rows={2} />
             </div>
+
+            <hr className="form-section-divider" />
+
+            {/* Section: Códigos y Multimedia */}
+            <div className="form-section-header"><ScanBarcode className="h-3.5 w-3.5" /> Códigos y Multimedia</div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Código de Barras</Label>
@@ -522,7 +588,12 @@ export function ProductsPage() {
                 />
               </div>
             )}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+
+            <hr className="form-section-divider" />
+
+            {/* Section: Precios */}
+            <div className="form-section-header"><DollarSign className="h-3.5 w-3.5" /> Precios</div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Costo Unitario</Label>
                 <Input type="number" step="0.01" {...form.register('costoUnitario')} />
@@ -531,6 +602,19 @@ export function ProductsPage() {
                 <Label className="text-sm font-medium">Precio de Venta</Label>
                 <Input type="number" step="0.01" {...form.register('precioVenta')} />
               </div>
+            </div>
+
+            {/* Margin Calculator */}
+            <MarginCalculator
+              costoUnitario={Number(form.watch('costoUnitario')) || 0}
+              precioVenta={Number(form.watch('precioVenta')) || 0}
+            />
+
+            <hr className="form-section-divider" />
+
+            {/* Section: Stock */}
+            <div className="form-section-header"><Layers className="h-3.5 w-3.5" /> Stock</div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Stock Mínimo</Label>
                 <Input type="number" {...form.register('stockMinimo')} />
@@ -540,6 +624,7 @@ export function ProductsPage() {
                 <Input type="number" {...form.register('stockMaximo')} />
               </div>
             </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setEditId(null); form.reset() }}>
                 Cancelar

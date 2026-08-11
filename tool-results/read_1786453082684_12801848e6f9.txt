@@ -1,0 +1,860 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import { useQuery, useQueryClient } from '@tanstack/react-query'
+     5→import { useWmsStore } from '@/store/wms'
+     6→import { toast } from 'sonner'
+     7→import { Card, CardContent } from '@/components/ui/card'
+     8→import {
+     9→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    10→} from '@/components/ui/table'
+    11→import { Button } from '@/components/ui/button'
+    12→import { Badge } from '@/components/ui/badge'
+    13→import { Skeleton } from '@/components/ui/skeleton'
+    14→import { Input } from '@/components/ui/input'
+    15→import { Label } from '@/components/ui/label'
+    16→import { ScrollArea } from '@/components/ui/scroll-area'
+    17→import { Separator } from '@/components/ui/separator'
+    18→import {
+    19→  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+    20→} from '@/components/ui/sheet'
+    21→import {
+    22→  Download, MapPin, Check, AlertTriangle, XCircle, SlidersHorizontal, ArrowRightLeft, Loader2, Eye, Clock, Package, X as XIcon,
+    23→} from 'lucide-react'
+    24→import { Checkbox } from '@/components/ui/checkbox'
+    25→import { formatCurrency, formatDateTime, tipoMovColors } from './lib/format'
+    26→import { exportToCSV } from './lib/export-csv'
+    27→import {
+    28→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    29→} from '@/components/ui/dialog'
+    30→import {
+    31→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    32→} from '@/components/ui/select'
+    33→import { cn } from '@/lib/utils'
+    34→import { SortableHeader } from './lib/SortableHeader'
+    35→
+    36→interface StockEntry {
+    37→  idProducto: number
+    38→  idUbicacion: number
+    39→  cantidad: number
+    40→  producto: { id: number; sku: string; nombre: string; costoUnitario: number; precioVenta: number; stockMinimo: number }
+    41→  ubicacion: { id: number; pasillo: string; estante: string; nivel: string }
+    42→}
+    43→
+    44→interface InventoryItem {
+    45→  id: number
+    46→  sku: string
+    47→  nombre: string
+    48→  descripcion: string | null
+    49→  idCategoria: number | null
+    50→  idMarca: number | null
+    51→  costoUnitario: number
+    52→  precioVenta: number
+    53→  stockMinimo: number
+    54→  totalStock: number
+    55→  valorTotal: number
+    56→  status: 'ok' | 'low' | 'out'
+    57→  stocks: StockEntry[]
+    58→  categoria?: { id: number; nombre: string } | null
+    59→  marca?: { id: number; nombre: string } | null
+    60→}
+    61→
+    62→function StatusBadge({ status }: { status: string }) {
+    63→  if (status === 'out')
+    64→    return (
+    65→      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-danger">
+    66→        <XCircle className="h-3 w-3" /> Sin Stock
+    67→      </span>
+    68→    )
+    69→  if (status === 'low')
+    70→    return (
+    71→      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-warning">
+    72→        <AlertTriangle className="h-3 w-3" /> Bajo Stock
+    73→      </span>
+    74→    )
+    75→  return (
+    76→    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-success">
+    77→      <Check className="h-3 w-3" /> OK
+    78→    </span>
+    79→  )
+    80→}
+    81→
+    82→export function InventoryPage() {
+    83→  const queryClient = useQueryClient()
+    84→  const { setCurrentPage, setReceivingProductId } = useWmsStore()
+    85→  const [selectedProduct, setSelectedProduct] = useState<StockEntry['producto'] | null>(null)
+    86→  const [sheetProduct, setSheetProduct] = useState<InventoryItem | null>(null)
+    87→
+    88→  // Batch selection state
+    89→  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+    90→  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+    91→  const [batchQty, setBatchQty] = useState('')
+    92→  const [batchType, setBatchType] = useState<'add' | 'subtract'>('add')
+    93→  const [batchLoading, setBatchLoading] = useState(false)
+    94→
+    95→  // Ajuste state
+    96→  const [ajusteProduct, setAjusteProduct] = useState<InventoryItem | null>(null)
+    97→  const [ajusteStock, setAjusteStock] = useState('')
+    98→  const [ajusteMotivo, setAjusteMotivo] = useState('')
+    99→  const [ajusteLoading, setAjusteLoading] = useState(false)
+   100→
+   101→  // Traslado state
+   102→  const [trasladoProduct, setTrasladoProduct] = useState<InventoryItem | null>(null)
+   103→  const [trasladoOrigen, setTrasladoOrigen] = useState('')
+   104→  const [trasladoDestino, setTrasladoDestino] = useState('')
+   105→  const [trasladoCantidad, setTrasladoCantidad] = useState('')
+   106→  const [trasladoLoading, setTrasladoLoading] = useState(false)
+   107→
+   108→  // Sorting state
+   109→  const [sortField, setSortField] = useState<string>('nombre')
+   110→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+   111→
+   112→  const { data: products = [], isLoading } = useQuery({
+   113→    queryKey: ['products-inventory'],
+   114→    queryFn: () => fetch('/api/wms/productos?pageSize=500').then((r) => r.json()).then((d: any) => d.items ?? []),
+   115→  })
+   116→
+   117→  const { data: stockEntries = [] } = useQuery<StockEntry[]>({
+   118→    queryKey: ['all-stock-inv'],
+   119→    queryFn: () => fetch('/api/wms/stock').then((r) => r.json()),
+   120→  })
+   121→
+   122→  function toggleSelectAll() {
+   123→    if (selectedIds.size === sortedInventory.length) {
+   124→      setSelectedIds(new Set())
+   125→    } else {
+   126→      setSelectedIds(new Set(sortedInventory.map((p) => p.id)))
+   127→    }
+   128→  }
+   129→
+   130→  function toggleSelect(id: number) {
+   131→    const next = new Set(selectedIds)
+   132→    if (next.has(id)) {
+   133→      next.delete(id)
+   134→    } else {
+   135→      next.add(id)
+   136→    }
+   137→    setSelectedIds(next)
+   138→  }
+   139→
+   140→  function clearSelection() {
+   141→    setSelectedIds(new Set())
+   142→  }
+   143→
+   144→  async function submitBatchAdjust() {
+   145→    if (selectedIds.size === 0 || !batchQty) return
+   146→    const qty = parseInt(batchQty, 10)
+   147→    if (isNaN(qty) || qty <= 0) {
+   148→      toast.error('Cantidad inválida')
+   149→      return
+   150→    }
+   151→
+   152→    // Get stock entries for selected products
+   153→    const selectedItems = sortedInventory
+   154→      .filter((p) => selectedIds.has(p.id))
+   155→      .flatMap((p) =>
+   156→        p.stocks.map((s) => ({ idProducto: p.id, idUbicacion: s.idUbicacion }))
+   157→      )
+   158→
+   159→    if (selectedItems.length === 0) {
+   160→      toast.error('No hay stock entries para los productos seleccionados')
+   161→      return
+   162→    }
+   163→
+   164→    setBatchLoading(true)
+   165→    try {
+   166→      const res = await fetch('/api/wms/stock/batch-adjust', {
+   167→        method: 'POST',
+   168→        headers: { 'Content-Type': 'application/json' },
+   169→        body: JSON.stringify({ items: selectedItems, cantidad: qty, tipo: batchType }),
+   170→      })
+   171→      if (!res.ok) {
+   172→        const err = await res.json()
+   173→        throw new Error(err.error || 'Error al ajustar stock')
+   174→      }
+   175→      toast.success(`Stock ajustado para ${selectedIds.size} productos`)
+   176→      setBatchDialogOpen(false)
+   177→      setBatchQty('')
+   178→      setSelectedIds(new Set())
+   179→      invalidateInventory()
+   180→    } catch (e: any) {
+   181→      toast.error(e.message || 'Error al ajustar stock')
+   182→    } finally {
+   183→      setBatchLoading(false)
+   184→    }
+   185→  }
+   186→
+   187→  function exportSelected() {
+   188→    const selected = sortedInventory.filter((p) => selectedIds.has(p.id))
+   189→    if (selected.length === 0) return
+   190→    exportToCSV(
+   191→      selected.map((p) => ({
+   192→        producto: p.nombre,
+   193→        sku: p.sku,
+   194→        totalStock: p.totalStock,
+   195→        valorTotal: p.valorTotal,
+   196→      })),
+   197→      'inventario-seleccion',
+   198→      [
+   199→        { key: 'producto', label: 'Producto' },
+   200→        { key: 'sku', label: 'SKU' },
+   201→        { key: 'totalStock', label: 'Stock Total' },
+   202→        { key: 'valorTotal', label: 'Valor Total', format: 'currency' },
+   203→      ],
+   204→    )
+   205→  }
+   206→
+   207→  const { data: allLocations = [] } = useQuery({
+   208→    queryKey: ['all-locations'],
+   209→    queryFn: () => fetch('/api/wms/ubicaciones?activos=true').then((r) => r.json()),
+   210→  })
+   211→
+   212→  const { data: productMovements = [] } = useQuery({
+   213→    queryKey: ['product-movements-sheet', sheetProduct?.id],
+   214→    queryFn: () => fetch(`/api/wms/movimientos?idProducto=${sheetProduct?.id}&limit=5`).then((r) => r.json()),
+   215→    enabled: !!sheetProduct?.id,
+   216→  })
+   217→
+   218→  // Build inventory view
+   219→  const inventory: InventoryItem[] = products.map((p: any) => {
+   220→    const stocks = stockEntries.filter((s) => s.idProducto === p.id)
+   221→    const totalStock = stocks.reduce((sum, s) => sum + s.cantidad, 0)
+   222→    const valorTotal = totalStock * p.costoUnitario
+   223→    let status: 'ok' | 'low' | 'out' = 'ok'
+   224→    if (totalStock === 0) status = 'out'
+   225→    else if (totalStock < p.stockMinimo) status = 'low'
+   226→    return { ...p, totalStock, valorTotal, status, stocks }
+   227→  })
+   228→
+   229→  const { data: inventoryStats } = useQuery({
+   230→    queryKey: ['inventory-stats'],
+   231→    queryFn: () => fetch('/api/wms/dashboard').then(r => r.json()).then(d => ({
+   232→      totalProducts: d.totalProductos,
+   233→      stockValue: d.valorTotalStock,
+   234→      bajoStock: d.productosBajoStock?.count ?? 0,
+   235→    })),
+   236→  })
+   237→
+   238→  const totalValor = inventory.reduce((sum, p) => sum + p.valorTotal, 0)
+   239→
+   240→  function invalidateInventory() {
+   241→    queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+   242→    queryClient.invalidateQueries({ queryKey: ['all-stock-inv'] })
+   243→    queryClient.invalidateQueries({ queryKey: ['inventory-stats'] })
+   244→    queryClient.invalidateQueries({ queryKey: ['product-movements-sheet'] })
+   245→  }
+   246→
+   247→  // --- Sorting ---
+   248→  function handleSort(field: string) {
+   249→    if (sortField === field) {
+   250→      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+   251→    } else {
+   252→      setSortField(field)
+   253→      setSortDir('asc')
+   254→    }
+   255→  }
+   256→  function getSortValue(item: InventoryItem, field: string): any {
+   257→    if (field === 'margen') {
+   258→      return item.precioVenta > 0 ? ((item.precioVenta - item.costoUnitario) / item.precioVenta * 100) : 0
+   259→    }
+   260→    return item[field as keyof InventoryItem]
+   261→  }
+   262→
+   263→  const sortedInventory = [...inventory].sort((a, b) => {
+   264→    let aVal: any = getSortValue(a, sortField)
+   265→    let bVal: any = getSortValue(b, sortField)
+   266→    if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = (bVal as string).toLowerCase() }
+   267→    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+   268→    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+   269→    return 0
+   270→  })
+   271→
+   272→  // --- AJUSTE handlers ---
+   273→  function openAjuste(item: InventoryItem) {
+   274→    setAjusteProduct(item)
+   275→    setAjusteStock(String(item.totalStock))
+   276→    setAjusteMotivo('')
+   277→  }
+   278→
+   279→  async function submitAjuste() {
+   280→    if (!ajusteProduct || ajusteStock === '') return
+   281→    const newStock = parseInt(ajusteStock, 10)
+   282→    if (isNaN(newStock) || newStock < 0) {
+   283→      toast.error('Cantidad inválida')
+   284→      return
+   285→    }
+   286→
+   287→    const locationId = ajusteProduct.stocks.length > 0
+   288→      ? ajusteProduct.stocks[0].idUbicacion
+   289→      : allLocations[0]?.id
+   290→
+   291→    if (!locationId) {
+   292→      toast.error('No hay ubicaciones disponibles')
+   293→      return
+   294→    }
+   295→
+   296→    setAjusteLoading(true)
+   297→    try {
+   298→      const res = await fetch('/api/wms/movimientos', {
+   299→        method: 'POST',
+   300→        headers: { 'Content-Type': 'application/json' },
+   301→        body: JSON.stringify({
+   302→          idProducto: ajusteProduct.id,
+   303→          idUbicacion: locationId,
+   304→          idTipo: 3,
+   305→          cantidad: newStock,
+   306→          referencia: 'Ajuste manual',
+   307→          observacion: ajusteMotivo || null,
+   308→        }),
+   309→      })
+   310→      if (!res.ok) {
+   311→        const err = await res.json()
+   312→        throw new Error(err.error || 'Error al ajustar stock')
+   313→      }
+   314→      toast.success('Stock ajustado correctamente')
+   315→      setAjusteProduct(null)
+   316→      invalidateInventory()
+   317→    } catch (e: any) {
+   318→      toast.error(e.message || 'Error al ajustar stock')
+   319→    } finally {
+   320→      setAjusteLoading(false)
+   321→    }
+   322→  }
+   323→
+   324→  // --- TRASLADO handlers ---
+   325→  function openTraslado(item: InventoryItem) {
+   326→    if (item.stocks.length < 1) return
+   327→    setTrasladoProduct(item)
+   328→    setTrasladoOrigen(String(item.stocks[0].idUbicacion))
+   329→    setTrasladoDestino('')
+   330→    setTrasladoCantidad('')
+   331→  }
+   332→
+   333→  function getOrigenStock(): number {
+   334→    if (!trasladoProduct) return 0
+   335→    const entry = trasladoProduct.stocks.find((s) => String(s.idUbicacion) === trasladoOrigen)
+   336→    return entry?.cantidad ?? 0
+   337→  }
+   338→
+   339→  async function submitTraslado() {
+   340→    if (!trasladoProduct || !trasladoOrigen || !trasladoDestino || !trasladoCantidad) return
+   341→    if (trasladoOrigen === trasladoDestino) {
+   342→      toast.error('El origen y destino no pueden ser iguales')
+   343→      return
+   344→    }
+   345→    const qty = parseInt(trasladoCantidad, 10)
+   346→    if (isNaN(qty) || qty <= 0) {
+   347→      toast.error('Cantidad inválida')
+   348→      return
+   349→    }
+   350→    const origenStock = getOrigenStock()
+   351→    if (qty > origenStock) {
+   352→      toast.error(`Stock insuficiente en origen (disponible: ${origenStock})`)
+   353→      return
+   354→    }
+   355→
+   356→    setTrasladoLoading(true)
+   357→    try {
+   358→      const res = await fetch('/api/wms/stock/transfer', {
+   359→        method: 'POST',
+   360→        headers: { 'Content-Type': 'application/json' },
+   361→        body: JSON.stringify({
+   362→          idProducto: trasladoProduct.id,
+   363→          idUbicacionOrigen: parseInt(trasladoOrigen, 10),
+   364→          idUbicacionDestino: parseInt(trasladoDestino, 10),
+   365→          cantidad: qty,
+   366→        }),
+   367→      })
+   368→      if (!res.ok) {
+   369→        const err = await res.json()
+   370→        throw new Error(err.error || 'Error en traslado')
+   371→      }
+   372→      toast.success('Traslado realizado correctamente')
+   373→      setTrasladoProduct(null)
+   374→      invalidateInventory()
+   375→    } catch (e: any) {
+   376→      toast.error(e.message || 'Error en traslado')
+   377→    } finally {
+   378→      setTrasladoLoading(false)
+   379→    }
+   380→  }
+   381→
+   382→  // --- CSV Export ---
+   383→  function exportInventory() {
+   384→    exportToCSV(
+   385→      inventory.map((p) => ({
+   386→        producto: p.nombre,
+   387→        sku: p.sku,
+   388→        totalStock: p.totalStock,
+   389→        valorTotal: p.valorTotal,
+   390→      })),
+   391→      'inventario',
+   392→      [
+   393→        { key: 'producto', label: 'Producto' },
+   394→        { key: 'sku', label: 'SKU' },
+   395→        { key: 'totalStock', label: 'Stock Total' },
+   396→        { key: 'valorTotal', label: 'Valor Total', format: 'currency' },
+   397→      ],
+   398→    )
+   399→  }
+   400→
+   401→  function openSheet(item: InventoryItem) {
+   402→    setSheetProduct(item)
+   403→  }
+   404→
+   405→  function quickGoToReceiving() {
+   406→    if (!sheetProduct) return
+   407→    const deficiency = sheetProduct.stockMinimo - sheetProduct.totalStock
+   408→    setReceivingProductId(sheetProduct.id, deficiency > 0 ? deficiency : null)
+   409→    setCurrentPage('receiving')
+   410→    setSheetProduct(null)
+   411→  }
+   412→
+   413→  function quickAdjust() {
+   414→    if (!sheetProduct) return
+   415→    setSheetProduct(null)
+   416→    openAjuste(sheetProduct)
+   417→  }
+   418→
+   419→  function quickTransfer() {
+   420→    if (!sheetProduct) return
+   421→    setSheetProduct(null)
+   422→    openTraslado(sheetProduct)
+   423→  }
+   424→
+   425→  // Find max stock for the location bars
+   426→  function getMaxStock(): number {
+   427→    if (!sheetProduct) return 1
+   428→    const max = Math.max(...sheetProduct.stocks.map((s) => s.cantidad), sheetProduct.stockMinimo)
+   429→    return max || 1
+   430→  }
+   431→
+   432→  return (
+   433→    <div className="space-y-4">
+   434→      {/* Stats Bar */}
+   435→      <div className="flex flex-wrap gap-3 mb-4">
+   436→        <Card className="rounded-lg px-4 py-3 shadow-sm">
+   437→          <p className="text-xs text-muted-foreground">Productos Activos</p>
+   438→          <p className="text-lg font-bold">{products.length}</p>
+   439→        </Card>
+   440→        <Card className="rounded-lg px-4 py-3 shadow-sm">
+   441→          <p className="text-xs text-muted-foreground">Valor Total</p>
+   442→          <p className="text-lg font-bold">{formatCurrency(inventoryStats?.stockValue ?? totalValor)}</p>
+   443→        </Card>
+   444→        <Card className="rounded-lg px-4 py-3 shadow-sm">
+   445→          <p className="text-xs text-muted-foreground">Bajo Mínimo</p>
+   446→          <p className="text-lg font-bold text-destructive">{inventoryStats?.bajoStock ?? 0}</p>
+   447→        </Card>
+   448→      </div>
+   449→
+   450→      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+   451→        <div>
+   452→          <p className="text-sm text-muted-foreground">
+   453→            {inventory.length} productos · Valor total: <span className="font-semibold text-foreground">{formatCurrency(totalValor)}</span>
+   454→          </p>
+   455→        </div>
+   456→        <Button variant="outline" onClick={exportInventory}>
+   457→          <Download className="h-4 w-4 mr-1" /> Exportar CSV
+   458→        </Button>
+   459→      </div>
+   460→
+   461→      <div className="mb-4">
+   462→        <p className="text-sm text-muted-foreground">Vista consolidada del inventario actual</p>
+   463→      </div>
+   464→
+   465→      <Card className="rounded-xl shadow-sm">
+   466→        <CardContent className="p-0">
+   467→          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
+   468→            <Table>
+   469→              <TableHeader>
+   470→                <TableRow>
+   471→                  <TableHead className="text-xs w-10">
+   472→                    <Checkbox
+   473→                      checked={sortedInventory.length > 0 && selectedIds.size === sortedInventory.length}
+   474→                      onCheckedChange={toggleSelectAll}
+   475→                    />
+   476→                  </TableHead>
+   477→                  <SortableHeader field="nombre" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Producto</SortableHeader>
+   478→                  <SortableHeader field="sku" sortField={sortField} sortDir={sortDir} onSort={handleSort}>SKU</SortableHeader>
+   479→                  <SortableHeader field="totalStock" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Total Stock</SortableHeader>
+   480→                  <SortableHeader field="valorTotal" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="hidden md:table-cell">Valor Total</SortableHeader>
+   481→                  <SortableHeader field="margen" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort} className="hidden lg:table-cell">Margen %</SortableHeader>
+   482→                  <TableHead className="text-xs text-center">Estado</TableHead>
+   483→                  <TableHead className="text-xs text-right">Acciones</TableHead>
+   484→                </TableRow>
+   485→              </TableHeader>
+   486→              <TableBody>
+   487→                {isLoading && Array.from({ length: 8 }).map((_, i) => (
+   488→                  <TableRow key={i}><TableCell colSpan={8}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+   489→                ))}
+   490→                {!isLoading && sortedInventory.length === 0 && (
+   491→                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Sin productos en inventario</TableCell></TableRow>
+   492→                )}
+   493→                {!isLoading && sortedInventory.map((p, idx) => {
+   494→                  const margen = p.precioVenta > 0 ? ((p.precioVenta - p.costoUnitario) / p.precioVenta * 100) : 0
+   495→                  return (
+   496→                    <TableRow key={p.id} className={cn('hover:bg-muted/50 cursor-pointer', idx % 2 === 1 && 'bg-muted/20', selectedIds.has(p.id) && 'bg-primary/5')} onClick={() => openSheet(p)}>
+   497→                      <TableCell className="text-xs py-2" onClick={(e) => e.stopPropagation()}>
+   498→                        <Checkbox checked={selectedIds.has(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
+   499→                      </TableCell>
+   500→                      <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{p.nombre}</TableCell>
+   501→                      <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
+   502→                      <TableCell className="text-xs text-center font-mono py-2">{p.totalStock}</TableCell>
+   503→                      <TableCell className="text-xs text-right py-2 hidden md:table-cell">{formatCurrency(p.valorTotal)}</TableCell>
+   504→                      <TableCell className="text-xs text-right py-2 hidden lg:table-cell">
+   505→                        <span className={cn(
+   506→                          'font-mono',
+   507→                          margen >= 30 ? 'text-emerald-600 dark:text-emerald-400' :
+   508→                          margen >= 15 ? 'text-amber-600 dark:text-amber-400' :
+   509→                          'text-red-600 dark:text-red-400'
+   510→                        )}>
+   511→                          {margen.toFixed(1)}%
+   512→                        </span>
+   513→                      </TableCell>
+   514→                      <TableCell className="text-xs text-center py-2"><StatusBadge status={p.status} /></TableCell>
+   515→                      <TableCell className="text-xs text-right py-2">
+   516→                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+   517→                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver detalle" onClick={() => openSheet(p)}>
+   518→                            <Eye className="h-3.5 w-3.5" />
+   519→                          </Button>
+   520→                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver ubicaciones" onClick={() => setSelectedProduct(p)}>
+   521→                            <MapPin className="h-3.5 w-3.5" />
+   522→                          </Button>
+   523→                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ajustar stock" onClick={() => openAjuste(p)}>
+   524→                            <SlidersHorizontal className="h-3.5 w-3.5" />
+   525→                          </Button>
+   526→                          {p.stocks.length > 1 && (
+   527→                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Trasladar" onClick={() => openTraslado(p)}>
+   528→                              <ArrowRightLeft className="h-3.5 w-3.5" />
+   529→                            </Button>
+   530→                          )}
+   531→                        </div>
+   532→                      </TableCell>
+   533→                    </TableRow>
+   534→                  )
+   535→                })}
+   536→              </TableBody>
+   537→            </Table>
+   538→          </div>
+   539→        </CardContent>
+   540→      </Card>
+   541→
+   542→      {/* Floating Action Bar */}
+   543→      {selectedIds.size > 0 && (
+   544→        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-xl border bg-background/95 backdrop-blur shadow-lg px-4 py-3">
+   545→          <span className="text-sm font-medium">{selectedIds.size} seleccionados</span>
+   546→          <Button size="sm" onClick={() => setBatchDialogOpen(true)}>
+   547→            <SlidersHorizontal className="h-4 w-4 mr-1" /> Ajustar Stock
+   548→          </Button>
+   549→          <Button size="sm" variant="outline" onClick={exportSelected}>
+   550→            <Download className="h-4 w-4 mr-1" /> Exportar Seleccionados
+   551→          </Button>
+   552→          <Button size="sm" variant="ghost" onClick={clearSelection}>
+   553→            <XIcon className="h-4 w-4" />
+   554→          </Button>
+   555→        </div>
+   556→      )}
+   557→
+   558→      {/* Batch Adjust Dialog */}
+   559→      <Dialog open={batchDialogOpen} onOpenChange={(open) => { if (!open) setBatchDialogOpen(false) }}>
+   560→        <DialogContent className="max-w-sm">
+   561→          <DialogHeader className="dialog-header-accent">
+   562→            <DialogTitle>Ajustar Stock en Lote</DialogTitle>
+   563→            <DialogDescription>Ajustar stock para {selectedIds.size} productos seleccionados</DialogDescription>
+   564→          </DialogHeader>
+   565→          <div className="space-y-4">
+   566→            <div className="space-y-2">
+   567→              <Label className="text-sm font-medium">Tipo de Ajuste</Label>
+   568→              <Select value={batchType} onValueChange={(v: any) => setBatchType(v)}>
+   569→                <SelectTrigger><SelectValue /></SelectTrigger>
+   570→                <SelectContent>
+   571→                  <SelectItem value="add">Sumar</SelectItem>
+   572→                  <SelectItem value="subtract">Restar</SelectItem>
+   573→                </SelectContent>
+   574→              </Select>
+   575→            </div>
+   576→            <div className="space-y-2">
+   577→              <Label className="text-sm font-medium">Cantidad</Label>
+   578→              <Input type="number" min={1} value={batchQty} onChange={(e) => setBatchQty(e.target.value)} placeholder="Cantidad a {batchType === 'add' ? 'sumar' : 'restar'}" />
+   579→            </div>
+   580→            <DialogFooter className="gap-2">
+   581→              <Button variant="outline" onClick={() => setBatchDialogOpen(false)} disabled={batchLoading}>Cancelar</Button>
+   582→              <Button onClick={submitBatchAdjust} disabled={batchLoading || !batchQty}>
+   583→                {batchLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+   584→                Aplicar Ajuste
+   585→              </Button>
+   586→            </DialogFooter>
+   587→          </div>
+   588→        </DialogContent>
+   589→      </Dialog>
+   590→
+   591→      {/* Stock by location dialog */}
+   592→      <Dialog open={!!selectedProduct} onOpenChange={(open) => { if (!open) setSelectedProduct(null) }}>
+   593→        <DialogContent className="max-w-md">
+   594→          <DialogHeader className="dialog-header-accent"><DialogTitle>Stock por Ubicación</DialogTitle><DialogDescription>Detalle de stock por ubicación del producto</DialogDescription></DialogHeader>
+   595→          {selectedProduct && (
+   596→            <div className="space-y-3">
+   597→              <p className="text-sm"><span className="text-muted-foreground">Producto:</span> <span className="font-medium">{selectedProduct.nombre}</span></p>
+   598→              <p className="text-sm"><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{selectedProduct.sku}</span></p>
+   599→              <Table>
+   600→                <TableHeader>
+   601→                  <TableRow>
+   602→                    <TableHead className="text-xs">Pasillo</TableHead>
+   603→                    <TableHead className="text-xs">Estante</TableHead>
+   604→                    <TableHead className="text-xs">Nivel</TableHead>
+   605→                    <TableHead className="text-xs text-right">Cantidad</TableHead>
+   606→                  </TableRow>
+   607→                </TableHeader>
+   608→                <TableBody>
+   609→                  {(() => {
+   610→                    const stocks = stockEntries.filter((s) => s.idProducto === selectedProduct.id)
+   611→                    if (stocks.length === 0) return <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sin stock</TableCell></TableRow>
+   612→                    return stocks.map((s) => (
+   613→                      <TableRow key={s.idUbicacion}>
+   614→                        <TableCell className="text-xs py-2">{s.ubicacion.pasillo}</TableCell>
+   615→                        <TableCell className="text-xs py-2">{s.ubicacion.estante}</TableCell>
+   616→                        <TableCell className="text-xs py-2">{s.ubicacion.nivel}</TableCell>
+   617→                        <TableCell className="text-xs text-right font-mono py-2">{s.cantidad}</TableCell>
+   618→                      </TableRow>
+   619→                    ))
+   620→                  })()}
+   621→                </TableBody>
+   622→              </Table>
+   623→            </div>
+   624→          )}
+   625→        </DialogContent>
+   626→      </Dialog>
+   627→
+   628→      {/* Ajuste Dialog */}
+   629→      <Dialog open={!!ajusteProduct} onOpenChange={(open) => { if (!open) setAjusteProduct(null) }}>
+   630→        <DialogContent className="max-w-sm">
+   631→          <DialogHeader className="dialog-header-accent"><DialogTitle>Ajustar Stock</DialogTitle><DialogDescription>Modificar la cantidad de stock del producto</DialogDescription></DialogHeader>
+   632→          {ajusteProduct && (
+   633→            <div className="space-y-4">
+   634→              <div className="space-y-1">
+   635→                <Label className="text-xs text-muted-foreground">Producto</Label>
+   636→                <p className="text-sm font-medium">{ajusteProduct.nombre}</p>
+   637→              </div>
+   638→              <div className="space-y-1">
+   639→                <Label className="text-xs text-muted-foreground">Stock Actual</Label>
+   640→                <p className="text-sm font-mono">{ajusteProduct.totalStock}</p>
+   641→              </div>
+   642→              <div className="space-y-1">
+   643→                <Label className="text-sm font-medium">Nuevo Stock</Label>
+   644→                <Input type="number" min="0" value={ajusteStock} onChange={(e) => setAjusteStock(e.target.value)} placeholder="Nueva cantidad" />
+   645→              </div>
+   646→              <div className="space-y-1">
+   647→                <Label className="text-sm font-medium">Motivo (opcional)</Label>
+   648→                <Input value={ajusteMotivo} onChange={(e) => setAjusteMotivo(e.target.value)} placeholder="Razón del ajuste" />
+   649→              </div>
+   650→              <DialogFooter className="gap-2">
+   651→                <Button variant="outline" onClick={() => setAjusteProduct(null)} disabled={ajusteLoading}>Cancelar</Button>
+   652→                <Button onClick={submitAjuste} disabled={ajusteLoading}>
+   653→                  {ajusteLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+   654→                  Guardar Ajuste
+   655→                </Button>
+   656→              </DialogFooter>
+   657→            </div>
+   658→          )}
+   659→        </DialogContent>
+   660→      </Dialog>
+   661→
+   662→      {/* Traslado Dialog */}
+   663→      <Dialog open={!!trasladoProduct} onOpenChange={(open) => { if (!open) setTrasladoProduct(null) }}>
+   664→        <DialogContent className="max-w-sm">
+   665→          <DialogHeader className="dialog-header-accent"><DialogTitle>Trasladar Stock</DialogTitle><DialogDescription>Mover stock entre ubicaciones</DialogDescription></DialogHeader>
+   666→          {trasladoProduct && (
+   667→            <div className="space-y-4">
+   668→              <div className="space-y-1">
+   669→                <Label className="text-xs text-muted-foreground">Producto</Label>
+   670→                <p className="text-sm font-medium">{trasladoProduct.nombre}</p>
+   671→              </div>
+   672→              <div className="space-y-1">
+   673→                <Label className="text-sm font-medium">Ubicación Origen</Label>
+   674→                <Select value={trasladoOrigen} onValueChange={(v) => { setTrasladoOrigen(v); setTrasladoCantidad('') }}>
+   675→                  <SelectTrigger><SelectValue placeholder="Seleccionar origen" /></SelectTrigger>
+   676→                  <SelectContent>
+   677→                    {trasladoProduct.stocks.filter((s) => s.cantidad > 0).map((s) => (
+   678→                      <SelectItem key={s.idUbicacion} value={String(s.idUbicacion)}>
+   679→                        {s.ubicacion.pasillo}-{s.ubicacion.estante}-{s.ubicacion.nivel} ({s.cantidad})
+   680→                      </SelectItem>
+   681→                    ))}
+   682→                  </SelectContent>
+   683→                </Select>
+   684→              </div>
+   685→              <div className="space-y-1">
+   686→                <Label className="text-sm font-medium">Ubicación Destino</Label>
+   687→                <Select value={trasladoDestino} onValueChange={setTrasladoDestino}>
+   688→                  <SelectTrigger><SelectValue placeholder="Seleccionar destino" /></SelectTrigger>
+   689→                  <SelectContent>
+   690→                    {allLocations.map((loc: any) => (
+   691→                      <SelectItem key={loc.id} value={String(loc.id)} disabled={String(loc.id) === trasladoOrigen}>
+   692→                        {loc.pasillo}-{loc.estante}-{loc.nivel}
+   693→                      </SelectItem>
+   694→                    ))}
+   695→                  </SelectContent>
+   696→                </Select>
+   697→              </div>
+   698→              <div className="space-y-1">
+   699→                <Label className="text-sm font-medium">Cantidad (máx: {getOrigenStock()})</Label>
+   700→                <Input type="number" min="1" max={getOrigenStock()} value={trasladoCantidad} onChange={(e) => setTrasladoCantidad(e.target.value)} placeholder="Cantidad a trasladar" />
+   701→              </div>
+   702→              <DialogFooter className="gap-2">
+   703→                <Button variant="outline" onClick={() => setTrasladoProduct(null)} disabled={trasladoLoading}>Cancelar</Button>
+   704→                <Button onClick={submitTraslado} disabled={trasladoLoading}>
+   705→                  {trasladoLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+   706→                  Trasladar
+   707→                </Button>
+   708→              </DialogFooter>
+   709→            </div>
+   710→          )}
+   711→        </DialogContent>
+   712→      </Dialog>
+   713→
+   714→      {/* Product Detail Sheet */}
+   715→      <Sheet open={!!sheetProduct} onOpenChange={(open) => { if (!open) setSheetProduct(null) }}>
+   716→        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+   717→          <SheetHeader className="dialog-header-accent">
+   718→            <SheetTitle>Detalle de Producto</SheetTitle>
+   719→            <SheetDescription>Información completa del producto</SheetDescription>
+   720→          </SheetHeader>
+   721→          {sheetProduct && (
+   722→            <div className="space-y-6 mt-4">
+   723→              {/* Product Info */}
+   724→              <div className="space-y-2">
+   725→                <h3 className="text-base font-semibold">{sheetProduct.nombre}</h3>
+   726→                <div className="grid grid-cols-2 gap-2 text-xs">
+   727→                  <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{sheetProduct.sku}</span></div>
+   728→                  <div><span className="text-muted-foreground">Categoría:</span> {sheetProduct.categoria?.nombre ?? '-'}</div>
+   729→                  <div><span className="text-muted-foreground">Marca:</span> {sheetProduct.marca?.nombre ?? '-'}</div>
+   730→                  <div><span className="text-muted-foreground">Unidad:</span> {sheetProduct.unidadMedida ?? 'unidad'}</div>
+   731→                  <div><span className="text-muted-foreground">Costo:</span> {formatCurrency(sheetProduct.costoUnitario)}</div>
+   732→                  <div><span className="text-muted-foreground">Precio Venta:</span> <span className="font-semibold">{formatCurrency(sheetProduct.precioVenta)}</span></div>
+   733→                </div>
+   734→                {sheetProduct.descripcion && (
+   735→                  <p className="text-xs text-muted-foreground mt-1">{sheetProduct.descripcion}</p>
+   736→                )}
+   737→                <div className="flex items-center gap-2 mt-1">
+   738→                  <StatusBadge status={sheetProduct.status} />
+   739→                  <Badge variant="outline" className="text-[10px]">
+   740→                    Stock Total: <span className="font-mono font-semibold">{sheetProduct.totalStock}</span>
+   741→                  </Badge>
+   742→                  <Badge variant="outline" className="text-[10px]">
+   743→                    Mínimo: <span className="font-mono">{sheetProduct.stockMinimo}</span>
+   744→                  </Badge>
+   745→                </div>
+   746→              </div>
+   747→
+   748→              <Separator />
+   749→
+   750→              {/* Stock by Location - Visual Bars */}
+   751→              <div className="space-y-3">
+   752→                <h4 className="text-sm font-semibold flex items-center gap-2">
+   753→                  <MapPin className="h-4 w-4" /> Stock por Ubicación
+   754→                </h4>
+   755→                {sheetProduct.stocks.length === 0 ? (
+   756→                  <div className="text-center py-4 text-muted-foreground text-xs">
+   757→                    <Package className="h-8 w-8 mx-auto mb-1 opacity-30" />
+   758→                    <p>Sin stock registrado</p>
+   759→                  </div>
+   760→                ) : (
+   761→                  <div className="space-y-2">
+   762→                    {sheetProduct.stocks.map((s) => {
+   763→                      const maxStock = getMaxStock()
+   764→                      const pct = Math.round((s.cantidad / maxStock) * 100)
+   765→                      return (
+   766→                        <div key={s.idUbicacion} className="space-y-1">
+   767→                          <div className="flex items-center justify-between text-xs">
+   768→                            <span className="font-mono text-muted-foreground">
+   769→                              {s.ubicacion.pasillo}-{s.ubicacion.estante}-{s.ubicacion.nivel}
+   770→                            </span>
+   771→                            <span className="font-mono font-semibold">{s.cantidad}</span>
+   772→                          </div>
+   773→                          <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+   774→                            <div
+   775→                              className={cn(
+   776→                                'h-full rounded-full transition-all duration-500',
+   777→                                s.cantidad === 0 ? 'bg-red-500' :
+   778→                                s.cantidad < sheetProduct.stockMinimo ? 'bg-amber-500' :
+   779→                                'bg-emerald-500'
+   780→                              )}
+   781→                              style={{ width: `${Math.max(2, pct)}%` }}
+   782→                            />
+   783→                          </div>
+   784→                        </div>
+   785→                      )
+   786→                    })}
+   787→                    {sheetProduct.stockMinimo > 0 && (
+   788→                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-1">
+   789→                        <div className="h-1 w-3 bg-amber-500 rounded" />
+   790→                        <span>Línea de mínimo ({sheetProduct.stockMinimo})</span>
+   791→                      </div>
+   792→                    )}
+   793→                  </div>
+   794→                )}
+   795→              </div>
+   796→
+   797→              <Separator />
+   798→
+   799→              {/* Recent Movements */}
+   800→              <div className="space-y-3">
+   801→                <h4 className="text-sm font-semibold flex items-center gap-2">
+   802→                  <Clock className="h-4 w-4" /> Últimos Movimientos
+   803→                </h4>
+   804→                {productMovements.length === 0 ? (
+   805→                  <p className="text-xs text-muted-foreground">Sin movimientos registrados</p>
+   806→                ) : (
+   807→                  <ScrollArea className="max-h-48">
+   808→                    <div className="space-y-1">
+   809→                      {productMovements.slice(0, 5).map((m: any) => (
+   810→                        <div key={m.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/50">
+   811→                          <div className="flex items-center gap-2">
+   812→                            <span className={cn('inline-block px-1.5 py-0 rounded text-[10px] font-semibold', tipoMovColors[m.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800')}>
+   813→                              {m.tipoMovimiento?.nombre}
+   814→                            </span>
+   815→                            <span className="text-[10px] text-muted-foreground">
+   816→                              {m.ubicacion ? `${m.ubicacion.pasillo}-${m.ubicacion.estante}` : '-'}
+   817→                            </span>
+   818→                          </div>
+   819→                          <div className="flex items-center gap-2">
+   820→                            <span className={cn('text-xs font-mono font-semibold',
+   821→                              m.tipoMovimiento?.nombre === 'ENTRADA' || m.tipoMovimiento?.nombre === 'DEVOLUCION'
+   822→                                ? 'text-emerald-600 dark:text-emerald-400'
+   823→                                : 'text-red-600 dark:text-red-400'
+   824→                            )}>
+   825→                              {m.tipoMovimiento?.nombre === 'ENTRADA' || m.tipoMovimiento?.nombre === 'DEVOLUCION' ? '+' : '-'}{m.cantidad}
+   826→                            </span>
+   827→                            <span className="text-[10px] text-muted-foreground">{formatDateTime(m.fecha)}</span>
+   828→                          </div>
+   829→                        </div>
+   830→                      ))}
+   831→                    </div>
+   832→                  </ScrollArea>
+   833→                )}
+   834→              </div>
+   835→
+   836→              <Separator />
+   837→
+   838→              {/* Quick Actions */}
+   839→              <div className="space-y-3">
+   840→                <h4 className="text-sm font-semibold">Acciones Rápidas</h4>
+   841→                <div className="grid grid-cols-2 gap-2">
+   842→                  <Button variant="outline" size="sm" className="text-xs" onClick={quickAdjust}>
+   843→                    <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Ajustar Stock
+   844→                  </Button>
+   845→                  <Button variant="outline" size="sm" className="text-xs" onClick={quickTransfer} disabled={sheetProduct.stocks.length <= 1}>
+   846→                    <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
+   847→                  </Button>
+   848→                  <Button size="sm" className="text-xs col-span-2" onClick={quickGoToReceiving}>
+   849→                    <Download className="h-3.5 w-3.5 mr-1" /> Ir a Recepción
+   850→                  </Button>
+   851→                </div>
+   852→              </div>
+   853→            </div>
+   854→          )}
+   855→        </SheetContent>
+   856→      </Sheet>
+   857→    </div>
+   858→  )
+   859→}
+   860→
