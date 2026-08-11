@@ -34,6 +34,7 @@ import {
   RotateCcw,
   ArrowUp,
   ArrowDown,
+  ArrowRight,
 } from 'lucide-react'
 import {
   BarChart,
@@ -204,6 +205,27 @@ export function DashboardPage() {
         .then((items: any[]) => items.slice(0, 10)),
     refetchInterval: 30000,
   })
+
+  const { data: recentSales = [] } = useQuery({
+    queryKey: ['recent-sales-dash'],
+    queryFn: () =>
+      fetch('/api/wms/ventas?limit=5')
+        .then((r) => r.json()),
+    refetchInterval: 30000,
+  })
+
+  function timeAgo(dateStr: string): string {
+    const now = new Date()
+    const d = new Date(dateStr)
+    const diffMs = now.getTime() - d.getTime()
+    const diffMin = Math.floor(diffMs / 60000)
+    if (diffMin < 1) return 'ahora'
+    if (diffMin < 60) return `hace ${diffMin}min`
+    const diffHrs = Math.floor(diffMin / 60)
+    if (diffHrs < 24) return `hace ${diffHrs}h`
+    const diffDays = Math.floor(diffHrs / 24)
+    return `hace ${diffDays}d`
+  }
 
   const { data: activityFeed = [] } = useQuery({
     queryKey: ['activity-feed'],
@@ -464,9 +486,9 @@ export function DashboardPage() {
       </div>
 
       {/* Bottom tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Recent movements */}
-        <Card className="rounded-xl shadow-sm border-l-2 border-l-primary">
+        <Card className="rounded-xl shadow-sm border-l-2 border-l-primary lg:col-span-1">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
@@ -582,6 +604,72 @@ export function DashboardPage() {
                     </TableCell>
                   </TableRow>
                 )}
+              </TableBody>
+            </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Sales Widget */}
+        <Card className="rounded-xl shadow-sm border-l-2 border-l-emerald-500">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Ventas Recientes</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Últimas 5 ventas registradas</p>
+              </div>
+              <Badge
+                variant="outline"
+                className="cursor-pointer"
+                onClick={() => setCurrentPage('sales')}
+              >
+                Ver todas
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="table-container max-h-[calc(100vh-18rem)] overflow-y-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Folio</TableHead>
+                  <TableHead className="text-xs">Cliente</TableHead>
+                  <TableHead className="text-xs text-right">Total</TableHead>
+                  <TableHead className="text-xs text-center">Estado</TableHead>
+                  <TableHead className="text-xs text-right">Tiempo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentSales.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                      <ShoppingCart className="h-10 w-10 mx-auto mb-2 text-muted-foreground/40" />
+                      <p className="text-sm font-medium">Sin ventas registradas</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {recentSales.slice(0, 5).map((v: any) => (
+                  <TableRow key={v.id}>
+                    <TableCell className="text-xs font-mono py-2">{v.folio}</TableCell>
+                    <TableCell className="text-xs py-2 font-medium truncate max-w-[120px]">
+                      {v.cliente?.nombre?.substring(0, 18)}
+                    </TableCell>
+                    <TableCell className="text-xs py-2 text-right font-mono font-semibold">
+                      {formatCurrency(v.total ?? 0)}
+                    </TableCell>
+                    <TableCell className="text-xs py-2 text-center">
+                      <Badge
+                        variant={v.estado === 'COMPLETADA' ? 'default' : v.estado === 'CANCELADA' ? 'destructive' : 'outline'}
+                        className="text-[10px]"
+                      >
+                        {v.estado}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs py-2 text-right text-muted-foreground">
+                      {timeAgo(v.fecha)}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
             </div>

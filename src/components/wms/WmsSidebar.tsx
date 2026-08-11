@@ -125,6 +125,67 @@ const pageTitles: Record<WmsPage, string> = {
 
 export { pageTitles }
 
+function QuickStats() {
+  const { setCurrentPage, setSidebarOpen } = useWmsStore()
+
+  const { data: alertData } = useQuery({
+    queryKey: ['sidebar-alerts'],
+    queryFn: () => fetch('/api/wms/alertas').then(r => r.json()),
+    refetchInterval: 60000,
+  })
+
+  const { data: dashboardData } = useQuery({
+    queryKey: ['sidebar-dashboard'],
+    queryFn: () => fetch('/api/wms/dashboard').then(r => r.json()),
+    refetchInterval: 60000,
+  })
+
+  const { data: productosData } = useQuery({
+    queryKey: ['sidebar-productos-count'],
+    queryFn: () => fetch('/api/wms/productos?pageSize=1').then(r => r.json()).then((d: any) => d.total ?? 0),
+    refetchInterval: 120000,
+  })
+
+  const lowStockCount = Array.isArray(alertData) ? alertData.length : 0
+  const ventasHoy = dashboardData?.ventasHoy?.total ?? 0
+  const totalProductos = productosData ?? 0
+
+  function handleQuickNav(page: WmsPage) {
+    setCurrentPage(page)
+    setSidebarOpen(false)
+  }
+
+  return (
+    <div className="mx-3 mb-2 mt-2 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/30 p-2.5 space-y-1">
+      <p className="text-[9px] text-muted-foreground/70 font-semibold uppercase tracking-[0.12em] mb-1.5">Resumen Rápido</p>
+      <button
+        onClick={() => handleQuickNav('alerts')}
+        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent/60 transition-colors text-left group"
+      >
+        <span className={cn('h-2 w-2 rounded-full shrink-0', lowStockCount > 0 ? 'bg-red-500' : 'bg-emerald-500')} />
+        <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors flex-1">Stock Bajo:</span>
+        <span className={cn('text-[11px] font-semibold tabular-nums', lowStockCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400')}>{lowStockCount}</span>
+      </button>
+      <button
+        onClick={() => handleQuickNav('sales')}
+        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent/60 transition-colors text-left group"
+      >
+        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+        <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors flex-1">Ventas Hoy:</span>
+        <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatCurrency(ventasHoy)}</span>
+      </button>
+      <button
+        onClick={() => handleQuickNav('products')}
+        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent/60 transition-colors text-left group"
+      >
+        <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+        <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors flex-1">Productos:</span>
+        <span className="text-[11px] font-semibold tabular-nums">{totalProductos}</span>
+      </button>
+    </div>
+  )
+}
+
 function SidebarFooter() {
   const [time, setTime] = useState('')
 
@@ -150,8 +211,9 @@ function SidebarFooter() {
 
   return (
     <div className="shrink-0">
+      <QuickStats />
       {lastSale && (
-        <div className="mx-3 mb-2 rounded-lg p-2.5 mt-2 bg-primary/5 border border-primary/10">
+        <div className="mx-3 mb-2 rounded-lg p-2.5 mt-1 bg-primary/5 border border-primary/10">
           <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wider">Última Venta</p>
           <p className="text-xs font-semibold truncate text-foreground">{lastSale.folio} — {lastSale.cliente?.nombre}</p>
           <p className="text-[10px] text-primary font-semibold mt-0.5">{formatCurrency(lastSale.total)}</p>
@@ -277,11 +339,81 @@ export function WmsSidebar() {
       {/* Mobile Sheet - only on mobile */}
       {isMobile && (
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="w-64 p-0">
+          <SheetContent
+            side="left"
+            className="w-[280px] max-w-[85vw] p-0 border-r border-sidebar-border/80"
+            style={{ animation: 'slide-in-mobile 0.25s cubic-bezier(0.22, 1, 0.36, 1)' }}
+          >
             <SheetHeader className="sr-only">
               <SheetTitle>Navegación</SheetTitle>
             </SheetHeader>
-            {renderNav()}
+            <div className="h-full flex flex-col">
+              {/* Mobile gradient header */}
+              <div className="px-5 py-5 border-b border-sidebar-border relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/4 to-transparent" />
+                <div className="relative flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30">
+                    <span className="text-xl">📦</span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-bold text-base tracking-tight block truncate">{warehouseName}</span>
+                    <p className="text-[10px] text-muted-foreground tracking-wide truncate mt-0.5">{warehouseSubtitle}</p>
+                  </div>
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1 px-3 py-2">
+                {navSections.map((section, si) => (
+                  <div key={si} className={cn('mb-1', section.title === 'SISTEMA' && 'mt-2 pt-2 border-t border-sidebar-border')}>
+                    {section.title && (
+                      <div className="flex items-center gap-2 px-3 py-2">
+                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', section.titleColor || 'bg-primary')} />
+                        <p className="text-[10px] font-bold text-muted-foreground/70 tracking-[0.12em]">
+                          {section.title}
+                        </p>
+                      </div>
+                    )}
+                    {(section.title === 'CATÁLOGO' || section.title === 'OPERACIONES') && (
+                      <div className="my-1 h-px bg-sidebar-border/60" />
+                    )}
+                    {section.items.map((item) => {
+                      const isActive = currentPage === item.id
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleNav(item.id)}
+                          className={cn(
+                            'w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 mb-0.5 relative group',
+                            isActive
+                              ? 'text-primary'
+                              : 'hover:text-foreground text-muted-foreground hover:bg-sidebar-accent/60'
+                          )}
+                        >
+                          {isActive && (
+                            <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-primary shadow-sm shadow-primary/40" />
+                          )}
+                          {isActive && (
+                            <span className="absolute inset-0 bg-primary/8 rounded-r-lg" />
+                          )}
+                          <span className="relative z-10">{item.icon}</span>
+                          <span className="relative z-10">{item.label}</span>
+                          {item.id === 'alerts' && alertCount > 0 && (
+                            <Badge
+                              variant="destructive"
+                              className="relative z-10 ml-auto h-5 min-w-[20px] flex items-center justify-center text-[10px] px-1 badge-pop"
+                            >
+                              {alertCount}
+                            </Badge>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ))}
+              </ScrollArea>
+
+              <SidebarFooter />
+            </div>
           </SheetContent>
         </Sheet>
       )}

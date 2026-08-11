@@ -1178,3 +1178,151 @@ Work Log:
 7. i18n system implementation
 8. Product image upload support
 9. Advanced analytics: forecasting, seasonal trends
+
+---
+Task ID: 9-a
+Agent: Styling Expert (Round 9)
+Task: Comprehensive styling polish and responsive improvements
+
+Work Log:
+- Added `@keyframes slide-in-mobile` for mobile sidebar sheet entrance animation
+- Added `.mobile-card` class that converts data tables to card layout on small screens (<640px) with data-label attributes
+- Added responsive font sizing utilities: `.text-responsive-sm`, `.text-responsive-base` using CSS clamp()
+- Added `.table-striped` with subtle alternating row backgrounds
+- Added `.table-hover-glow` with 2px primary color left border on row hover
+- Added `.table-compact` for smaller text/less padding tables
+- Added `.table-highlight-row` with red left border for low stock/important rows
+- Added border-radius (rounded-xl overflow-hidden) to `.table-container`
+- Added `.card-elevated` with deeper shadow + translate on hover
+- Added `.card-accent-top` with 3px gradient top border for KPI cards
+- Added `.card-gradient` with subtle diagonal gradient background
+- Added `.card-glass` combining glassmorphism with elevation hover effect
+- Added `.card-stats` layout class (right-aligned stat, left-aligned label)
+- Added `@keyframes float` for subtle floating animation (alert icons)
+- Added `@keyframes progress-fill` and `.progress-animated` for progress bar fill animation
+- Added `@keyframes badge-pop` and `.badge-pop` for badge entrance animation
+- Enhanced dark mode table backgrounds (table, thead th, tbody td)
+- Improved dark mode card borders (more visible at 12% opacity)
+- Improved dark mode badge contrast (deeper colors for success/warning/danger/info/teal)
+- Improved dark mode empty state icon colors
+- Added `.btn-press` class with scale(0.97) on active state
+- Added `.btn-shine` class with shine/glare sweep animation on hover
+- Applied btn-press and hover shadow globally to primary/secondary/destructive buttons
+- Added QuickStats mini-dashboard in sidebar footer (low stock count with pulsing dot, today's sales, total products)
+- Improved mobile sheet: slide-in animation, wider (280px/85vw), gradient header, larger brand icon, badge-pop on alert count
+
+Stage Summary:
+- globals.css: ~460 lines of new CSS utilities added (responsive, table, card, animation, dark mode, button micro-interactions)
+- WmsSidebar.tsx: QuickStats component with 3 live indicators, enhanced mobile sheet with animation and gradient header
+- 0 errors, 6 pre-existing warnings (unchanged)
+- Dev server returns 200 OK
+
+---
+Task ID: 9-b
+Agent: Feature Developer (Round 9)
+Task: Add 5 new features to the WMS application
+
+Work Log:
+- **Feature 1: Quick Stats Sidebar Widget** — Replaced existing QuickStats in WmsSidebar.tsx with clickable navigation version. 3 mini-stats: Stock Bajo (red dot, navigates to alerts), Ventas Hoy (green dot, shows currency from dashboard API, navigates to sales), Productos (primary dot, navigates to products). Uses useQuery for dashboard data, productos count, and alertas. Each row is a button with hover state.
+- **Feature 2: Sales Status Filter** — Added pill-shaped status filter row in SalesPage.tsx above the table. Options: Todas, COMPLETADA, PENDIENTE, CANCELADA. Client-side filtering with count badges. Active pill gets primary bg color with shadow. Added Filter icon, cn utility import. Updated empty state message to reflect active filter.
+- **Feature 3: Product Detail Modal Enhancement** — Completely rewrote the View Detail Dialog in ProductsPage.tsx. Now shows: Product Info card (SKU, name, description, category, brand, unit with photo), Pricing card (cost/price/profit grid + margin % bar with color coding), Stock card (total with visual bar, min/max level indicators, per-location badges), Compatible Equipment card (grid of equipment items from producto-equipo API), Quick actions (Go to Receiving with deficiency calc, Go to Inventory, Ver Timeline). Added useWmsStore import, viewProductEquipos query, Download/Warehouse icon imports.
+- **Feature 4: Inventory Location Detail Dialog** — Added "Ver ubicaciones" button and dialog to InventoryPage.tsx. Dialog shows all warehouse locations with: location code, product count at that location, total units, visual distribution bar. Clicking a row filters the inventory table to only show products at that location. Added locationFilter state and clearable badge indicator.
+- **Feature 5: Dashboard Recent Sales Widget** — Added "Ventas Recientes" widget to DashboardPage.tsx alongside existing tables. Shows last 5 sales with: Folio, Cliente, Total (formatted currency), Estado badge (color-coded), time ago (computed relative time). "Ver todas" badge navigates to sales page. Changed bottom grid from 2-col to 3-col layout. Added recentSales query and timeAgo helper function.
+
+Stage Summary:
+- 5 files modified: WmsSidebar.tsx, SalesPage.tsx, ProductsPage.tsx, InventoryPage.tsx, DashboardPage.tsx
+- 0 new API routes needed — all features use existing endpoints
+- ESLint: 0 errors, 6 pre-existing warnings (unchanged)
+- Dev server compiles cleanly
+---
+Task ID: 9
+Agent: Main Architect (Round 9 — QA + Styling + 5 New Features)
+Task: Full QA verification, comprehensive styling polish, and 5 new features
+
+Work Log:
+- Performed comprehensive QA via agent-browser on all 13 pages — ALL PASS, 0 bugs
+- Verified all Round 8 features still working (CSV import, KPI trends, sale cancellation, data backup, equipment compatibility hover)
+- VLM visual analysis confirmed clean, professional UI with emerald/teal theme consistency
+- Launched 2 parallel agents: styling (9-a) and features (9-b)
+
+### Styling Improvements (9-a: ~460 lines new CSS)
+
+1. **Mobile Responsive Utilities** — `slide-in-mobile` keyframe for mobile sidebar sheet, `.mobile-card` class for responsive table-to-card layout, `.text-responsive-sm/base` fluid font sizing with clamp()
+2. **Data Table Enhancements** — `.table-striped` (subtle alternating rows), `.table-hover-glow` (2px primary left border on hover), `.table-compact` (reduced padding), `.table-highlight-row` (red left border for low stock), `.table-container` rounded corners
+3. **Card System** — `.card-elevated` (deeper shadow + lift), `.card-accent-top` (3px gradient top border), `.card-gradient` (diagonal gradient bg), `.card-glass` (glassmorphism + elevation), `.card-stats` (right-aligned layout)
+4. **Animation Enhancements** — `@keyframes float` / `.animate-float` for alert icons, `@keyframes progress-fill` / `.progress-animated` for progress bars, `@keyframes badge-pop` / `.badge-pop` for notification badge entrance
+5. **Dark Mode Contrast** — Enhanced table backgrounds, improved card border visibility (12% opacity), deeper badge colors, better empty state icon colors
+6. **Button Micro-interactions** — `.btn-press` (scale 0.97 on active), `.btn-shine` (glare sweep animation on hover), applied globally to primary/secondary/destructive buttons
+7. **Sidebar Quick Stats** — 3 clickable mini-indicators in footer: Stock Bajo (pulsing red dot), Ventas Hoy (currency), Productos count — each navigates to respective page
+
+### New Features (9-b: 5 features)
+
+1. **Quick Stats Sidebar Widget** — `WmsSidebar.tsx` modified SidebarFooter
+   - 3 clickable indicators: Stock Bajo (alerts count, red dot → alerts page), Ventas Hoy (dashboard API, green dot → sales page), Productos (productos count, primary dot → products page)
+   - Uses useQuery for live data, hover effects, proper navigation
+
+2. **Sales Status Filter** — `SalesPage.tsx`
+   - Pill-shaped filter row: "Todas", "COMPLETADA", "PENDIENTE", "CANCELADA"
+   - Count badges on each pill, active filter gets primary bg with shadow
+   - Pure client-side filtering on already-fetched ventas array
+   - Empty state message adapts to active filter
+
+3. **Product Detail Modal Enhancement** — `ProductsPage.tsx`
+   - Comprehensive detail dialog with 4 cards: Product Info (SKU badge, photo, description, category/brand/unit), Pricing (cost/price/profit + margin % color bar), Stock (total with visual bar, min/max levels, per-location badges), Compatible Equipment (grid from producto-equipo API)
+   - Quick actions: Ir a Recepción (with deficiency calc), Ir a Inventario, Ver Timeline
+
+4. **Inventory Location Detail Dialog** — `InventoryPage.tsx`
+   - "Ver ubicaciones" button opens dialog with all warehouse locations
+   - Table: location code, product count, total units, visual distribution bar
+   - Click row to filter inventory table to that location (with clearable badge)
+
+5. **Dashboard Recent Sales Widget** — `DashboardPage.tsx`
+   - "Ventas Recientes" card alongside existing Movimientos Recientes
+   - Last 5 sales: Folio, Cliente, Total (formatted), Estado badge (color-coded), time ago
+   - "Ver todas" link to Sales page
+   - Bottom grid changed from 2-col to 3-col layout
+
+### Code Quality
+- **0 ESLint errors**, 6 cosmetic warnings (pre-existing, unchanged)
+- No new API routes needed — all features use existing endpoints
+- All modifications follow existing patterns (Zustand navigation, TanStack Query, toast from sonner)
+
+### Files Changed This Round (8 files modified, 0 created)
+- `src/app/globals.css` — ~460 lines new CSS utilities (responsive, tables, cards, animations, dark mode, buttons)
+- `src/components/wms/WmsSidebar.tsx` — Quick stats footer + enhanced mobile sheet
+- `src/components/wms/DashboardPage.tsx` — Recent sales widget (3-col bottom grid)
+- `src/components/wms/SalesPage.tsx` — Status filter pills with counts
+- `src/components/wms/ProductsPage.tsx` — Comprehensive product detail modal
+- `src/components/wms/InventoryPage.tsx` — Location detail dialog with filter
+- `download/qa-dashboard.png` — QA screenshots
+- `download/qa-products.png` — QA screenshots
+
+### Current Project Status
+- **Pages**: 13 fully functional SPA pages
+- **API Routes**: 39 routes (unchanged)
+- **UI Components**: 22 WMS components + full shadcn/ui
+- **Features (cumulative)**: 25 features across 9 rounds
+  - Core: Print receipt, barcode scanner, notifications, activity feed, inventory sheet
+  - Operations: Picking list, margin calculator, keyboard shortcuts, batch operations, sales comparison
+  - Data: CSV import, KPI trends, sale cancellation, data backup/restore, equipment compatibility hover
+  - Round 9: Quick stats sidebar, sales status filter, product detail modal, inventory location dialog, recent sales widget
+- **CSS Utilities (cumulative)**: 35+ custom classes
+- **Bugs**: 0 known bugs
+- **Lint**: 0 errors, 6 cosmetic warnings
+
+### Known Issues / Risks
+- No authentication system (acceptable for pilot)
+- Settings theme selector doesn't sync with system theme on load
+- CSV import handles basic format only
+
+### Priority Recommendations for Next Phase
+1. User authentication (basic username/password for pilot)
+2. Multi-warehouse support with location transfer
+3. PDF export for reports and picking lists
+4. Email/webhook notifications for low stock alerts
+5. Product image upload support
+6. Advanced analytics: forecasting, seasonal trends
+7. Picking list route optimization algorithm
+8. Server-side pagination for large tables
+9. i18n system implementation
+10. Data import from Excel for products and clients

@@ -1,0 +1,514 @@
+     1→    39→export function SalesPage() {
+     2→    40→  const queryClient = useQueryClient()
+     3→    41→
+     4→    42→  const { data: salesSummary } = useQuery({
+     5→    43→    queryKey: ['sales-summary'],
+     6→    44→    queryFn: () => fetch('/api/wms/dashboard').then(r => r.json()).then(d => ({
+     7→    45→      hoy: d.ventasHoy,
+     8→    46→      semana: d.ventasSemana,
+     9→    47→      mes: d.ventasMes,
+    10→    48→    })),
+    11→    49→  })
+    12→    50→
+    13→    51→  const [showCreate, setShowCreate] = useState(false)
+    14→    52→  const [selectedCliente, setSelectedCliente] = useState('')
+    15→    53→  const [selectedProduct, setSelectedProduct] = useState('')
+    16→    54→  const [lineQty, setLineQty] = useState(1)
+    17→    55→  const [lines, setLines] = useState<SaleLine[]>([])
+    18→    56→  const [viewId, setViewId] = useState<number | null>(null)
+    19→    57→  const [cancelId, setCancelId] = useState<number | null>(null)
+    20→    58→  const [pickingId, setPickingId] = useState<number | null>(null)
+    21→    59→
+    22→    60→  // Sorting state
+    23→    61→  const [sortField, setSortField] = useState<string>('fecha')
+    24→    62→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+    25→    63→
+    26→    64→  const { data: clientes = [] } = useQuery({
+    27→    65→    queryKey: ['clientes-sales'],
+    28→    66→    queryFn: () => fetch('/api/wms/clientes').then((r) => r.json()),
+    29→    67→    enabled: showCreate,
+    30→    68→  })
+    31→    69→
+    32→    70→  const { data: products = [] } = useQuery({
+    33→    71→    queryKey: ['products-sales'],
+    34→    72→    queryFn: () => fetch('/api/wms/productos?pageSize=500').then((r) => r.json()).then((d: any) => d.items ?? []),
+    35→    73→    enabled: showCreate,
+    36→    74→  })
+    37→    75→
+    38→    76→  const { data: ventas = [], isLoading } = useQuery({
+    39→    77→    queryKey: ['ventas'],
+    40→    78→    queryFn: () => fetch('/api/wms/ventas').then((r) => r.json()),
+    41→    79→  })
+    42→    80→
+    43→    81→  const { data: viewVenta } = useQuery({
+    44→    82→    queryKey: ['venta-detail', viewId],
+    45→    83→    queryFn: () => fetch(`/api/wms/ventas/${viewId}`).then((r) => r.json()),
+    46→    84→    enabled: !!viewId,
+    47→    85→  })
+    48→    86→
+    49→    87→  const { data: pickingData } = useQuery({
+    50→    88→    queryKey: ['picking-list', pickingId],
+    51→    89→    queryFn: () => fetch(`/api/wms/ventas/${pickingId}/picking`).then((r) => r.json()),
+    52→    90→    enabled: !!pickingId,
+    53→    91→  })
+    54→    92→
+    55→    93→  const createMutation = useMutation({
+    56→    94→    mutationFn: () => {
+    57→    95→      if (!selectedCliente) return Promise.reject({ error: 'Seleccione un cliente' })
+    58→    96→      if (lines.length === 0) return Promise.reject({ error: 'Agregue productos' })
+    59→    97→      return fetch('/api/wms/ventas', {
+    60→    98→        method: 'POST',
+    61→    99→        headers: { 'Content-Type': 'application/json' },
+    62→   100→        body: JSON.stringify({
+    63→   101→          idCliente: Number(selectedCliente),
+    64→   102→          detalles: lines.map((l) => ({ idProducto: l.idProducto, cantidad: l.cantidad, precioUnitario: l.precioUnitario })),
+    65→   103→        }),
+    66→   104→      }).then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() })
+    67→   105→    },
+    68→   106→    onSuccess: () => {
+    69→   107→      toast.success('Venta registrada correctamente')
+    70→   108→      queryClient.invalidateQueries({ queryKey: ['ventas'] })
+    71→   109→      queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+    72→   110→      setShowCreate(false)
+    73→   111→      setSelectedCliente('')
+    74→   112→      setLines([])
+    75→   113→    },
+    76→   114→    onError: (err: any) => toast.error(err.error ?? 'Error al registrar venta'),
+    77→   115→  })
+    78→   116→
+    79→   117→  const cancelMutation = useMutation({
+    80→   118→    mutationFn: (id: number) =>
+    81→   119→      fetch(`/api/wms/ventas/${id}/cancel`, { method: 'POST' })
+    82→   120→        .then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    83→   121→    onSuccess: (result: any) => {
+    84→   122→      toast.success(result.message ?? 'Venta cancelada correctamente')
+    85→   123→      queryClient.invalidateQueries({ queryKey: ['ventas'] })
+    86→   124→      queryClient.invalidateQueries({ queryKey: ['venta-detail', viewId] })
+    87→   125→      queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+    88→   126→      queryClient.invalidateQueries({ queryKey: ['movimientos'] })
+    89→   127→      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    90→   128→      setCancelId(null)
+    91→   129→      setViewId(null)
+    92→   130→    },
+    93→   131→    onError: (err: any) => toast.error(err.error ?? 'Error al cancelar venta'),
+    94→   132→  })
+    95→   133→
+    96→   134→  function addLine() {
+    97→   135→    const prod = products.find((p: any) => p.id === Number(selectedProduct))
+    98→   136→    if (!prod) return
+    99→   137→    const existing = lines.find((l) => l.idProducto === prod.id)
+   100→   138→    if (existing) {
+   101→   139→      setLines(lines.map((l) => l.idProducto === prod.id ? { ...l, cantidad: l.cantidad + lineQty } : l))
+   102→   140→    } else {
+   103→   141→      setLines([...lines, { idProducto: prod.id, nombre: prod.nombre, sku: prod.sku, precioUnitario: prod.precioVenta, cantidad: lineQty }])
+   104→   142→    }
+   105→   143→    setSelectedProduct('')
+   106→   144→    setLineQty(1)
+   107→   145→  }
+   108→   146→
+   109→   147→  function removeLine(idProducto: number) {
+   110→   148→    setLines(lines.filter((l) => l.idProducto !== idProducto))
+   111→   149→  }
+   112→   150→
+   113→   151→  const subtotal = lines.reduce((sum, l) => sum + l.precioUnitario * l.cantidad, 0)
+   114→   152→
+   115→   153→  // --- Sorting ---
+   116→   154→  function handleSort(field: string) {
+   117→   155→    if (sortField === field) {
+   118→   156→      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+   119→   157→    } else {
+   120→   158→      setSortField(field)
+   121→   159→      setSortDir('asc')
+   122→   160→    }
+   123→   161→  }
+   124→   162→
+   125→   163→  function getSaleSortValue(v: any, field: string): any {
+   126→   164→    if (field === 'cliente') return v.cliente?.nombre ?? ''
+   127→   165→    return v[field]
+   128→   166→  }
+   129→   167→
+   130→   168→  const sortedVentas = [...ventas].sort((a: any, b: any) => {
+   131→   169→    let aVal: any = getSaleSortValue(a, sortField)
+   132→   170→    let bVal: any = getSaleSortValue(b, sortField)
+   133→   171→    if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = (bVal as string).toLowerCase() }
+   134→   172→    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+   135→   173→    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+   136→   174→    return 0
+   137→   175→  })
+   138→   176→
+   139→   177→  return (
+   140→   178→    <div className="space-y-4">
+   141→   179→      {/* Stats Bar with Daily Goal Progress */}
+   142→   180→      <div className="flex flex-wrap gap-3 items-stretch">
+   143→   181→        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+   144→   182→          <div className="flex items-center gap-2">
+   145→   183→            <ShoppingCart className="h-4 w-4 text-primary" />
+   146→   184→            <div>
+   147→   185→              <p className="text-[10px] text-muted-foreground uppercase">Ventas Hoy</p>
+   148→   186→              <p className="text-lg font-bold stat-number">{formatCurrency(salesSummary?.hoy?.total ?? 0)}</p>
+   149→   187→              <p className="text-[10px] text-muted-foreground">{salesSummary?.hoy?.count ?? 0} venta(s)</p>
+   150→   188→            </div>
+   151→   189→          </div>
+   152→   190→        </Card>
+   153→   191→        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border flex-1 min-w-[220px]">
+   154→   192→          <div className="flex items-center gap-2">
+   155→   193→            <Target className="h-4 w-4 text-primary shrink-0" />
+   156→   194→            <div className="flex-1">
+   157→   195→              <p className="text-[10px] text-muted-foreground uppercase">Meta Diaria: $5,000</p>
+   158→   196→              <div className="w-full bg-muted rounded-full h-2 mt-1">
+   159→   197→                <div
+   160→   198→                  className="h-2 rounded-full bg-primary transition-all duration-500"
+   161→   199→                  style={{ width: `${Math.min(100, ((salesSummary?.hoy?.total ?? 0) / 5000) * 100)}%` }}
+   162→   200→                />
+   163→   201→              </div>
+   164→   202→              <p className="text-[10px] text-muted-foreground mt-0.5">{Math.min(100, Math.round(((salesSummary?.hoy?.total ?? 0) / 5000) * 100))}% completado</p>
+   165→   203→            </div>
+   166→   204→          </div>
+   167→   205→        </Card>
+   168→   206→        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+   169→   207→          <div>
+   170→   208→            <p className="text-[10px] text-muted-foreground uppercase">Semana</p>
+   171→   209→            <p className="text-base font-bold stat-number">{formatCurrency(salesSummary?.semana?.total ?? 0)}</p>
+   172→   210→          </div>
+   173→   211→        </Card>
+   174→   212→        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+   175→   213→          <div>
+   176→   214→            <p className="text-[10px] text-muted-foreground uppercase">Mes</p>
+   177→   215→            <p className="text-base font-bold stat-number">{formatCurrency(salesSummary?.mes?.total ?? 0)}</p>
+   178→   216→          </div>
+   179→   217→        </Card>
+   180→   218→      </div>
+   181→   219→
+   182→   220→      <div className="flex flex-wrap gap-3 items-center">
+   183→   221→        <Button onClick={() => setShowCreate(true)}>
+   184→   222→          <Plus className="h-4 w-4 mr-1" /> Nueva Venta
+   185→   223→        </Button>
+   186→   224→      </div>
+   187→   225→
+   188→   226→      <div className="mb-4">
+   189→   227→        <p className="text-sm text-muted-foreground">Registro de ventas a técnicos con tracking de stock</p>
+   190→   228→      </div>
+   191→   229→
+   192→   230→      {/* Sales table */}
+   193→   231→      <Card className="rounded-xl shadow-sm transition-all duration-200">
+   194→   232→        <CardContent className="p-0">
+   195→   233→          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
+   196→   234→            <Table>
+   197→   235→              <TableHeader>
+   198→   236→                <TableRow>
+   199→   237→                  <SortableHeader field="folio" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Folio</SortableHeader>
+   200→   238→                  <SortableHeader field="fecha" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Fecha</SortableHeader>
+   201→   239→                  <SortableHeader field="cliente" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Cliente</SortableHeader>
+   202→   240→                  <TableHead className="text-xs text-right hidden md:table-cell">Subtotal</TableHead>
+   203→   241→                  <SortableHeader field="total" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Total</SortableHeader>
+   204→   242→                  <SortableHeader field="estado" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Estado</SortableHeader>
+   205→   243→                  <TableHead className="text-xs text-right">Detalle</TableHead>
+   206→   244→                </TableRow>
+   207→   245→              </TableHeader>
+   208→   246→              <TableBody>
+   209→   247→                {isLoading && Array.from({ length: 5 }).map((_, i) => (
+   210→   248→                  <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+   211→   249→                ))}
+   212→   250→                {!isLoading && sortedVentas.length === 0 && (
+   213→   251→                  <TableRow><TableCell colSpan={7} className="text-center py-12">
+   214→   252→                    <ShoppingCart className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+   215→   253→                    <p className="text-muted-foreground text-sm">No hay ventas registradas</p>
+   216→   254→                    <p className="text-muted-foreground/60 text-xs mt-1">Registra tu primera venta desde el botón "Nueva Venta"</p>
+   217→   255→                  </TableCell></TableRow>
+   218→   256→                )}
+   219→   257→                {!isLoading && sortedVentas.map((v: any) => (
+   220→   258→                  <TableRow key={v.id} className="hover:bg-muted/50">
+   221→   259→                    <TableCell className="text-xs font-mono py-2">{v.folio}</TableCell>
+   222→   260→                    <TableCell className="text-xs py-2">{formatDate(v.fecha)}</TableCell>
+   223→   261→                    <TableCell className="text-xs font-medium py-2">{v.cliente?.nombre}</TableCell>
+   224→   262→                    <TableCell className="text-xs text-right py-2 hidden md:table-cell">{formatCurrency(v.subtotal ?? 0)}</TableCell>
+   225→   263→                    <TableCell className="text-xs text-right py-2 font-medium">{formatCurrency(v.total ?? 0)}</TableCell>
+   226→   264→                    <TableCell className="text-xs text-center py-2">
+   227→   265→                      <Badge variant={v.estado === 'COMPLETADA' ? 'default' : 'outline'} className="text-[10px]">{v.estado}</Badge>
+   228→   266→                    </TableCell>
+   229→   267→                    <TableCell className="text-xs text-right py-2">
+   230→   268→                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewId(v.id)}><Eye className="h-3.5 w-3.5" /></Button>
+   231→   269→                    </TableCell>
+   232→   270→                  </TableRow>
+   233→   271→                ))}
+   234→   272→              </TableBody>
+   235→   273→            </Table>
+   236→   274→          </div>
+   237→   275→        </CardContent>
+   238→   276→      </Card>
+   239→   277→
+   240→   278→      {/* Create sale dialog */}
+   241→   279→      <Dialog open={showCreate} onOpenChange={(open) => { if (!open) { setShowCreate(false); setLines([]); setSelectedCliente('') } }}>
+   242→   280→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   243→   281→          <DialogHeader className="dialog-header-accent"><DialogTitle>Nueva Venta</DialogTitle><DialogDescription className="sr-only">Formulario para registrar una nueva venta</DialogDescription></DialogHeader>
+   244→   282→          <div className="space-y-4">
+   245→   283→            <div className="space-y-2">
+   246→   284→              <Label className="text-sm font-medium">Cliente *</Label>
+   247→   285→              <Select value={selectedCliente} onValueChange={setSelectedCliente}>
+   248→   286→                <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
+   249→   287→                <SelectContent>
+   250→   288→                  {clientes.map((c: any) => (
+   251→   289→                    <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+   252→   290→                  ))}
+   253→   291→                </SelectContent>
+   254→   292→              </Select>
+   255→   293→            </div>
+   256→   294→
+   257→   295→            <div className="border rounded-lg p-3 space-y-3">
+   258→   296→              <p className="text-sm font-medium">Productos</p>
+   259→   297→              <div className="flex gap-2 items-end">
+   260→   298→                <div className="flex-1 space-y-1">
+   261→   299→                  <Label className="text-xs">Producto</Label>
+   262→   300→                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+   263→   301→                    <SelectTrigger className="h-9"><SelectValue placeholder="Buscar producto" /></SelectTrigger>
+   264→   302→                    <SelectContent>
+   265→   303→                      {products.map((p: any) => (
+   266→   304→                        <SelectItem key={p.id} value={String(p.id)}>{p.sku} - {p.nombre} ({formatCurrency(p.precioVenta)})</SelectItem>
+   267→   305→                      ))}
+   268→   306→                    </SelectContent>
+   269→   307→                  </Select>
+   270→   308→                </div>
+   271→   309→                <div className="w-20 space-y-1">
+   272→   310→                  <Label className="text-xs">Cant.</Label>
+   273→   311→                  <Input type="number" min={1} className="h-9" value={lineQty} onChange={(e) => setLineQty(Number(e.target.value))} />
+   274→   312→                </div>
+   275→   313→                <Button type="button" variant="outline" size="sm" className="h-9" onClick={addLine} disabled={!selectedProduct}><Plus className="h-4 w-4" /></Button>
+   276→   314→              </div>
+   277→   315→
+   278→   316→              {lines.length > 0 && (
+   279→   317→                <Table>
+   280→   318→                  <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs text-center">Cant.</TableHead><TableHead className="text-xs text-right">Precio</TableHead><TableHead className="text-xs text-right">Importe</TableHead><TableHead /></TableRow></TableHeader>
+   281→   319→                  <TableBody>
+   282→   320→                    {lines.map((l) => (
+   283→   321→                      <TableRow key={l.idProducto}>
+   284→   322→                        <TableCell className="text-xs py-1.5">{l.nombre}</TableCell>
+   285→   323→                        <TableCell className="text-xs text-center font-mono py-1.5">{l.cantidad}</TableCell>
+   286→   324→                        <TableCell className="text-xs text-right py-1.5">{formatCurrency(l.precioUnitario)}</TableCell>
+   287→   325→                        <TableCell className="text-xs text-right py-1.5">{formatCurrency(l.precioUnitario * l.cantidad)}</TableCell>
+   288→   326→                        <TableCell className="py-1.5"><Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeLine(l.idProducto)}><Trash2 className="h-3 w-3" /></Button></TableCell>
+   289→   327→                      </TableRow>
+   290→   328→                    ))}
+   291→   329→                  </TableBody>
+   292→   330→                </Table>
+   293→   331→              )}
+   294→   332→            </div>
+   295→   333→
+   296→   334→            <div className="flex justify-end text-sm font-semibold">
+   297→   335→              Total: {formatCurrency(subtotal)}
+   298→   336→            </div>
+   299→   337→          </div>
+   300→   338→          <DialogFooter>
+   301→   339→            <Button variant="outline" onClick={() => { setShowCreate(false); setLines([]); setSelectedCliente('') }}>Cancelar</Button>
+   302→   340→            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !selectedCliente || lines.length === 0}>
+   303→   341→              {createMutation.isPending ? 'Registrando...' : 'Registrar Venta'}
+   304→   342→            </Button>
+   305→   343→          </DialogFooter>
+   306→   344→        </DialogContent>
+   307→   345→      </Dialog>
+   308→   346→
+   309→   347→      {/* View sale detail dialog */}
+   310→   348→      <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
+   311→   349→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   312→   350→          <DialogHeader className="dialog-header-accent"><DialogTitle>Detalle de Venta</DialogTitle><DialogDescription className="sr-only">Detalle de la venta seleccionada</DialogDescription></DialogHeader>
+   313→   351→          {viewVenta && (
+   314→   352→            <div className="space-y-4">
+   315→   353→              <div className="grid grid-cols-2 gap-3 text-sm">
+   316→   354→                <div><span className="text-muted-foreground">Folio:</span> <span className="font-mono font-medium">{viewVenta.folio}</span></div>
+   317→   355→                <div><span className="text-muted-foreground">Fecha:</span> {formatDate(viewVenta.fecha)}</div>
+   318→   356→                <div><span className="text-muted-foreground">Cliente:</span> {viewVenta.cliente?.nombre}</div>
+   319→   357→                <div><span className="text-muted-foreground">Estado:</span> <Badge variant={viewVenta.estado === 'COMPLETADA' ? 'default' : 'outline'} className="text-[10px]">{viewVenta.estado}</Badge></div>
+   320→   358→              </div>
+   321→   359→              <Table>
+   322→   360→                <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs text-center">Cant.</TableHead><TableHead className="text-xs text-right">Precio</TableHead><TableHead className="text-xs text-right">Importe</TableHead></TableRow></TableHeader>
+   323→   361→                <TableBody>
+   324→   362→                  {(viewVenta.detalles ?? []).map((d: any) => (
+   325→   363→                    <TableRow key={d.idProducto}>
+   326→   364→                      <TableCell className="text-xs py-1.5">{d.producto?.nombre}</TableCell>
+   327→   365→                      <TableCell className="text-xs text-center font-mono py-1.5">{d.cantidad}</TableCell>
+   328→   366→                      <TableCell className="text-xs text-right py-1.5">{formatCurrency(d.precioUnitario)}</TableCell>
+   329→   367→                      <TableCell className="text-xs text-right py-1.5">{formatCurrency(d.precioUnitario * d.cantidad)}</TableCell>
+   330→   368→                    </TableRow>
+   331→   369→                  ))}
+   332→   370→                </TableBody>
+   333→   371→              </Table>
+   334→   372→              <div className="flex justify-between text-sm font-semibold pt-2 border-t">
+   335→   373→                <span>Total:</span>
+   336→   374→                <span>{formatCurrency(viewVenta.total ?? 0)}</span>
+   337→   375→              </div>
+   338→   376→              <div className="flex justify-end gap-2 pt-3">
+   339→   377→                {viewVenta.estado === 'COMPLETADA' && (
+   340→   378→                  <>
+   341→   379→                    <Button
+   342→   380→                      variant="destructive"
+   343→   381→                      size="sm"
+   344→   382→                      onClick={() => setCancelId(viewVenta.id)}
+   345→   383→                    >
+   346→   384→                      <XCircle className="h-3.5 w-3.5 mr-1" /> Cancelar Venta
+   347→   385→                    </Button>
+   348→   386→                    <Tooltip>
+   349→   387→                      <TooltipTrigger asChild>
+   350→   388→                        <Button
+   351→   389→                          size="sm"
+   352→   390→                          onClick={() => setPickingId(viewVenta.id)}
+   353→   391→                        >
+   354→   392→                          <ClipboardList className="h-3.5 w-3.5 mr-1" /> Generar Lista de Picking
+   355→   393→                        </Button>
+   356→   394→                      </TooltipTrigger>
+   357→   395→                      <TooltipContent>Generar lista de ubicaciones para recoger productos de esta venta</TooltipContent>
+   358→   396→                    </Tooltip>
+   359→   397→                  </>
+   360→   398→                )}
+   361→   399→                <Tooltip>
+   362→   400→                  <TooltipTrigger asChild>
+   363→   401→                    <Button
+   364→   402→                      variant="outline"
+   365→   403→                      size="sm"
+   366→   404→                      onClick={() => {
+   367→   405→                        const warehouse = getWarehouseSettings()
+   368→   406→                        printReceipt({
+   369→   407→                          warehouseName: warehouse.name,
+   370→   408→                          warehouseAddress: warehouse.address,
+   371→   409→                          warehousePhone: warehouse.phone,
+   372→   410→                          folio: viewVenta.folio,
+   373→   411→                          fecha: formatDateTime(viewVenta.fecha),
+   374→   412→                          cliente: { nombre: viewVenta.cliente?.nombre ?? 'N/A', telefono: viewVenta.cliente?.telefono },
+   375→   413→                          detalles: (viewVenta.detalles ?? []).map((d: any) => ({
+   376→   414→                            producto: d.producto ? { nombre: d.producto.nombre, sku: d.producto.sku } : null,
+   377→   415→                            cantidad: d.cantidad,
+   378→   416→                            precioUnitario: d.precioUnitario,
+   379→   417→                          })),
+   380→   418→                          subtotal: viewVenta.subtotal ?? viewVenta.total ?? 0,
+   381→   419→                          total: viewVenta.total ?? 0,
+   382→   420→                          estado: viewVenta.estado,
+   383→   421→                        })
+   384→   422→                      }}
+   385→   423→                    >
+   386→   424→                      <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir
+   387→   425→                    </Button>
+   388→   426→                  </TooltipTrigger>
+   389→   427→                  <TooltipContent>Imprimir recibo de la venta</TooltipContent>
+   390→   428→                </Tooltip>
+   391→   429→              </div>
+   392→   430→            </div>
+   393→   431→          )}
+   394→   432→        </DialogContent>
+   395→   433→      </Dialog>
+   396→   434→
+   397→   435→      {/* Picking List Dialog */}
+   398→   436→      <Dialog open={!!pickingId} onOpenChange={(open) => { if (!open) setPickingId(null) }}>
+   399→   437→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   400→   438→          <DialogHeader className="dialog-header-accent">
+   401→   439→            <DialogTitle className="flex items-center gap-2">
+   402→   440→              <ClipboardList className="h-5 w-5" /> Lista de Picking
+   403→   441→            </DialogTitle>
+   404→   442→            <DialogDescription className="sr-only">Lista de recolección de productos para la venta</DialogDescription>
+   405→   443→          </DialogHeader>
+   406→   444→          {pickingData && (
+   407→   445→            <div className="space-y-4">
+   408→   446→              <div className="grid grid-cols-3 gap-3 text-sm bg-muted/50 rounded-lg p-3">
+   409→   447→                <div><span className="text-muted-foreground">Folio:</span> <span className="font-mono font-medium">{pickingData.folio}</span></div>
+   410→   448→                <div><span className="text-muted-foreground">Fecha:</span> {formatDate(pickingData.fecha)}</div>
+   411→   449→                <div><span className="text-muted-foreground">Cliente:</span> <span className="font-medium">{pickingData.cliente?.nombre}</span></div>
+   412→   450→              </div>
+   413→   451→              <div id="picking-print-content">
+   414→   452→                <Table>
+   415→   453→                  <TableHeader>
+   416→   454→                    <TableRow>
+   417→   455→                      <TableHead className="text-xs w-8">#</TableHead>
+   418→   456→                      <TableHead className="text-xs">Producto</TableHead>
+   419→   457→                      <TableHead className="text-xs">SKU</TableHead>
+   420→   458→                      <TableHead className="text-xs text-center">Cant. Necesaria</TableHead>
+   421→   459→                      <TableHead className="text-xs">Recoger De</TableHead>
+   422→   460→                      <TableHead className="text-xs text-center">Disponible</TableHead>
+   423→   461→                      <TableHead className="text-xs text-center">Estado</TableHead>
+   424→   462→                    </TableRow>
+   425→   463→                  </TableHeader>
+   426→   464→                  <TableBody>
+   427→   465→                    {pickingData.items.map((item: any, idx: number) => (
+   428→   466→                      <TableRow key={item.idProducto} className={!item.suficiente ? 'bg-red-50/50 dark:bg-red-950/20' : ''}>
+   429→   467→                        <TableCell className="text-xs font-mono py-2">{idx + 1}</TableCell>
+   430→   468→                        <TableCell className="text-xs font-medium py-2">{item.producto.nombre}</TableCell>
+   431→   469→                        <TableCell className="text-xs font-mono py-2">{item.producto.sku}</TableCell>
+   432→   470→                        <TableCell className="text-xs text-center font-mono py-2 font-semibold">{item.cantidadNecesaria}</TableCell>
+   433→   471→                        <TableCell className="text-xs py-2">
+   434→   472→                          {item.ubicaciones.length > 0 ? (
+   435→   473→                            <div className="flex flex-col gap-0.5">
+   436→   474→                              {item.ubicaciones.map((loc: any) => (
+   437→   475→                                <span key={loc.idUbicacion} className="flex items-center gap-1 font-mono">
+   438→   476→                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+   439→   477→                                  {loc.codigo}
+   440→   478→                                  <span className="text-muted-foreground">({loc.cantidad})</span>
+   441→   479→                                </span>
+   442→   480→                              ))}
+   443→   481→                            </div>
+   444→   482→                          ) : (
+   445→   483→                            <span className="text-muted-foreground">Sin ubicación</span>
+   446→   484→                          )}
+   447→   485→                        </TableCell>
+   448→   486→                        <TableCell className="text-xs text-center font-mono py-2">{item.cantidadDisponible}</TableCell>
+   449→   487→                        <TableCell className="text-xs text-center py-2">
+   450→   488→                          {item.suficiente ? (
+   451→   489→                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]">OK</Badge>
+   452→   490→                          ) : (
+   453→   491→                            <Badge variant="destructive" className="text-[10px]">INSUFICIENTE</Badge>
+   454→   492→                          )}
+   455→   493→                        </TableCell>
+   456→   494→                      </TableRow>
+   457→   495→                    ))}
+   458→   496→                  </TableBody>
+   459→   497→                </Table>
+   460→   498→              </div>
+   461→   499→              <div className="flex justify-end gap-2 pt-2 border-t">
+   462→   500→                <Button
+   463→   501→                  variant="outline"
+   464→   502→                  size="sm"
+   465→   503→                  onClick={() => {
+   466→   504→                    const printContent = document.getElementById('picking-print-content')
+   467→   505→                    if (!printContent) return
+   468→   506→                    const win = window.open('', '_blank')
+   469→   507→                    if (!win) return
+   470→   508→                    win.document.write(`
+   471→   509→                      <html><head><title>Lista de Picking - ${pickingData.folio}</title></head><body>
+   472→   510→                      <h2 style="text-align:center">Lista de Picking</h2>
+   473→   511→                      <p><strong>Folio:</strong> ${pickingData.folio} &nbsp; <strong>Fecha:</strong> ${formatDate(pickingData.fecha)} &nbsp; <strong>Cliente:</strong> ${pickingData.cliente?.nombre}</p>
+   474→   512→                      <hr/>
+   475→   513→                      ${printContent.innerHTML}
+   476→   514→                      </body></html>
+   477→   515→                    `)
+   478→   516→                    win.document.close()
+   479→   517→                    win.print()
+   480→   518→                  }}
+   481→   519→                >
+   482→   520→                  <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir Picking
+   483→   521→                </Button>
+   484→   522→                <Button variant="outline" size="sm" onClick={() => setPickingId(null)}>Cerrar</Button>
+   485→   523→              </div>
+   486→   524→            </div>
+   487→   525→          )}
+   488→   526→        </DialogContent>
+   489→   527→      </Dialog>
+   490→   528→
+   491→   529→      {/* Cancel sale confirmation dialog */}
+   492→   530→      <AlertDialog open={!!cancelId} onOpenChange={(open) => { if (!open) setCancelId(null) }}>
+   493→   531→        <AlertDialogContent>
+   494→   532→          <AlertDialogHeader>
+   495→   533→            <AlertDialogTitle>¿Cancelar venta?</AlertDialogTitle>
+   496→   534→            <AlertDialogDescription>
+   497→   535→              Se revertirá el stock y se cambiará el estado a CANCELADA.
+   498→   536→            </AlertDialogDescription>
+   499→   537→          </AlertDialogHeader>
+   500→   538→          <AlertDialogFooter>
+   501→   539→            <AlertDialogCancel>No cancelar</AlertDialogCancel>
+   502→   540→            <AlertDialogAction
+   503→   541→              onClick={() => cancelId && cancelMutation.mutate(cancelId)}
+   504→   542→              disabled={cancelMutation.isPending}
+   505→   543→            >
+   506→   544→              {cancelMutation.isPending ? 'Cancelando...' : 'Sí, cancelar venta'}
+   507→   545→            </AlertDialogAction>
+   508→   546→          </AlertDialogFooter>
+   509→   547→        </AlertDialogContent>
+   510→   548→      </AlertDialog>
+   511→   549→    </div>
+   512→   550→  )
+   513→   551→}
+   514→   552→

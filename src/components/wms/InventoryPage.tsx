@@ -106,6 +106,10 @@ export function InventoryPage() {
   const [trasladoCantidad, setTrasladoCantidad] = useState('')
   const [trasladoLoading, setTrasladoLoading] = useState(false)
 
+  // Location detail state
+  const [locationDialogOpen, setLocationDialogOpen] = useState(false)
+  const [locationFilter, setLocationFilter] = useState<number | null>(null)
+
   // Sorting state
   const [sortField, setSortField] = useState<string>('nombre')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -452,11 +456,22 @@ export function InventoryPage() {
         <div>
           <p className="text-sm text-muted-foreground">
             {inventory.length} productos · Valor total: <span className="font-semibold text-foreground">{formatCurrency(totalValor)}</span>
+            {locationFilter !== null && (
+              <Badge variant="outline" className="ml-2 cursor-pointer" onClick={() => setLocationFilter(null)}>
+                Filtrando ubicación: {allLocations.find((l: any) => l.id === locationFilter)?.pasillo}-{allLocations.find((l: any) => l.id === locationFilter)?.estante}-{allLocations.find((l: any) => l.id === locationFilter)?.nivel}
+                <XIcon className="h-3 w-3 ml-1" />
+              </Badge>
+            )}
           </p>
         </div>
-        <Button variant="outline" onClick={exportInventory}>
-          <Download className="h-4 w-4 mr-1" /> Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setLocationDialogOpen(true)}>
+            <MapPin className="h-4 w-4 mr-1" /> Ver ubicaciones
+          </Button>
+          <Button variant="outline" onClick={exportInventory}>
+            <Download className="h-4 w-4 mr-1" /> Exportar CSV
+          </Button>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -495,7 +510,7 @@ export function InventoryPage() {
                     <p className="text-muted-foreground/60 text-xs mt-1">Agrega productos desde la sección de Productos</p>
                   </TableCell></TableRow>
                 )}
-                {!isLoading && sortedInventory.map((p, idx) => {
+                {!isLoading && (locationFilter !== null ? sortedInventory.filter((p: any) => p.stocks.some((s: any) => s.idUbicacion === locationFilter)) : sortedInventory).map((p, idx) => {
                   const margen = p.precioVenta > 0 ? ((p.precioVenta - p.costoUnitario) / p.precioVenta * 100) : 0
                   return (
                     <TableRow key={p.id} className={cn('hover:bg-muted/50 cursor-pointer', idx % 2 === 1 && 'bg-muted/20', selectedIds.has(p.id) && 'bg-primary/5')} onClick={() => openSheet(p)}>
@@ -599,6 +614,61 @@ export function InventoryPage() {
                 Aplicar Ajuste
               </Button>
             </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Location Detail Dialog */}
+      <Dialog open={locationDialogOpen} onOpenChange={(open) => { if (!open) setLocationDialogOpen(false) }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="dialog-header-accent">
+            <DialogTitle className="flex items-center gap-2"><MapPin className="h-5 w-5" /> Desglose por Ubicación</DialogTitle>
+            <DialogDescription>Stock distribuido en cada ubicación del almacén</DialogDescription>
+          </DialogHeader>
+          <div className="table-container max-h-96 overflow-y-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Código</TableHead>
+                  <TableHead className="text-xs text-center">Productos</TableHead>
+                  <TableHead className="text-xs text-right">Total Unidades</TableHead>
+                  <TableHead className="text-xs w-[140px]">Distribución</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allLocations.length === 0 && (
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-4">Sin ubicaciones</TableCell></TableRow>
+                )}
+                {allLocations.map((loc: any) => {
+                  const locStocks = stockEntries.filter((s) => s.idUbicacion === loc.id)
+                  const productCount = new Set(locStocks.map((s) => s.idProducto)).size
+                  const totalUnits = locStocks.reduce((sum, s) => sum + s.cantidad, 0)
+                  const maxUnits = Math.max(...allLocations.map((l: any) =>
+                    stockEntries.filter((s) => s.idUbicacion === l.id).reduce((sum, s) => sum + s.cantidad, 0)
+                  ), 1)
+                  const barPct = (totalUnits / maxUnits) * 100
+                  return (
+                    <TableRow
+                      key={loc.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => { setLocationFilter(loc.id); setLocationDialogOpen(false) }}
+                    >
+                      <TableCell className="text-xs font-mono py-2">{loc.pasillo}-{loc.estante}-{loc.nivel}</TableCell>
+                      <TableCell className="text-xs text-center py-2 font-mono">{productCount}</TableCell>
+                      <TableCell className="text-xs text-right py-2 font-mono font-semibold">{totalUnits}</TableCell>
+                      <TableCell className="py-2">
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${Math.max(2, barPct)}%` }} />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex justify-end mt-3">
+            <Button variant="outline" size="sm" onClick={() => setLocationDialogOpen(false)}>Cerrar</Button>
           </div>
         </DialogContent>
       </Dialog>

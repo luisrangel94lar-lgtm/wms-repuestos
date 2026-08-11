@@ -22,11 +22,12 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle, ClipboardList, MapPin, Target } from 'lucide-react'
+import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle, ClipboardList, MapPin, Target, Filter } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from './lib/format'
 import { SortableHeader } from './lib/SortableHeader'
 import { printReceipt, getWarehouseSettings } from './lib/print-receipt'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 interface SaleLine {
   idProducto: number
@@ -56,6 +57,7 @@ export function SalesPage() {
   const [viewId, setViewId] = useState<number | null>(null)
   const [cancelId, setCancelId] = useState<number | null>(null)
   const [pickingId, setPickingId] = useState<number | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string>('')
 
   // Sorting state
   const [sortField, setSortField] = useState<string>('fecha')
@@ -174,6 +176,25 @@ export function SalesPage() {
     return 0
   })
 
+  // --- Status Filter ---
+  const statusOptions = [
+    { value: '', label: 'Todas' },
+    { value: 'COMPLETADA', label: 'COMPLETADA' },
+    { value: 'PENDIENTE', label: 'PENDIENTE' },
+    { value: 'CANCELADA', label: 'CANCELADA' },
+  ]
+
+  const statusCounts = statusOptions.reduce((acc, opt) => {
+    acc[opt.value] = opt.value
+      ? ventas.filter((v: any) => v.estado === opt.value).length
+      : ventas.length
+    return acc
+  }, {} as Record<string, number>)
+
+  const filteredVentas = statusFilter
+    ? sortedVentas.filter((v: any) => v.estado === statusFilter)
+    : sortedVentas
+
   return (
     <div className="space-y-4">
       {/* Stats Bar with Daily Goal Progress */}
@@ -223,6 +244,35 @@ export function SalesPage() {
         </Button>
       </div>
 
+      {/* Status Filter Pills */}
+      <div className="animate-page-transition flex items-center gap-2">
+        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="flex gap-1.5 flex-wrap">
+          {statusOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setStatusFilter(opt.value)}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border',
+                statusFilter === opt.value
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/25'
+                  : 'bg-background text-muted-foreground hover:text-foreground border-border hover:border-primary/30'
+              )}
+            >
+              {opt.label}
+              <span className={cn(
+                'inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] font-bold px-1',
+                statusFilter === opt.value
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              )}>
+                {statusCounts[opt.value] ?? 0}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mb-4">
         <p className="text-sm text-muted-foreground">Registro de ventas a técnicos con tracking de stock</p>
       </div>
@@ -247,14 +297,14 @@ export function SalesPage() {
                 {isLoading && Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
                 ))}
-                {!isLoading && sortedVentas.length === 0 && (
+                {!isLoading && filteredVentas.length === 0 && (
                   <TableRow><TableCell colSpan={7} className="text-center py-12">
                     <ShoppingCart className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
-                    <p className="text-muted-foreground text-sm">No hay ventas registradas</p>
-                    <p className="text-muted-foreground/60 text-xs mt-1">Registra tu primera venta desde el botón "Nueva Venta"</p>
+                    <p className="text-muted-foreground text-sm">No hay ventas{statusFilter ? ` con estado ${statusFilter}` : ' registradas'}</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">{statusFilter ? 'Cambia el filtro para ver más resultados' : 'Registra tu primera venta desde el botón "Nueva Venta"'}</p>
                   </TableCell></TableRow>
                 )}
-                {!isLoading && sortedVentas.map((v: any) => (
+                {!isLoading && filteredVentas.map((v: any) => (
                   <TableRow key={v.id} className="hover:bg-muted/50">
                     <TableCell className="text-xs font-mono py-2">{v.folio}</TableCell>
                     <TableCell className="text-xs py-2">{formatDate(v.fecha)}</TableCell>

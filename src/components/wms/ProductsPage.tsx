@@ -1,5 +1,6 @@
 'use client'
 
+import { useWmsStore } from '@/store/wms'
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -46,7 +47,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode, Calculator, Package, DollarSign, Layers, Tag, ScanBarcode, Image, Upload, FileSpreadsheet } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode, Calculator, Package, DollarSign, Layers, Tag, ScanBarcode, Image, Upload, FileSpreadsheet, ArrowRight, Download, Warehouse } from 'lucide-react'
 import { formatCurrency } from './lib/format'
 import { cn } from '@/lib/utils'
 import { BarcodeScanner } from './BarcodeScanner'
@@ -166,6 +167,7 @@ function MarginCalculator({ costoUnitario, precioVenta }: { costoUnitario: numbe
 
 export function ProductsPage() {
   const queryClient = useQueryClient()
+  const { setCurrentPage, setReceivingProductId } = useWmsStore()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -200,6 +202,14 @@ export function ProductsPage() {
   const { data: viewProduct } = useQuery({
     queryKey: ['product-detail', viewId],
     queryFn: () => fetch(`/api/wms/productos/${viewId}`).then((r) => r.json()),
+    enabled: !!viewId,
+  })
+
+  const { data: viewProductEquipos = [] } = useQuery({
+    queryKey: ['product-equipos', viewId],
+    queryFn: () => fetch('/api/wms/producto-equipo').then((r) => r.json()).then((data: any[]) =>
+      Array.isArray(data) ? data.filter((pe: any) => pe.idProducto === viewId) : []
+    ),
     enabled: !!viewId,
   })
 
@@ -660,77 +670,200 @@ export function ProductsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Detail Dialog */}
+      {/* View Detail Dialog - Enhanced */}
       <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="dialog-header-accent">
             <DialogTitle>Detalle del Producto</DialogTitle>
             <DialogDescription className="sr-only">Información detallada del producto seleccionado</DialogDescription>
           </DialogHeader>
-          {viewProduct && (
-            <div className="space-y-4">
-              {viewProduct.fotoUrl && (
-                <div className="flex justify-center">
-                  <img
-                    src={viewProduct.fotoUrl}
-                    alt={viewProduct.nombre}
-                    className="w-32 h-32 object-cover rounded-lg border"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono font-medium">{viewProduct.sku}</span></div>
-                <div><span className="text-muted-foreground">Nombre:</span> <span className="font-medium">{viewProduct.nombre}</span></div>
-                <div><span className="text-muted-foreground">Categoría:</span> {viewProduct.categoria?.nombre ?? '-'}</div>
-                <div><span className="text-muted-foreground">Marca:</span> {viewProduct.marca?.nombre ?? '-'}</div>
-                <div><span className="text-muted-foreground">Costo:</span> {formatCurrency(viewProduct.costoUnitario)}</div>
-                <div><span className="text-muted-foreground">Precio:</span> {formatCurrency(viewProduct.precioVenta)}</div>
-                <div><span className="text-muted-foreground">Stock Mínimo:</span> {viewProduct.stockMinimo}</div>
-                <div><span className="text-muted-foreground">Unidad:</span> {viewProduct.unidadMedida}</div>
-              </div>
-              {viewProduct.descripcion && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Descripción:</span>
-                  <p className="mt-1">{viewProduct.descripcion}</p>
-                </div>
-              )}
-              {viewProduct.stocks && viewProduct.stocks.length > 0 && (
-                <div className="text-sm">
-                  <p className="font-medium mb-2">Stock por Ubicación</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {viewProduct.stocks.map((s: any) => (
-                      <Badge key={s.idUbicacion} variant="outline">
-                        Pasillo {s.ubicacion?.pasillo} - Estante {s.ubicacion?.estante} - Nivel {s.ubicacion?.nivel}: {s.cantidad}
-                      </Badge>
-                    ))}
+          {viewProduct && (() => {
+            const totalStock = viewProduct.stocks?.reduce((sum: number, s: any) => sum + s.cantidad, 0) ?? viewProduct.totalStock ?? 0
+            const margen = viewProduct.precioVenta > 0 ? ((viewProduct.precioVenta - viewProduct.costoUnitario) / viewProduct.precioVenta) * 100 : 0
+            const maxStockBar = Math.max(totalStock, viewProduct.stockMinimo, viewProduct.stockMaximo ?? 0, 1)
+            const stockBarPercent = (totalStock / maxStockBar) * 100
+            const minBarPercent = (viewProduct.stockMinimo / maxStockBar) * 100
+            const maxBarPercent = viewProduct.stockMaximo ? (viewProduct.stockMaximo / maxStockBar) * 100 : 0
+            const marginClamped = Math.max(0, Math.min(100, margen))
+            let marginBarColor = 'bg-red-500'
+            let marginTextColor = 'text-red-600 dark:text-red-400'
+            if (margen > 40) {
+              marginBarColor = 'bg-emerald-500'
+              marginTextColor = 'text-emerald-600 dark:text-emerald-400'
+            } else if (margen >= 20) {
+              marginBarColor = 'bg-amber-500'
+              marginTextColor = 'text-amber-600 dark:text-amber-400'
+            }
+            const stockStatusColor = totalStock === 0 ? 'bg-red-500' : totalStock < viewProduct.stockMinimo ? 'bg-amber-500' : 'bg-emerald-500'
+            const equiposList = viewProductEquipos.length > 0
+              ? viewProductEquipos
+              : (viewProduct.productoEquipo ?? [])
+
+            return (
+              <div className="space-y-4 animate-page-transition">
+                {/* Product Info Card */}
+                <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    {viewProduct.fotoUrl && (
+                      <img
+                        src={viewProduct.fotoUrl}
+                        alt={viewProduct.nombre}
+                        className="w-16 h-16 object-cover rounded-lg border shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{viewProduct.sku}</span>
+                        <span className={cn('h-2 w-2 rounded-full shrink-0', stockStatusColor)} />
+                      </div>
+                      <p className="text-base font-semibold truncate">{viewProduct.nombre}</p>
+                    </div>
+                  </div>
+                  {viewProduct.descripcion && (
+                    <p className="text-xs text-muted-foreground">{viewProduct.descripcion}</p>
+                  )}
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <p className="text-muted-foreground mb-0.5">Categoría</p>
+                      <p className="font-medium">{viewProduct.categoria?.nombre ?? '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-0.5">Marca</p>
+                      <p className="font-medium">{viewProduct.marca?.nombre ?? '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-0.5">Unidad</p>
+                      <p className="font-medium capitalize">{viewProduct.unidadMedida}</p>
+                    </div>
                   </div>
                 </div>
-              )}
-              {viewProduct.productoEquipo && viewProduct.productoEquipo.length > 0 && (
-                <div className="text-sm">
-                  <p className="font-medium mb-2">Compatible con Equipos</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {viewProduct.productoEquipo.map((pe: any) => (
-                      <Badge key={pe.idEquipo} variant="secondary">
-                        {pe.equipo?.marca?.nombre} {pe.equipo?.modelo}
-                      </Badge>
-                    ))}
+
+                {/* Pricing Card */}
+                <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5" /> Precios y Margen
+                  </p>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Costo</p>
+                      <p className="text-sm font-mono font-semibold">{formatCurrency(viewProduct.costoUnitario)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Precio Venta</p>
+                      <p className="text-sm font-mono font-semibold">{formatCurrency(viewProduct.precioVenta)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Utilidad</p>
+                      <p className={cn('text-sm font-mono font-bold', (viewProduct.precioVenta - viewProduct.costoUnitario) > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                        {formatCurrency(viewProduct.precioVenta - viewProduct.costoUnitario)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Margen</span>
+                      <span className={cn('font-bold', marginTextColor)}>{margen.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div className={cn('h-full rounded-full transition-all duration-300', marginBarColor)} style={{ width: `${marginClamped}%` }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Bajo (&lt;20%)</span>
+                      <span>Medio (20-40%)</span>
+                      <span>Alto (&gt;40%)</span>
+                    </div>
                   </div>
                 </div>
-              )}
-              <div className="flex justify-end pt-2 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => { setTimelineId(viewProduct.id); setViewId(null) }}
-                >
-                  <Activity className="h-4 w-4 mr-1" />
-                  Ver Timeline
-                </Button>
+
+                {/* Stock Card */}
+                <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5" /> Stock
+                  </p>
+                  <div className="flex items-end justify-between mb-1">
+                    <div>
+                      <p className="text-2xl font-bold">{totalStock}</p>
+                      <p className="text-[10px] text-muted-foreground">unidades en total</p>
+                    </div>
+                    <div className="text-right text-xs space-y-0.5">
+                      <p className="text-muted-foreground">Mín: <span className="font-mono font-medium text-foreground">{viewProduct.stockMinimo}</span></p>
+                      {viewProduct.stockMaximo && <p className="text-muted-foreground">Máx: <span className="font-mono font-medium text-foreground">{viewProduct.stockMaximo}</span></p>}
+                    </div>
+                  </div>
+                  <div className="relative h-4 w-full bg-muted rounded-full overflow-hidden">
+                    {viewProduct.stockMaximo && <div className="absolute inset-y-0 left-0 bg-primary/10 rounded-full" style={{ width: `${maxBarPercent}%` }} />}
+                    <div className="absolute bottom-0 left-0 h-0.5 w-full">
+                      <div className="h-full bg-amber-500/60 rounded-full" style={{ width: `${minBarPercent}%` }} />
+                    </div>
+                    <div className={cn('absolute inset-y-0.5 left-0 rounded-full transition-all duration-500', stockStatusColor)} style={{ width: `${stockBarPercent}%` }} />
+                  </div>
+                  {viewProduct.stocks && viewProduct.stocks.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap mt-2">
+                      {viewProduct.stocks.map((s: any) => (
+                        <Badge key={s.idUbicacion} variant="outline" className="text-[10px]">
+                          {s.ubicacion?.pasillo}-{s.ubicacion?.estante}-{s.ubicacion?.nivel}: <span className="font-mono font-semibold ml-0.5">{s.cantidad}</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Compatible Equipment Card */}
+                {equiposList.length > 0 && (
+                  <div className="rounded-lg border bg-muted/20 p-4 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Package className="h-3.5 w-3.5" /> Equipos Compatibles
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {equiposList.map((pe: any) => (
+                        <div key={pe.idEquipo} className="flex items-center gap-2 text-xs bg-background rounded-md px-3 py-2 border">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                          <span className="font-medium truncate">{pe.equipo?.marca?.nombre} {pe.equipo?.modelo}</span>
+                          <span className="text-muted-foreground text-[10px] ml-auto shrink-0">{pe.equipo?.tipo ?? ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Actions */}
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const deficiency = viewProduct.stockMinimo - totalStock
+                      setReceivingProductId(viewProduct.id, deficiency > 0 ? deficiency : null)
+                      setCurrentPage('receiving')
+                      setViewId(null)
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-1" /> Ir a Recepción
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCurrentPage('inventory')
+                      setViewId(null)
+                    }}
+                  >
+                    <Warehouse className="h-4 w-4 mr-1" /> Ir a Inventario
+                  </Button>
+                  <div className="ml-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setTimelineId(viewProduct.id); setViewId(null) }}
+                    >
+                      <Activity className="h-4 w-4 mr-1" /> Ver Timeline
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
         </DialogContent>
       </Dialog>
 
