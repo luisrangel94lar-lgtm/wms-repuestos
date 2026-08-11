@@ -1,7 +1,35 @@
+const CURRENCY_CONFIG: Record<string, { locale: string; code: string; decimals: number }> = {
+  COP: { locale: 'es-CO', code: 'COP', decimals: 0 },
+  MXN: { locale: 'es-MX', code: 'MXN', decimals: 2 },
+  USD: { locale: 'en-US', code: 'USD', decimals: 2 },
+  EUR: { locale: 'de-DE', code: 'EUR', decimals: 2 },
+  BRL: { locale: 'pt-BR', code: 'BRL', decimals: 2 },
+}
+
+const STORAGE_KEY = 'wms-settings'
+
+function getCurrency(): string {
+  if (typeof window === 'undefined') return 'COP'
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const settings = JSON.parse(raw)
+      if (settings.moneda && CURRENCY_CONFIG[settings.moneda]) return settings.moneda
+    }
+  } catch {
+    // ignore
+  }
+  return 'COP'
+}
+
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('es-MX', {
+  const currency = getCurrency()
+  const config = CURRENCY_CONFIG[currency] || CURRENCY_CONFIG.COP
+  return new Intl.NumberFormat(config.locale, {
     style: 'currency',
-    currency: 'MXN',
+    currency: config.code,
+    minimumFractionDigits: config.decimals,
+    maximumFractionDigits: config.decimals,
   }).format(value)
 }
 

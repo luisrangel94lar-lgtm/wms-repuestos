@@ -30,7 +30,7 @@ const DEFAULT_SETTINGS: WmsSettings = {
   warehouseName: 'Almacén de Repuestos',
   warehouseAddress: '',
   warehousePhone: '',
-  moneda: 'MXN',
+  moneda: 'COP',
   tema: 'Claro',
   idioma: 'Español',
 }
@@ -195,8 +195,11 @@ export function SettingsPage() {
               <Select value={settings.moneda} onValueChange={(v) => updateSetting('moneda', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="COP">COP (Peso Colombiano)</SelectItem>
                   <SelectItem value="MXN">MXN (Peso Mexicano)</SelectItem>
                   <SelectItem value="USD">USD (Dólar)</SelectItem>
+                  <SelectItem value="EUR">EUR (Euro)</SelectItem>
+                  <SelectItem value="BRL">BRL (Real Brasileño)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
