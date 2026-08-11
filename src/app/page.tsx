@@ -15,12 +15,35 @@ import { MovementsPage } from '@/components/wms/MovementsPage'
 import { ReportsPage } from '@/components/wms/ReportsPage'
 import { AlertsPage } from '@/components/wms/AlertsPage'
 import { SettingsPage } from '@/components/wms/SettingsPage'
+import { PhysicalInventoryPage } from '@/components/wms/PhysicalInventoryPage'
 import { Toaster } from '@/components/ui/sonner'
 import type { WmsPage } from '@/types/wms'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useSyncExternalStore } from 'react'
 import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
+
+const SETTINGS_KEY = 'wms-settings'
+const SETTINGS_EVENT = 'wms-settings-changed'
+
+function subscribeSettings(callback: () => void) {
+  window.addEventListener(SETTINGS_EVENT, callback)
+  return () => window.removeEventListener(SETTINGS_EVENT, callback)
+}
+
+const EMPTY_SETTINGS: Record<string, unknown> = {}
+
+function getSettingsSnapshot() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return EMPTY_SETTINGS
+}
+
+function getSettingsServerSnapshot() {
+  return EMPTY_SETTINGS
+}
 
 const pageComponents: Record<WmsPage, React.ComponentType> = {
   dashboard: DashboardPage,
@@ -34,6 +57,7 @@ const pageComponents: Record<WmsPage, React.ComponentType> = {
   movements: MovementsPage,
   reports: ReportsPage,
   alerts: AlertsPage,
+  physicalInventory: PhysicalInventoryPage,
   settings: SettingsPage,
 }
 
@@ -49,6 +73,8 @@ export default function Home() {
   const { currentPage } = useWmsStore()
   const { theme } = useTheme()
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
+  const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
+  const warehouseName = (settings as any).warehouseName || 'WMS Pilot v1.0'
   const PageComponent = pageComponents[currentPage]
   const dateStr = new Date().toLocaleDateString('es-MX', {
     weekday: 'long',
@@ -68,7 +94,7 @@ export default function Home() {
               <PageComponent />
             </main>
             <footer className="border-t px-4 md:px-6 py-3 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm flex items-center justify-between">
-              <span>WMS Pilot v1.0 — Repuestos Refrigeración</span>
+              <span>{warehouseName}</span>
               <span className="flex items-center gap-2">
                 <span className="hidden sm:inline capitalize">{dateStr}</span>
                 <span className="flex items-center gap-1">

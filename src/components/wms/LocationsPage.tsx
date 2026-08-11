@@ -153,7 +153,7 @@ export function LocationsPage() {
           {pasillos.map((pasillo) => {
             const maxStock = getMaxStockInPasillo(ubicaciones, stockMap, pasillo)
             return (
-              <Card key={pasillo} className="rounded-xl shadow-sm transition-all duration-200">
+              <Card key={pasillo} className="card-hover rounded-xl shadow-sm border transition-all duration-200">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <span className="h-6 w-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{pasillo}</span>
@@ -230,7 +230,7 @@ export function LocationsPage() {
       {/* Location detail dialog */}
       <Dialog open={!!selectedLocation} onOpenChange={(open) => { if (!open) setSelectedLocation(null) }}>
         <DialogContent className="max-w-lg">
-          <DialogHeader>
+          <DialogHeader className="dialog-header-accent">
             <DialogTitle>Stock en Ubicación</DialogTitle>
             <DialogDescription className="sr-only">Productos almacenados en la ubicación seleccionada</DialogDescription>
           </DialogHeader>
@@ -268,11 +268,11 @@ export function LocationsPage() {
       {/* Create dialog */}
       <Dialog open={showCreate} onOpenChange={(open) => { if (!open) setShowCreate(false) }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Nueva Ubicación</DialogTitle><DialogDescription className="sr-only">Formulario para crear una nueva ubicación de almacenamiento</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>Nueva Ubicación</DialogTitle><DialogDescription className="sr-only">Formulario para crear una nueva ubicación de almacenamiento</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values) => createMutation.mutate(values))} className="space-y-4">
-            <div className="space-y-2"><Label>Pasillo *</Label><Input {...form.register('pasillo')} placeholder="Ej: A" />{form.formState.errors.pasillo && <p className="text-xs text-destructive">{form.formState.errors.pasillo.message}</p>}</div>
-            <div className="space-y-2"><Label>Estante *</Label><Input {...form.register('estante')} placeholder="Ej: 1" />{form.formState.errors.estante && <p className="text-xs text-destructive">{form.formState.errors.estante.message}</p>}</div>
-            <div className="space-y-2"><Label>Nivel *</Label><Input {...form.register('nivel')} placeholder="Ej: 1" />{form.formState.errors.nivel && <p className="text-xs text-destructive">{form.formState.errors.nivel.message}</p>}</div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Pasillo *</Label><Input {...form.register('pasillo')} placeholder="Ej: A" />{form.formState.errors.pasillo && <p className="text-xs text-destructive">{form.formState.errors.pasillo.message}</p>}</div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Estante *</Label><Input {...form.register('estante')} placeholder="Ej: 1" />{form.formState.errors.estante && <p className="text-xs text-destructive">{form.formState.errors.estante.message}</p>}</div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Nivel *</Label><Input {...form.register('nivel')} placeholder="Ej: 1" />{form.formState.errors.nivel && <p className="text-xs text-destructive">{form.formState.errors.nivel.message}</p>}</div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
               <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? 'Creando...' : 'Crear'}</Button>
@@ -284,11 +284,11 @@ export function LocationsPage() {
       {/* Edit dialog */}
       <Dialog open={!!editId} onOpenChange={(open) => { if (!open) { setEditId(null); form.reset() } }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Editar Ubicación</DialogTitle><DialogDescription className="sr-only">Formulario para editar una ubicación de almacenamiento</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>Editar Ubicación</DialogTitle><DialogDescription className="sr-only">Formulario para editar una ubicación de almacenamiento</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values) => editId && updateMutation.mutate({ id: editId, values }))} className="space-y-4">
-            <div className="space-y-2"><Label>Pasillo *</Label><Input {...form.register('pasillo')} placeholder="Ej: A" />{form.formState.errors.pasillo && <p className="text-xs text-destructive">{form.formState.errors.pasillo.message}</p>}</div>
-            <div className="space-y-2"><Label>Estante *</Label><Input {...form.register('estante')} placeholder="Ej: 1" />{form.formState.errors.estante && <p className="text-xs text-destructive">{form.formState.errors.estante.message}</p>}</div>
-            <div className="space-y-2"><Label>Nivel *</Label><Input {...form.register('nivel')} placeholder="Ej: 1" />{form.formState.errors.nivel && <p className="text-xs text-destructive">{form.formState.errors.nivel.message}</p>}</div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Pasillo *</Label><Input {...form.register('pasillo')} placeholder="Ej: A" />{form.formState.errors.pasillo && <p className="text-xs text-destructive">{form.formState.errors.pasillo.message}</p>}</div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Estante *</Label><Input {...form.register('estante')} placeholder="Ej: 1" />{form.formState.errors.estante && <p className="text-xs text-destructive">{form.formState.errors.estante.message}</p>}</div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Nivel *</Label><Input {...form.register('nivel')} placeholder="Ej: 1" />{form.formState.errors.nivel && <p className="text-xs text-destructive">{form.formState.errors.nivel.message}</p>}</div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => { setEditId(null); form.reset() }}>Cancelar</Button>
               <Button type="submit" disabled={updateMutation.isPending}>{updateMutation.isPending ? 'Actualizando...' : 'Actualizar'}</Button>

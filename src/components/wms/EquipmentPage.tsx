@@ -150,6 +150,7 @@ export function EquipmentPage() {
 
       <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
+          <div className="table-container max-h-[calc(100vh-12rem)] overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -225,16 +226,17 @@ export function EquipmentPage() {
               })}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
       {/* Create/Edit Dialog */}
       <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del equipo' : 'Formulario para crear un nuevo equipo'}</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>{editId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del equipo' : 'Formulario para crear un nuevo equipo'}</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
             <div className="space-y-2">
-              <Label>Marca *</Label>
+              <Label className="text-sm font-medium">Marca *</Label>
               <Select value={form.watch('idMarca') ? String(form.watch('idMarca')) : ''} onValueChange={(v) => form.setValue('idMarca', Number(v))}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar marca" /></SelectTrigger>
                 <SelectContent>
@@ -246,12 +248,12 @@ export function EquipmentPage() {
               {form.formState.errors.idMarca && <p className="text-xs text-destructive">{form.formState.errors.idMarca.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Modelo *</Label>
+              <Label className="text-sm font-medium">Modelo *</Label>
               <Input {...form.register('modelo')} />
               {form.formState.errors.modelo && <p className="text-xs text-destructive">{form.formState.errors.modelo.message}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Tipo de Equipo</Label>
+              <Label className="text-sm font-medium">Tipo de Equipo</Label>
               <Input {...form.register('tipoEquipo')} placeholder="Ej: Aire acondicionado split" />
             </div>
             <DialogFooter>
@@ -269,7 +271,7 @@ export function EquipmentPage() {
           {linkDialog?.mode === 'unlink' ? (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Producto a desvincular</Label>
+                <Label className="text-sm font-medium">Producto a desvincular</Label>
                 <Select value={linkProductId} onValueChange={setLinkProductId}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                   <SelectContent>
@@ -291,7 +293,7 @@ export function EquipmentPage() {
           ) : (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Producto</Label>
+                <Label className="text-sm font-medium">Producto</Label>
                 <Select value={linkProductId} onValueChange={setLinkProductId}>
                   <SelectTrigger><SelectValue placeholder="Buscar producto..." /></SelectTrigger>
                   <SelectContent>

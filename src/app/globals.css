@@ -151,3 +151,115 @@
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
+
+/* Enhanced table styles */
+.table-container table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.table-container tr:hover td {
+  background: oklch(0.95 0 0 / 50%);
+  transition: background 0.15s ease;
+}
+.dark .table-container tr:hover td {
+  background: oklch(0.25 0 0 / 50%);
+}
+
+/* Badge type classes */
+.badge-success {
+  background: oklch(0.7 0.15 145);
+  color: white;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+.badge-warning {
+  background: oklch(0.75 0.15 75);
+  color: white;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+.badge-danger {
+  background: oklch(0.65 0.2 25);
+  color: white;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+.badge-info {
+  background: oklch(0.6 0.15 250);
+  color: white;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+.badge-neutral {
+  background: oklch(0.85 0 0);
+  color: oklch(0.3 0 0);
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+.dark .badge-neutral {
+  background: oklch(0.3 0 0);
+  color: oklch(0.8 0 0);
+}
+
+/* Card hover animation */
+.card-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px oklch(0 0 0 / 8%);
+}
+.dark .card-hover:hover {
+  box-shadow: 0 4px 12px oklch(0 0 0 / 25%);
+}
+
+/* Animated number transitions */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-count-up {
+  animation: count-up 0.5s ease-out;
+}
+
+/* Dialog header accent line */
+.dialog-header-accent {
+  position: relative;
+  padding-top: 0.5rem;
+}
+.dialog-header-accent::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, oklch(0.5 0.15 250), oklch(0.6 0.2 180));
+  border-radius: 1px;
+}
+
+/* Dashboard dot pattern background */
+.dot-pattern {
+  background-image: radial-gradient(circle, oklch(0 0 0 / 6%) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.dark .dot-pattern {
+  background-image: radial-gradient(circle, oklch(1 0 0 / 4%) 1px, transparent 1px);
+}

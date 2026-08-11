@@ -294,7 +294,7 @@ export function ReportsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-xl shadow-sm transition-all duration-200">
+            <Card className="rounded-xl shadow-sm border transition-all duration-200">
               <CardHeader className="pb-2"><CardTitle className="text-base">Por Producto (Top 20)</CardTitle></CardHeader>
               <CardContent>
                 <Table>
@@ -321,23 +321,25 @@ export function ReportsPage() {
               <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
             </Button>
           </div>
-          <Card className="rounded-xl shadow-sm transition-all duration-200">
+          <Card className="rounded-xl shadow-sm border transition-all duration-200">
             <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs">SKU</TableHead><TableHead className="text-xs text-center">Stock</TableHead><TableHead className="text-xs text-center">Días sin Mov.</TableHead><TableHead className="text-xs">Último Mov.</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {deadStock.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sin inventario muerto</TableCell></TableRow>}
-                  {deadStock.map((item: any) => (
-                    <TableRow key={item.id} className="hover:bg-muted/50">
-                      <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{item.nombre}</TableCell>
-                      <TableCell className="text-xs font-mono py-2">{item.sku}</TableCell>
-                      <TableCell className="text-xs text-center font-mono py-2">{item.totalStock}</TableCell>
-                      <TableCell className="text-xs text-center py-2"><Badge variant="destructive" className="text-[10px]">{item.daysSinceLastMovement ?? 'N/A'}</Badge></TableCell>
-                      <TableCell className="text-xs py-2 text-muted-foreground">{item.lastMovementDate ? formatDate(item.lastMovementDate) : 'Nunca'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
+                <Table>
+                  <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs">SKU</TableHead><TableHead className="text-xs text-center">Stock</TableHead><TableHead className="text-xs text-center">Días sin Mov.</TableHead><TableHead className="text-xs">Último Mov.</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {deadStock.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sin inventario muerto</TableCell></TableRow>}
+                    {deadStock.map((item: any) => (
+                      <TableRow key={item.id} className="hover:bg-muted/50">
+                        <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{item.nombre}</TableCell>
+                        <TableCell className="text-xs font-mono py-2">{item.sku}</TableCell>
+                        <TableCell className="text-xs text-center font-mono py-2">{item.totalStock}</TableCell>
+                        <TableCell className="text-xs text-center py-2"><Badge variant="destructive" className="text-[10px]">{item.daysSinceLastMovement ?? 'N/A'}</Badge></TableCell>
+                        <TableCell className="text-xs py-2 text-muted-foreground">{item.lastMovementDate ? formatDate(item.lastMovementDate) : 'Nunca'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -350,7 +352,7 @@ export function ReportsPage() {
             </Button>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="rounded-xl shadow-sm transition-all duration-200">
+            <Card className="rounded-xl shadow-sm border transition-all duration-200">
               <CardHeader className="pb-2"><CardTitle className="text-base">Gráfico</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-72">
@@ -366,7 +368,7 @@ export function ReportsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-xl shadow-sm transition-all duration-200">
+            <Card className="rounded-xl shadow-sm border transition-all duration-200">
               <CardHeader className="pb-2"><CardTitle className="text-base">Tabla</CardTitle></CardHeader>
               <CardContent>
                 <Table>
@@ -375,7 +377,7 @@ export function ReportsPage() {
                     {topSellers.map((t: any, i: number) => (
                       <TableRow key={i} className="hover:bg-muted/50"><TableCell className="text-xs py-1.5">{t.producto?.nombre}</TableCell><TableCell className="text-xs text-center font-mono py-1.5">{t.cantidadVendida}</TableCell><TableCell className="text-xs text-right py-1.5">{formatCurrency(t.valorTotal)}</TableCell></TableRow>
                     ))}
-                    {topSellers.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Sin datos</TableCell></TableRow>}
+                    {topSellers.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-12"><BarChart3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" /><p className="text-muted-foreground text-sm">No hay datos para este período</p></TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -390,8 +392,9 @@ export function ReportsPage() {
               <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
             </Button>
           </div>
-          <Card className="rounded-xl shadow-sm transition-all duration-200">
+          <Card className="rounded-xl shadow-sm border transition-all duration-200">
             <CardContent className="p-0">
+              <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
               <Table>
                 <TableHeader><TableRow><TableHead className="text-xs">Cliente</TableHead><TableHead className="text-xs text-center">Ventas</TableHead><TableHead className="text-xs text-center">Productos</TableHead><TableHead className="text-xs text-right">Valor Total</TableHead></TableRow></TableHeader>
                 <TableBody>
@@ -403,9 +406,10 @@ export function ReportsPage() {
                       <TableCell className="text-xs text-right py-2">{formatCurrency(cs.totalValor)}</TableCell>
                     </TableRow>
                   ))}
-                  {clientSales.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Sin datos</TableCell></TableRow>}
+                  {clientSales.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-12"><BarChart3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" /><p className="text-muted-foreground text-sm">No hay datos para este período</p></TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -417,8 +421,9 @@ export function ReportsPage() {
               <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
             </Button>
           </div>
-          <Card className="rounded-xl shadow-sm transition-all duration-200">
+          <Card className="rounded-xl shadow-sm border transition-all duration-200">
             <CardContent className="p-0">
+              <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
               <Table>
                 <TableHeader><TableRow><TableHead className="text-xs">Equipo</TableHead><TableHead className="text-xs">Marca</TableHead><TableHead className="text-xs">Tipo</TableHead><TableHead className="text-xs text-center">Repuestos</TableHead><TableHead className="text-xs text-center">Demanda Total</TableHead></TableRow></TableHeader>
                 <TableBody>
@@ -431,9 +436,10 @@ export function ReportsPage() {
                       <TableCell className="text-xs text-center font-mono py-2">{ed.cantidadTotal}</TableCell>
                     </TableRow>
                   ))}
-                  {equipmentDemand.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sin datos</TableCell></TableRow>}
+                  {equipmentDemand.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-12"><BarChart3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" /><p className="text-muted-foreground text-sm">No hay datos para este período</p></TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -445,8 +451,9 @@ export function ReportsPage() {
               <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
             </Button>
           </div>
-          <Card className="rounded-xl shadow-sm transition-all duration-200">
+          <Card className="rounded-xl shadow-sm border transition-all duration-200">
             <CardContent className="p-0">
+              <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
               <Table>
                 <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs hidden md:table-cell">Categoría</TableHead><TableHead className="text-xs text-center">Vendido</TableHead><TableHead className="text-xs text-center">Stock Actual</TableHead><TableHead className="text-xs text-center">Rotación</TableHead></TableRow></TableHeader>
                 <TableBody>
@@ -463,9 +470,10 @@ export function ReportsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {rotation.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sin datos</TableCell></TableRow>}
+                  {rotation.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-12"><BarChart3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" /><p className="text-muted-foreground text-sm">No hay datos para este período</p></TableCell></TableRow>}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

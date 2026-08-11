@@ -5,7 +5,7 @@ import { useWmsStore } from '@/store/wms'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertTriangle, ShoppingCart, Package, Zap } from 'lucide-react'
+import { AlertTriangle, ShoppingCart, Package, Zap, PackageCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Alerta {
@@ -33,6 +33,22 @@ export function AlertsPage() {
         <p className="text-sm text-muted-foreground">Productos que requieren reabastecimiento urgente</p>
       </div>
 
+      {/* Summary Stats Bar */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <p className="text-xs text-muted-foreground">Total Alertas</p>
+          <p className="text-lg font-bold">{alertas.length}</p>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <p className="text-xs text-muted-foreground">Sin Stock</p>
+          <p className="text-lg font-bold text-red-600 dark:text-red-400">{alertas.filter(a => a.stockActual === 0).length}</p>
+        </Card>
+        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+          <p className="text-xs text-muted-foreground">Deficiencia Total</p>
+          <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{alertas.reduce((s, a) => s + a.deficiencia, 0)} unidades</p>
+        </Card>
+      </div>
+
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 text-destructive" />
         <h2 className="text-lg font-semibold">Productos Bajo Stock Mínimo</h2>
@@ -44,7 +60,7 @@ export function AlertsPage() {
       {isLoading ? (
         <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
       ) : alertas.length === 0 ? (
-        <Card className="rounded-xl shadow-sm"><CardContent className="py-12 text-center"><AlertTriangle className="h-12 w-12 mx-auto mb-3 text-emerald-500" /><p className="text-muted-foreground">No hay alertas de stock. Todos los productos están por encima del mínimo.</p></CardContent></Card>
+        <Card className="rounded-xl shadow-sm border"><CardContent className="py-16 text-center"><PackageCheck className="h-16 w-16 mx-auto mb-3 text-emerald-500/30" /><p className="text-muted-foreground">Todos los productos tienen stock suficiente</p></CardContent></Card>
       ) : (
         <div className="space-y-3">
           {alertas.map((a) => {
@@ -54,10 +70,10 @@ export function AlertsPage() {
               <Card
                 key={a.id}
                 className={cn(
-                  'rounded-xl shadow-sm border overflow-hidden hover:shadow-md hover:-translate-y-px transition-all duration-200',
+                  'card-hover rounded-xl shadow-sm border overflow-hidden border-l-4',
                   isZero
-                    ? 'border-red-300 dark:border-red-800'
-                    : 'border-amber-300 dark:border-amber-800'
+                    ? 'border-red-300 dark:border-red-800 border-l-red-500'
+                    : 'border-amber-300 dark:border-amber-800 border-l-amber-500'
                 )}
               >
                 <div className={cn(

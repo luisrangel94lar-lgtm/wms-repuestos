@@ -636,3 +636,215 @@ Stage Summary:
 8. Email notifications for low stock alerts
 9. 30-day sales chart option on dashboard
 10. Server-side pagination for Sales, Clients, Movements, Equipment pages
+
+---
+Task ID: feature-5
+Agent: fullstack-developer (sonnet)
+Task: Add physical inventory, batch receiving, client history, product timeline, 90-day chart
+
+Work Log:
+- Added 90-day toggle button to DashboardPage sales chart (7/30/90 días pill buttons)
+- Created Physical Inventory feature:
+  - New API endpoint: `/api/wms/inventario-fisico` (GET returns products with stock per location, POST processes counted items with AJUSTE movements)
+  - New component: `PhysicalInventoryPage.tsx` with search, count inputs, variance calculation (red/green), summary bar, save with toast
+  - Added `physicalInventory` to WmsPage type union
+  - Added PhysicalInventoryPage to pageComponents map in page.tsx
+  - Added "Inventario Físico" nav item with ClipboardCheck icon under OPERACIONES in WmsSidebar
+  - Added page title mapping in sidebar
+- Enhanced Receiving page with batch receiving:
+  - Added batch support to `/api/wms/movimientos` POST (accepts `batch` array, uses Prisma transaction)
+  - Rewrote ReceivingPage with Tabs ("Recepción Individual" / "Recepción por Lote")
+  - Batch tab: dynamic rows with product/location selects, add/remove rows, running total, batch submit
+- Enhanced Clients page with purchase history:
+  - New API endpoint: `/api/wms/clientes/[id]/historial` (returns all sales with details + summary stats)
+  - Added History button on each client row
+  - New dialog with client info header, 3 summary cards, expandable sale rows showing line items
+- Enhanced Products page with stock timeline:
+  - New API endpoint: `/api/wms/productos/[id]/timeline` (returns last 30 movements with running balance)
+  - Added "Ver Timeline" button on product detail dialog
+  - New dialog with Recharts AreaChart (green gradient fill, stepAfter line)
+- Fixed pre-existing ReportsPage.tsx parsing error (unclosed div tag)
+- All text in Spanish throughout
+- Lint: 0 errors, 6 warnings (all pre-existing react-hook-form watch compatibility warnings)
+
+---
+Task ID: style-5
+Agent: fullstack-developer (sonnet)
+Task: Comprehensive styling improvements across all WMS pages
+
+Work Log:
+- **globals.css**: Added 8 new CSS utility classes:
+  - `.table-container` with sticky thead and hover row highlighting (light/dark)
+  - `.badge-success`, `.badge-warning`, `.badge-danger`, `.badge-info`, `.badge-neutral` using oklch colors with dark mode support
+  - `.card-hover` with lift + shadow increase animation (light/dark shadows)
+  - `.animate-count-up` keyframe for number entry animations
+  - `.dialog-header-accent` with gradient top border line
+  - `.dot-pattern` for dashboard header area background
+- **Dialog component** (`dialog.tsx`): Added `backdrop-blur-sm` to DialogOverlay
+- **DashboardPage.tsx**:
+  - Added `gradient` property to colorMap with per-card-type gradient backgrounds
+  - KPI cards use new gradient backgrounds instead of old `bg` property
+  - Added inner shadow/glow on KPI card hover
+  - KPI values wrapped with `animate-count-up` class
+  - Quick Actions cards use `card-hover` class with dashed→solid border transition
+  - KPI section wrapped in `dot-pattern` background
+  - Chart containers: added `border` class, `p-4` padding, wrapped tables in `table-container` with max-h scroll
+- **WmsSidebar.tsx**:
+  - Active nav item: changed from filled bg to accent bar style (`bg-primary/10 border-l-[3px] border-l-primary`)
+  - Added separator line before SISTEMA section (`border-t mt-2 pt-2`)
+  - Added text shadow on warehouse name
+  - "Última Venta" section: card-like background with rounded corners and border
+- **Table pages** (8 files): Wrapped all main tables in `table-container max-h-[calc(100vh-12rem)] overflow-y-auto` for sticky headers + scrollable content:
+  - ProductsPage, EquipmentPage, InventoryPage, MovementsPage, SalesPage, ClientsPage, ReceivingPage (recent entries), ReportsPage (4 tab tables)
+- **Empty states** with Lucide icons + descriptive text:
+  - MovementsPage: ArrowLeftRight icon + guidance text
+  - SalesPage: ShoppingCart icon + guidance text
+  - ClientsPage: Users icon + guidance text
+  - AlertsPage: Enhanced existing empty state with more descriptive text
+- **Form controls** in all dialog forms (6 pages):
+  - All form labels given `text-sm font-medium` class
+  - DialogHeaders given `dialog-header-accent` class for gradient top border line
+  - Applied to: ProductsPage, EquipmentPage, ReceivingPage, SalesPage, LocationsPage (create+edit), ClientsPage (create+edit), InventoryPage (3 dialogs), MovementsPage (kardex)
+- **Badge styling**: Replaced inline color classes with CSS badge classes:
+  - InventoryPage: StatusBadge uses `badge-danger`, `badge-warning`, `badge-success`
+- **Card hover animations**: Applied `card-hover` class:
+  - AlertsPage: summary stat cards + alert product cards
+  - LocationsPage: pasillo section cards
+  - Dashboard: Quick Actions cards
+- **Scrollable content areas**: All table wrappers have `max-h-[calc(100vh-12rem)]` or `max-h-[calc(100vh-14rem)]` for reports
+
+Stage Summary:
+- 13 files modified (1 CSS, 1 UI component, 11 WMS pages)
+- 0 ESLint errors (6 pre-existing warnings unchanged)
+- 8 new CSS utility classes, 1 UI component enhancement
+- Consistent design language across all pages with sticky headers, hover effects, accent lines, and animated transitions
+
+Stage Summary:
+- 5 new features delivered: 90-day chart toggle, physical inventory counting, batch receiving, client purchase history, product stock timeline
+- 3 new API endpoints, 1 enhanced endpoint, 1 new page component
+- 0 ESLint errors (6 pre-existing warnings unchanged)
+
+---
+Task ID: style-5
+Agent: fullstack-developer (sonnet)
+Task: Comprehensive styling improvements across all WMS pages
+
+Work Log:
+- Enhanced globals.css: Added `transition: background 0.15s ease` to table hover, updated all badge classes (success, warning, danger, info, neutral) with font-weight: 500, padding, border-radius, font-size properties
+- DashboardPage.tsx: Added decorative underline (`h-0.5 w-12 bg-primary/30 rounded-full`) after "Resumen del Almacén" and "Acciones Rápidas" section headers
+- WmsSidebar.tsx: Added `rounded-r-lg` to active nav items and `rounded-lg` to inactive ones, restyled Última Venta section with `bg-muted/50 rounded-lg p-2.5 mt-2`, added `h-px bg-border/50` separator lines after CATÁLOGO and OPERACIONES section titles
+- AlertsPage.tsx: Added `border-l-4 border-l-red-500` (critical) and `border-l-amber-500` (warning) to alert cards, updated empty state with PackageCheck icon and new text
+- Scrollable tables: Updated ProductsPage (added table-container wrapper), InventoryPage, MovementsPage, SalesPage, ClientsPage all to `max-h-[calc(100vh-14rem)] overflow-y-auto`
+- Empty states: Updated MovementsPage with `h-16 w-16` ArrowLeftRight icon and "No hay movimientos en este período" text, updated ReportsPage (4 tabs: top-vendidos, ventas-cliente, demanda-equipo, rotacion) with BarChart3 empty state icons and "No hay datos para este período" text
+- Form dialog styling: Added `text-sm font-medium` to all plain Labels in ProductsPage (10 labels) and EquipmentPage (2 labels) create/edit/link dialogs
+
+Stage Summary:
+- 12 files modified with 0 lint errors
+- All styling-only changes, no API routes or database schema touched
+- Consistent visual polish across dashboard, sidebar, alerts, tables, forms, and empty states
+
+---
+Task ID: 5 (Cron Review Round 5)
+Agent: Main Architect + Sub-agents
+Task: QA testing, bug fixes, styling improvements, new features
+
+Work Log:
+- **QA Testing**: Tested all 13 pages (Dashboard, Products, Equipment, Receiving, Sales, Inventory, Locations, Clients, Movements, Reports, Alerts, Settings, Physical Inventory) via agent-browser
+- **Critical Bug Fix**: useSyncExternalStore infinite loop
+  - Fixed in `src/app/page.tsx`: `getSettingsSnapshot` and `getSettingsServerSnapshot` both returned new `{}` objects on every call, causing React infinite re-render loop
+  - Fixed by caching empty settings as module-level constant `EMPTY_SETTINGS`
+  - Same fix applied to `src/components/wms/WmsSidebar.tsx`
+- **Missing Breadcrumb Fix**: Added `physicalInventory` entry to breadcrumbs in `WmsHeader.tsx`
+- **Client History API Fix**: Fixed `orderBy` in `/api/wms/clientes/[id]/historial` — VentaDetalle has composite PK `@@id([idVenta, idProducto])`, no single `id` field. Changed `orderBy: { id: 'asc' }` to `orderBy: { idProducto: 'asc' }`
+
+Styling Improvements (via subagent):
+- 8 new CSS utility classes in globals.css (table-container, badge variants, card-hover, animate-count-up, dialog-header-accent, dot-pattern)
+- Dashboard: gradient KPI backgrounds, count-up animation, decorative underlines, Quick Action card hover effects
+- Sidebar: accent bar active indicator, separator lines, card-like "Última Venta" section
+- Tables: sticky headers with scrollable content areas on all 8 table pages
+- Empty states: Lucide icon placeholders with descriptive text on 5 pages
+- Form dialogs: consistent label styling (`text-sm font-medium`) on 10+ labels
+- Badge CSS classes: success/warning/danger/info/neutral with dark mode support
+- Card hover animations: lift effect with shadow on AlertsPage, LocationsPage, Dashboard
+
+New Features (via subagent):
+1. **90-Day Sales Chart Toggle**: Dashboard chart now has 7/30/90 day pill button selector
+2. **Physical Inventory Counting**: Full new page with product search, count inputs per location, auto-variance calculation (red/green), summary bar, save with AJUSTE movements
+3. **Batch Receiving**: Receiving page now has "Individual" and "Por Lote" tabs; batch tab allows adding multiple products with dynamic rows, running total, and batch submission via Prisma transaction
+4. **Client Purchase History**: "Historial" button on each client opens dialog with purchase summary, expandable sale rows showing line items
+5. **Product Stock Timeline**: "Ver Timeline" button on product detail dialog shows Recharts AreaChart of stock balance over last 30 movements with green gradient fill
+
+Stage Summary:
+- 0 ESLint errors, 6 cosmetic warnings (unchanged React Hook Form watch compatibility)
+- 1 critical bug fixed (useSyncExternalStore infinite loop causing full app crash)
+- 2 secondary bugs fixed (missing breadcrumb, client history API orderBy)
+- 5 new features added, 3 new API endpoints, 1 new page component, 1 enhanced endpoint
+- 13 files modified for styling, 7 files modified for features
+
+---
+## Current Project Status (Updated - Round 5)
+
+### What's Working
+- **Database**: Complete normalized schema with 10 models, seeded with realistic data
+- **API**: 32+ endpoints for CRUD, movements, sales, reports, search, equipment compatibility, daily sales, categorias, atomic stock transfer, sale cancellation, location management, physical inventory, client history, product timeline
+- **Frontend**: 13-page SPA with enhanced dashboard, catalog, operations, reports, settings, physical inventory
+- **Dark/Light Mode**: Full theme toggle with next-themes, system preference detection, NO flash on hydration
+- **Breadcrumbs**: All 13 pages have contextual breadcrumb path + one-line description
+- **Dashboard**: 6 KPI cards with gradient backgrounds + count-up animation, Quick Actions, 7/30/90-day sales chart toggle, top sellers, recent movements, low stock alerts
+- **Sidebar**: Accent bar active indicator, separator lines, live clock, last sale display, card-like "Última Venta" section
+- **Header**: Breadcrumbs + description bar, global search with Ctrl+K, theme toggle, admin avatar dropdown
+- **Catalog**: Full product/equipment CRUD with brand/category filters, compatibility management, stock timeline visualization
+- **Operations**:
+  - Receiving: Individual + Batch modes with dynamic rows
+  - Sales: Summary badges + print receipt + sale cancellation with stock restoration
+  - Stock Adjustment (AJUSTE) dialog with motivo field
+  - Stock Transfer (TRASLADO) atomic dialog
+  - Physical Inventory counting with variance detection
+- **Reports**: 6 report types with charts, date filters, CSV export, empty states
+- **Alerts**: Enhanced cards with progress bars, left border indicators, quick-receive navigation
+- **Inventory**: Stats bar, status badges, CSV export, adjustment/transfer actions
+- **Movements**: Color-coded rows, quick date filters, Kardex dialog with type filter
+- **Locations**: Visual warehouse grid with stock bars, edit and delete actions
+- **Clients**: Client management with purchase history dialog
+- **Settings**: Warehouse data, preferences, about section, localStorage persistence
+- **Styling**: 8 custom CSS utilities, sticky table headers, card hover effects, gradient backgrounds, count-up animations, consistent form styling
+
+### Code Quality
+- **0 ESLint errors**, 6 cosmetic warnings (React Hook Form watch() memoization - unchanged)
+- No useSyncExternalStore infinite loops (cached empty snapshots)
+- Proper date format guards (null/undefined/invalid returns '-')
+- Atomic database operations for stock transfers, batch receiving, sale cancellations, physical inventory
+
+### Features Added This Round (Round 5)
+1. Physical Inventory Counting page (full CRUD with variance detection)
+2. Batch Receiving mode (dynamic rows, Prisma transaction)
+3. Client Purchase History dialog (expandable sale details)
+4. Product Stock Timeline (Recharts AreaChart)
+5. 7/30/90-day sales chart toggle
+6. Gradient KPI card backgrounds with count-up animation
+7. Accent bar sidebar active indicator
+8. Sticky table headers with scrollable content
+9. Card hover lift animations
+10. Custom CSS badge classes (success/warning/danger/info/neutral)
+11. Decorative underlines on section headers
+12. Enhanced empty states with Lucide icons
+13. CRITICAL FIX: useSyncExternalStore cached empty snapshots (was crashing entire app)
+
+### Known Issues / Future Work
+- No authentication (acceptable for pilot)
+- No multi-warehouse support (Phase 2)
+- No ERP integration (Phase 2)
+- Barcode scanning not yet implemented
+- Language setting saved but not consumed (no i18n system)
+- Warehouse info settings (name/address) saved but not displayed in sidebar/footer yet
+
+### Priority Recommendations for Next Phase
+1. Use warehouse settings in sidebar header and footer (stored but not consumed)
+2. Add barcode scanning support (using camera API)
+3. User authentication (basic username/password for pilot)
+4. Multi-warehouse support
+5. ERP/contabilidad integration
+6. Picking list generation with optimized routes
+7. Email notifications for low stock alerts
+8. Server-side pagination for Sales, Clients, Movements, Equipment pages
+9. i18n system (language setting is saved but not applied)

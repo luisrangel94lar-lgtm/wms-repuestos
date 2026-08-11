@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -46,8 +46,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Eye, Pencil, Trash2, Filter } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity } from 'lucide-react'
 import { formatCurrency } from './lib/format'
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 
 const productSchema = z.object({
   sku: z.string().min(1, 'SKU requerido'),
@@ -106,6 +115,7 @@ export function ProductsPage() {
   const [editId, setEditId] = useState<number | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [viewId, setViewId] = useState<number | null>(null)
+  const [timelineId, setTimelineId] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery<CategoriasResponse>({
     queryKey: ['products', page, search, idCategoria, idMarca, bajoStock],
@@ -126,6 +136,12 @@ export function ProductsPage() {
     queryKey: ['product-detail', viewId],
     queryFn: () => fetch(`/api/wms/productos/${viewId}`).then((r) => r.json()),
     enabled: !!viewId,
+  })
+
+  const { data: timelineData } = useQuery({
+    queryKey: ['product-timeline', timelineId],
+    queryFn: () => fetch(`/api/wms/productos/${timelineId}/timeline`).then((r) => r.json()),
+    enabled: !!timelineId,
   })
 
   const { data: categorias = [] } = useQuery({
@@ -264,6 +280,14 @@ export function ProductsPage() {
     )
   }
 
+  const chartData = useMemo(() => {
+    if (!timelineData?.timeline) return []
+    return timelineData.timeline.map((t: any) => ({
+      fecha: new Date(t.date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+      stock: t.balance,
+    }))
+  }, [timelineData])
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -325,7 +349,7 @@ export function ProductsPage() {
       {/* Table */}
       <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -439,14 +463,14 @@ export function ProductsPage() {
           >
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>SKU *</Label>
+                <Label className="text-sm font-medium">SKU *</Label>
                 <Input {...form.register('sku')} />
                 {form.formState.errors.sku && (
                   <p className="text-xs text-destructive">{form.formState.errors.sku.message}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Unidad de Medida</Label>
+                <Label className="text-sm font-medium">Unidad de Medida</Label>
                 <Select value={form.watch('unidadMedida')} onValueChange={(v) => form.setValue('unidadMedida', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -460,23 +484,23 @@ export function ProductsPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Nombre *</Label>
+              <Label className="text-sm font-medium">Nombre *</Label>
               <Input {...form.register('nombre')} />
               {form.formState.errors.nombre && (
                 <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>Descripción</Label>
+              <Label className="text-sm font-medium">Descripción</Label>
               <Textarea {...form.register('descripcion')} rows={2} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Código de Barras</Label>
+                <Label className="text-sm font-medium">Código de Barras</Label>
                 <Input {...form.register('codigoBarras')} />
               </div>
               <div className="space-y-2">
-                <Label>URL de Foto</Label>
+                <Label className="text-sm font-medium">URL de Foto</Label>
                 <Input {...form.register('fotoUrl')} />
               </div>
             </div>
@@ -492,19 +516,19 @@ export function ProductsPage() {
             )}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Costo Unitario</Label>
+                <Label className="text-sm font-medium">Costo Unitario</Label>
                 <Input type="number" step="0.01" {...form.register('costoUnitario')} />
               </div>
               <div className="space-y-2">
-                <Label>Precio de Venta</Label>
+                <Label className="text-sm font-medium">Precio de Venta</Label>
                 <Input type="number" step="0.01" {...form.register('precioVenta')} />
               </div>
               <div className="space-y-2">
-                <Label>Stock Mínimo</Label>
+                <Label className="text-sm font-medium">Stock Mínimo</Label>
                 <Input type="number" {...form.register('stockMinimo')} />
               </div>
               <div className="space-y-2">
-                <Label>Stock Máximo</Label>
+                <Label className="text-sm font-medium">Stock Máximo</Label>
                 <Input type="number" {...form.register('stockMaximo')} />
               </div>
             </div>
@@ -577,6 +601,76 @@ export function ProductsPage() {
                       </Badge>
                     ))}
                   </div>
+                </div>
+              )}
+              <div className="flex justify-end pt-2 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setTimelineId(viewProduct.id); setViewId(null) }}
+                >
+                  <Activity className="h-4 w-4 mr-1" />
+                  Ver Timeline
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Timeline Dialog */}
+      <Dialog open={!!timelineId} onOpenChange={(open) => { if (!open) setTimelineId(null) }}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Timeline de Stock</DialogTitle>
+            <DialogDescription className="sr-only">Evolución del stock del producto en los últimos 30 movimientos</DialogDescription>
+          </DialogHeader>
+          {timelineData && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <div>
+                  <p className="text-muted-foreground">Stock Actual</p>
+                  <p className="text-2xl font-bold">{timelineData.currentStock}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-muted-foreground">Producto ID</p>
+                  <p className="font-mono">#{timelineData.productoId}</p>
+                </div>
+              </div>
+              {chartData.length > 0 ? (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="oklch(0.55 0.15 145)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="oklch(0.55 0.15 145)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--popover)',
+                          color: 'var(--popover-foreground)',
+                        }}
+                      />
+                      <Area
+                        type="stepAfter"
+                        dataKey="stock"
+                        stroke="oklch(0.55 0.15 145)"
+                        fill="url(#stockGradient)"
+                        strokeWidth={2}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
+                  Sin datos de movimiento para mostrar
                 </div>
               )}
             </div>

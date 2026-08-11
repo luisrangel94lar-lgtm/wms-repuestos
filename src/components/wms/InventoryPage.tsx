@@ -21,6 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { SortableHeader } from './lib/SortableHeader'
 
 interface StockEntry {
   idProducto: number
@@ -46,18 +47,18 @@ interface InventoryItem {
 function StatusBadge({ status }: { status: string }) {
   if (status === 'out')
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-danger">
         <XCircle className="h-3 w-3" /> Sin Stock
       </span>
     )
   if (status === 'low')
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-warning">
         <AlertTriangle className="h-3 w-3" /> Bajo Stock
       </span>
     )
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold badge-success">
       <Check className="h-3 w-3" /> OK
     </span>
   )
@@ -79,6 +80,10 @@ export function InventoryPage() {
   const [trasladoDestino, setTrasladoDestino] = useState('')
   const [trasladoCantidad, setTrasladoCantidad] = useState('')
   const [trasladoLoading, setTrasladoLoading] = useState(false)
+
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('nombre')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products-inventory'],
@@ -122,6 +127,31 @@ export function InventoryPage() {
     queryClient.invalidateQueries({ queryKey: ['all-stock-inv'] })
     queryClient.invalidateQueries({ queryKey: ['inventory-stats'] })
   }
+
+  // --- Sorting ---
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+  function getSortValue(item: InventoryItem, field: string): any {
+    if (field === 'margen') {
+      return item.precioVenta > 0 ? ((item.precioVenta - item.costoUnitario) / item.precioVenta * 100) : 0
+    }
+    return item[field as keyof InventoryItem]
+  }
+
+  const sortedInventory = [...inventory].sort((a, b) => {
+    let aVal: any = getSortValue(a, sortField)
+    let bVal: any = getSortValue(b, sortField)
+    if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = (bVal as string).toLowerCase() }
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+    return 0
+  })
 
   // --- AJUSTE handlers ---
   function openAjuste(item: InventoryItem) {
@@ -288,49 +318,63 @@ export function InventoryPage() {
 
       <Card className="rounded-xl shadow-sm">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs">Producto</TableHead>
-                  <TableHead className="text-xs">SKU</TableHead>
-                  <TableHead className="text-xs text-center">Total Stock</TableHead>
-                  <TableHead className="text-xs text-right">Valor Total</TableHead>
+                  <SortableHeader field="nombre" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Producto</SortableHeader>
+                  <SortableHeader field="sku" sortField={sortField} sortDir={sortDir} onSort={handleSort}>SKU</SortableHeader>
+                  <SortableHeader field="totalStock" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Total Stock</SortableHeader>
+                  <SortableHeader field="valorTotal" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Valor Total</SortableHeader>
+                  <SortableHeader field="margen" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Margen %</SortableHeader>
                   <TableHead className="text-xs text-center">Estado</TableHead>
                   <TableHead className="text-xs text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading && Array.from({ length: 8 }).map((_, i) => (
-                  <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+                  <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
                 ))}
-                {!isLoading && inventory.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Sin productos en inventario</TableCell></TableRow>
+                {!isLoading && sortedInventory.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Sin productos en inventario</TableCell></TableRow>
                 )}
-                {!isLoading && inventory.map((p, idx) => (
-                  <TableRow key={p.id} className={cn('hover:bg-muted/50', idx % 2 === 1 && 'bg-muted/20')}>
-                    <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{p.nombre}</TableCell>
-                    <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
-                    <TableCell className="text-xs text-center font-mono py-2">{p.totalStock}</TableCell>
-                    <TableCell className="text-xs text-right py-2">{formatCurrency(p.valorTotal)}</TableCell>
-                    <TableCell className="text-xs text-center py-2"><StatusBadge status={p.status} /></TableCell>
-                    <TableCell className="text-xs text-right py-2">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver ubicaciones" onClick={() => setSelectedProduct(p)}>
-                          <MapPin className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Ajustar stock" onClick={() => openAjuste(p)}>
-                          <SlidersHorizontal className="h-3.5 w-3.5" />
-                        </Button>
-                        {p.stocks.length > 1 && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Trasladar" onClick={() => openTraslado(p)}>
-                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                {!isLoading && sortedInventory.map((p, idx) => {
+                  const margen = p.precioVenta > 0 ? ((p.precioVenta - p.costoUnitario) / p.precioVenta * 100) : 0
+                  return (
+                    <TableRow key={p.id} className={cn('hover:bg-muted/50', idx % 2 === 1 && 'bg-muted/20')}>
+                      <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{p.nombre}</TableCell>
+                      <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
+                      <TableCell className="text-xs text-center font-mono py-2">{p.totalStock}</TableCell>
+                      <TableCell className="text-xs text-right py-2">{formatCurrency(p.valorTotal)}</TableCell>
+                      <TableCell className="text-xs text-right py-2">
+                        <span className={cn(
+                          'font-mono',
+                          margen >= 30 ? 'text-emerald-600 dark:text-emerald-400' :
+                          margen >= 15 ? 'text-amber-600 dark:text-amber-400' :
+                          'text-red-600 dark:text-red-400'
+                        )}>
+                          {margen.toFixed(1)}%
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-center py-2"><StatusBadge status={p.status} /></TableCell>
+                      <TableCell className="text-xs text-right py-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver ubicaciones" onClick={() => setSelectedProduct(p)}>
+                            <MapPin className="h-3.5 w-3.5" />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Ajustar stock" onClick={() => openAjuste(p)}>
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                          {p.stocks.length > 1 && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Trasladar" onClick={() => openTraslado(p)}>
+                              <ArrowRightLeft className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
@@ -340,7 +384,7 @@ export function InventoryPage() {
       {/* Stock by location dialog */}
       <Dialog open={!!selectedProduct} onOpenChange={(open) => { if (!open) setSelectedProduct(null) }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Stock por Ubicación</DialogTitle><DialogDescription>Detalle de stock por ubicación del producto</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>Stock por Ubicación</DialogTitle><DialogDescription>Detalle de stock por ubicación del producto</DialogDescription></DialogHeader>
           {selectedProduct && (
             <div className="space-y-3">
               <p className="text-sm"><span className="text-muted-foreground">Producto:</span> <span className="font-medium">{selectedProduct.nombre}</span></p>
@@ -377,7 +421,7 @@ export function InventoryPage() {
       {/* Ajuste Dialog */}
       <Dialog open={!!ajusteProduct} onOpenChange={(open) => { if (!open) setAjusteProduct(null) }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Ajustar Stock</DialogTitle><DialogDescription>Modificar la cantidad de stock del producto</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>Ajustar Stock</DialogTitle><DialogDescription>Modificar la cantidad de stock del producto</DialogDescription></DialogHeader>
           {ajusteProduct && (
             <div className="space-y-4">
               <div className="space-y-1">
@@ -389,7 +433,7 @@ export function InventoryPage() {
                 <p className="text-sm font-mono">{ajusteProduct.totalStock}</p>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Nuevo Stock</Label>
+                <Label className="text-sm font-medium">Nuevo Stock</Label>
                 <Input
                   type="number"
                   min="0"
@@ -399,7 +443,7 @@ export function InventoryPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Motivo (opcional)</Label>
+                <Label className="text-sm font-medium">Motivo (opcional)</Label>
                 <Input
                   value={ajusteMotivo}
                   onChange={(e) => setAjusteMotivo(e.target.value)}
@@ -421,7 +465,7 @@ export function InventoryPage() {
       {/* Traslado Dialog */}
       <Dialog open={!!trasladoProduct} onOpenChange={(open) => { if (!open) setTrasladoProduct(null) }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Trasladar Stock</DialogTitle><DialogDescription>Mover stock entre ubicaciones</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>Trasladar Stock</DialogTitle><DialogDescription>Mover stock entre ubicaciones</DialogDescription></DialogHeader>
           {trasladoProduct && (
             <div className="space-y-4">
               <div className="space-y-1">
@@ -429,7 +473,7 @@ export function InventoryPage() {
                 <p className="text-sm font-medium">{trasladoProduct.nombre}</p>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Ubicación Origen</Label>
+                <Label className="text-sm font-medium">Ubicación Origen</Label>
                 <Select value={trasladoOrigen} onValueChange={(v) => { setTrasladoOrigen(v); setTrasladoCantidad('') }}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar origen" /></SelectTrigger>
                   <SelectContent>
@@ -442,7 +486,7 @@ export function InventoryPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Ubicación Destino</Label>
+                <Label className="text-sm font-medium">Ubicación Destino</Label>
                 <Select value={trasladoDestino} onValueChange={setTrasladoDestino}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar destino" /></SelectTrigger>
                   <SelectContent>
@@ -455,7 +499,7 @@ export function InventoryPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Cantidad (máx: {getOrigenStock()})</Label>
+                <Label className="text-sm font-medium">Cantidad (máx: {getOrigenStock()})</Label>
                 <Input
                   type="number"
                   min="1"

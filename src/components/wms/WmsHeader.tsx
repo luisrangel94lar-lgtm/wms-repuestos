@@ -24,6 +24,7 @@ const breadcrumbs: Record<WmsPage, { path: string; description: string }> = {
   reports: { path: 'Reportes', description: 'Reportes operativos y estadísticas de rendimiento' },
   alerts: { path: 'Alertas', description: 'Productos que requieren reabastecimiento urgente' },
   settings: { path: 'Sistema / Configuración', description: 'Preferencias del sistema y datos del almacén' },
+  physicalInventory: { path: 'Operaciones / Inventario Físico', description: 'Conteo físico del inventario con detección de varianzas' },
 }
 
 export function WmsHeader() {

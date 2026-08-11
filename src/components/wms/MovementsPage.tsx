@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Search, ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, RefreshCw, BookOpen } from 'lucide-react'
 import { formatDateTime, tipoMovColors } from './lib/format'
 import { cn } from '@/lib/utils'
+import { SortableHeader } from './lib/SortableHeader'
 
 const tipoMovBorder: Record<string, string> = {
   ENTRADA: 'border-l-emerald-500',
@@ -47,6 +48,10 @@ export function MovementsPage() {
   const [showKardex, setShowKardex] = useState(false)
   const [kardexTipo, setKardexTipo] = useState('')
 
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('fecha')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
   const { data: tiposMov = [] } = useQuery({
     queryKey: ['tipos-mov-movements'],
     queryFn: () => fetch('/api/wms/tipos-movimiento').then((r) => r.json()),
@@ -69,6 +74,31 @@ export function MovementsPage() {
         m.producto?.sku?.toLowerCase().includes(search.toLowerCase())
       )
     : movimientos
+
+  // --- Sorting ---
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  function getMovSortValue(m: any, field: string): any {
+    if (field === 'producto') return m.producto?.nombre ?? ''
+    if (field === 'tipoMovimiento') return m.tipoMovimiento?.nombre ?? ''
+    return m[field]
+  }
+
+  const sortedFiltered = [...filtered].sort((a: any, b: any) => {
+    let aVal: any = getMovSortValue(a, sortField)
+    let bVal: any = getMovSortValue(b, sortField)
+    if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = (bVal as string).toLowerCase() }
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+    return 0
+  })
 
   const { data: kardexData = [], isLoading: kardexLoading } = useQuery({
     queryKey: ['kardex', kardexProduct?.id],
@@ -158,14 +188,14 @@ export function MovementsPage() {
       {/* Table */}
       <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs">Fecha</TableHead>
-                  <TableHead className="text-xs">Producto</TableHead>
-                  <TableHead className="text-xs">Tipo</TableHead>
-                  <TableHead className="text-xs text-center">Cantidad</TableHead>
+                  <SortableHeader field="fecha" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Fecha</SortableHeader>
+                  <SortableHeader field="producto" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Producto</SortableHeader>
+                  <SortableHeader field="tipoMovimiento" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Tipo</SortableHeader>
+                  <SortableHeader field="cantidad" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Cantidad</SortableHeader>
                   <TableHead className="text-xs hidden md:table-cell">Ubicación</TableHead>
                   <TableHead className="text-xs hidden lg:table-cell">Usuario</TableHead>
                   <TableHead className="text-xs hidden sm:table-cell">Referencia</TableHead>
@@ -176,10 +206,13 @@ export function MovementsPage() {
                 {isLoading && Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i}><TableCell colSpan={8}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
                 ))}
-                {!isLoading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Sin movimientos</TableCell></TableRow>
+                {!isLoading && sortedFiltered.length === 0 && (
+                  <TableRow><TableCell colSpan={8} className="text-center py-12">
+                    <ArrowLeftRight className="h-16 w-16 mx-auto mb-3 text-muted-foreground/30" />
+                    <p className="text-muted-foreground text-sm">No hay movimientos en este período</p>
+                  </TableCell></TableRow>
                 )}
-                {!isLoading && filtered.slice(0, 100).map((m: any) => {
+                {!isLoading && sortedFiltered.slice(0, 100).map((m: any) => {
                   const tipoNombre = m.tipoMovimiento?.nombre ?? ''
                   return (
                     <TableRow
@@ -228,7 +261,7 @@ export function MovementsPage() {
       {/* Kardex Dialog */}
       <Dialog open={showKardex} onOpenChange={setShowKardex}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
+          <DialogHeader className="dialog-header-accent">
             <DialogTitle>Kardex - {kardexProduct?.nombre}</DialogTitle>
             <DialogDescription className="sr-only">Historial de movimientos del producto</DialogDescription>
           </DialogHeader>

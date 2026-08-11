@@ -24,7 +24,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Pencil, Trash2, Eye } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Eye, History, ChevronDown, ChevronRight, Users } from 'lucide-react'
 import { formatCurrency, formatDate } from './lib/format'
 
 const clienteSchema = z.object({
@@ -44,6 +44,8 @@ export function ClientsPage() {
   const [editId, setEditId] = useState<number | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [viewId, setViewId] = useState<number | null>(null)
+  const [historyId, setHistoryId] = useState<number | null>(null)
+  const [expandedSales, setExpandedSales] = useState<Set<number>>(new Set())
 
   const { data: clientes = [], isLoading } = useQuery({
     queryKey: ['clientes', search],
@@ -57,6 +59,12 @@ export function ClientsPage() {
     queryKey: ['cliente-detail', viewId],
     queryFn: () => fetch(`/api/wms/clientes/${viewId}`).then((r) => r.json()),
     enabled: !!viewId,
+  })
+
+  const { data: historyData } = useQuery({
+    queryKey: ['cliente-historial', historyId],
+    queryFn: () => fetch(`/api/wms/clientes/${historyId}/historial`).then((r) => r.json()),
+    enabled: !!historyId,
   })
 
   const form = useForm<ClienteFormData>({ resolver: zodResolver(clienteSchema) as any, defaultValues: { nombre: '', telefono: '', email: '', tipoCliente: 'Tecnico' } })
@@ -91,6 +99,15 @@ export function ClientsPage() {
 
   function handleSearch() { setSearch(searchInput) }
 
+  function toggleExpand(saleId: number) {
+    setExpandedSales((prev) => {
+      const next = new Set(prev)
+      if (next.has(saleId)) next.delete(saleId)
+      else next.add(saleId)
+      return next
+    })
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3">
@@ -110,7 +127,7 @@ export function ClientsPage() {
 
       <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -127,7 +144,11 @@ export function ClientsPage() {
                   <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
                 ))}
                 {!isLoading && clientes.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No se encontraron clientes</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-12">
+                    <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-muted-foreground text-sm">No hay clientes registrados</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">Agrega técnicos y clientes desde el botón "Nuevo Cliente"</p>
+                  </TableCell></TableRow>
                 )}
                 {!isLoading && clientes.map((c: any) => (
                   <TableRow key={c.id} className="hover:bg-muted/50">
@@ -140,6 +161,7 @@ export function ClientsPage() {
                     </TableCell>
                     <TableCell className="text-xs text-right py-2">
                       <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setHistoryId(c.id); setExpandedSales(new Set()) }} title="Historial"><History className="h-3.5 w-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewId(c.id)}><Eye className="h-3.5 w-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -156,13 +178,13 @@ export function ClientsPage() {
       {/* Create/Edit Dialog */}
       <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editId ? 'Editar Cliente' : 'Nuevo Cliente'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del cliente' : 'Formulario para crear un nuevo cliente'}</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>{editId ? 'Editar Cliente' : 'Nuevo Cliente'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del cliente' : 'Formulario para crear un nuevo cliente'}</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
-            <div className="space-y-2"><Label>Nombre *</Label><Input {...form.register('nombre')} />{form.formState.errors.nombre && <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>}</div>
-            <div className="space-y-2"><Label>Teléfono</Label><Input {...form.register('telefono')} /></div>
-            <div className="space-y-2"><Label>Email</Label><Input {...form.register('email')} type="email" />{form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}</div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Nombre *</Label><Input {...form.register('nombre')} />{form.formState.errors.nombre && <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>}</div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Teléfono</Label><Input {...form.register('telefono')} /></div>
+            <div className="space-y-2"><Label className="text-sm font-medium">Email</Label><Input {...form.register('email')} type="email" />{form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}</div>
             <div className="space-y-2">
-              <Label>Tipo de Cliente</Label>
+              <Label className="text-sm font-medium">Tipo de Cliente</Label>
               <Select value={form.watch('tipoCliente')} onValueChange={(v) => form.setValue('tipoCliente', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -180,10 +202,125 @@ export function ClientsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Purchase History Dialog */}
+      <Dialog open={!!historyId} onOpenChange={(open) => { if (!open) setHistoryId(null) }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Historial de Compras</DialogTitle>
+            <DialogDescription className="sr-only">Historial completo de compras del cliente</DialogDescription>
+          </DialogHeader>
+          {historyData && (
+            <div className="space-y-4">
+              {/* Client info header */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-muted/50 rounded-lg text-sm">
+                <div><span className="text-muted-foreground">Nombre:</span> <span className="font-medium">{historyData.cliente?.nombre}</span></div>
+                <div><span className="text-muted-foreground">Teléfono:</span> {historyData.cliente?.telefono ?? '-'}</div>
+                <div><span className="text-muted-foreground">Email:</span> {historyData.cliente?.email ?? '-'}</div>
+              </div>
+
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="rounded-lg shadow-sm">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Total Compras</p>
+                    <p className="text-lg font-bold mt-0.5">{historyData.resumen?.totalCompras ?? 0}</p>
+                  </CardContent>
+                </Card>
+                <Card className="rounded-lg shadow-sm">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Monto Total</p>
+                    <p className="text-lg font-bold mt-0.5">{formatCurrency(historyData.resumen?.montoTotal ?? 0)}</p>
+                  </CardContent>
+                </Card>
+                <Card className="rounded-lg shadow-sm">
+                  <CardContent className="p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground uppercase">Última Compra</p>
+                    <p className="text-sm font-medium mt-1">{historyData.resumen?.ultimaCompra ? formatDate(historyData.resumen.ultimaCompra) : 'N/A'}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Purchases table with expandable rows */}
+              {historyData.ventas && historyData.ventas.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs w-8"></TableHead>
+                      <TableHead className="text-xs">Fecha</TableHead>
+                      <TableHead className="text-xs">Folio</TableHead>
+                      <TableHead className="text-xs text-right">Total</TableHead>
+                      <TableHead className="text-xs text-center">Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historyData.ventas.map((v: any) => {
+                      const isExpanded = expandedSales.has(v.id)
+                      return (
+                        <>
+                          <TableRow key={v.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => toggleExpand(v.id)}>
+                            <TableCell className="py-2">
+                              {v.detalles?.length > 0 && (
+                                isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs py-2">{formatDate(v.fecha)}</TableCell>
+                            <TableCell className="text-xs py-2 font-mono">{v.folio}</TableCell>
+                            <TableCell className="text-xs text-right py-2">{formatCurrency(v.total ?? 0)}</TableCell>
+                            <TableCell className="text-xs text-center py-2">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                v.estado === 'COMPLETADA'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                              }`}>
+                                {v.estado}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                          {isExpanded && v.detalles && v.detalles.length > 0 && (
+                            <TableRow key={`${v.id}-details`}>
+                              <TableCell colSpan={5} className="bg-muted/30 p-0">
+                                <div className="px-8 py-2">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="text-[10px]">Producto</TableHead>
+                                        <TableHead className="text-[10px] text-center">Cantidad</TableHead>
+                                        <TableHead className="text-[10px] text-right">Precio Unit.</TableHead>
+                                        <TableHead className="text-[10px] text-right">Subtotal</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {v.detalles.map((d: any) => (
+                                        <TableRow key={d.id}>
+                                          <TableCell className="text-xs py-1">{d.producto?.nombre ?? 'N/A'}</TableCell>
+                                          <TableCell className="text-xs py-1 text-center font-mono">{d.cantidad}</TableCell>
+                                          <TableCell className="text-xs py-1 text-right">{formatCurrency(d.precioUnitario)}</TableCell>
+                                          <TableCell className="text-xs py-1 text-right">{formatCurrency(d.cantidad * d.precioUnitario)}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">Sin compras registradas</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* View detail dialog */}
       <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Historial del Cliente</DialogTitle><DialogDescription className="sr-only">Historial de compras del cliente seleccionado</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>Historial del Cliente</DialogTitle><DialogDescription className="sr-only">Historial de compras del cliente seleccionado</DialogDescription></DialogHeader>
           {viewCliente && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">

@@ -33,6 +33,79 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+
+    // Batch mode
+    if (Array.isArray(body.batch)) {
+      const batch = body.batch as {
+        idProducto: number
+        idUbicacion: number
+        idTipo: number
+        cantidad: number
+        costoUnitario?: number
+        referencia?: string
+        usuario?: string
+        observacion?: string
+      }[]
+
+      if (batch.length === 0) {
+        return NextResponse.json({ error: 'El lote no puede estar vacío' }, { status: 400 })
+      }
+
+      const results = await db.$transaction(async (tx) => {
+        const created: any[] = []
+        for (const item of batch) {
+          const tipo = await tx.tipoMovimiento.findUnique({ where: { id: item.idTipo } })
+          if (!tipo) throw new Error(`Tipo de movimiento ${item.idTipo} no encontrado`)
+
+          const mov = await tx.movimiento.create({
+            data: {
+              idProducto: item.idProducto,
+              idUbicacion: item.idUbicacion ?? null,
+              idTipo: item.idTipo,
+              cantidad: item.cantidad,
+              costoUnitario: item.costoUnitario ?? null,
+              referencia: item.referencia ?? null,
+              usuario: item.usuario ?? null,
+              observacion: item.observacion ?? null,
+            },
+            include: { producto: true, ubicacion: true, tipoMovimiento: true },
+          })
+
+          if (item.idUbicacion) {
+            if (tipo.nombre === 'ENTRADA') {
+              await tx.stock.upsert({
+                where: { idProducto_idUbicacion: { idProducto: item.idProducto, idUbicacion: item.idUbicacion } },
+                create: { idProducto: item.idProducto, idUbicacion: item.idUbicacion, cantidad: item.cantidad },
+                update: { cantidad: { increment: item.cantidad } },
+              })
+            } else if (tipo.nombre === 'SALIDA') {
+              const existing = await tx.stock.findUnique({
+                where: { idProducto_idUbicacion: { idProducto: item.idProducto, idUbicacion: item.idUbicacion } },
+              })
+              if (!existing || existing.cantidad < item.cantidad) {
+                throw new Error('Stock insuficiente para la salida')
+              }
+              await tx.stock.update({
+                where: { idProducto_idUbicacion: { idProducto: item.idProducto, idUbicacion: item.idUbicacion } },
+                data: { cantidad: { decrement: item.cantidad } },
+              })
+            } else if (tipo.nombre === 'AJUSTE') {
+              await tx.stock.upsert({
+                where: { idProducto_idUbicacion: { idProducto: item.idProducto, idUbicacion: item.idUbicacion } },
+                create: { idProducto: item.idProducto, idUbicacion: item.idUbicacion, cantidad: item.cantidad },
+                update: { cantidad: item.cantidad },
+              })
+            }
+          }
+          created.push(mov)
+        }
+        return created
+      })
+
+      return NextResponse.json(results, { status: 201 })
+    }
+
+    // Single movement
     const { idProducto, idUbicacion, idTipo, cantidad, costoUnitario, referencia, usuario, observacion } = body
 
     // Look up the movement type to determine action

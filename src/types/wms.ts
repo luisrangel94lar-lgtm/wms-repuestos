@@ -11,6 +11,7 @@ export type WmsPage =
   | 'movements'
   | 'reports'
   | 'alerts'
+  | 'physicalInventory'
   | 'settings';
 
 // Nav item for sidebar

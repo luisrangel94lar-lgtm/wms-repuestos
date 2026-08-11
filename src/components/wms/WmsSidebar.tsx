@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useWmsStore } from '@/store/wms'
 import type { WmsPage } from '@/types/wms'
 import {
@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   AlertTriangle,
+  ClipboardCheck,
   Settings,
   ChevronLeft,
   Clock,
@@ -31,6 +32,28 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useQuery } from '@tanstack/react-query'
+
+const SETTINGS_KEY = 'wms-settings'
+const SETTINGS_EVENT = 'wms-settings-changed'
+
+function subscribeSettings(callback: () => void) {
+  window.addEventListener(SETTINGS_EVENT, callback)
+  return () => window.removeEventListener(SETTINGS_EVENT, callback)
+}
+
+const EMPTY_SETTINGS_SIDEBAR: Record<string, unknown> = {}
+
+function getSettingsSnapshot() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch { /* ignore */ }
+  return EMPTY_SETTINGS_SIDEBAR
+}
+
+function getSettingsServerSnapshot() {
+  return EMPTY_SETTINGS_SIDEBAR
+}
 
 interface NavItemConfig {
   id: WmsPage
@@ -61,6 +84,7 @@ const navSections: NavSection[] = [
       { id: 'sales', label: 'Ventas', icon: <ShoppingCart className="h-4 w-4" /> },
       { id: 'inventory', label: 'Inventario', icon: <Warehouse className="h-4 w-4" /> },
       { id: 'locations', label: 'Ubicaciones', icon: <MapPin className="h-4 w-4" /> },
+      { id: 'physicalInventory', label: 'Inventario Físico', icon: <ClipboardCheck className="h-4 w-4" /> },
     ],
   },
   {
@@ -93,6 +117,7 @@ const pageTitles: Record<WmsPage, string> = {
   movements: 'Movimientos',
   reports: 'Reportes',
   alerts: 'Alertas',
+  physicalInventory: 'Inventario Físico',
   settings: 'Configuración',
 }
 
@@ -124,8 +149,8 @@ function SidebarFooter() {
   return (
     <div className="shrink-0">
       {lastSale && (
-        <div className="px-4 py-2 border-t">
-          <p className="text-[10px] text-muted-foreground">Última Venta</p>
+        <div className="mx-3 mb-2 bg-muted/50 rounded-lg p-2.5 mt-2">
+          <p className="text-[10px] text-muted-foreground mb-1">Última Venta</p>
           <p className="text-xs font-medium truncate">{lastSale.folio} — {lastSale.cliente?.nombre}</p>
           <p className="text-[10px] text-muted-foreground">{formatCurrency(lastSale.total)}</p>
         </div>
@@ -141,6 +166,11 @@ function SidebarFooter() {
 export function WmsSidebar() {
   const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen } = useWmsStore()
   const [isMobile, setIsMobile] = useState(false)
+  const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
+  const warehouseName = (settings as any).warehouseName || 'WMS Repuestos'
+  const warehouseSubtitle = (settings as any).warehouseAddress
+    ? `${(settings as any).warehouseAddress}${(settings as any).warehousePhone ? ' · ' + (settings as any).warehousePhone : ''}`
+    : 'Refrigeración'
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024)
@@ -172,18 +202,21 @@ export function WmsSidebar() {
         <div className="px-4 py-4 border-b bg-gradient-to-br from-primary/5 via-transparent to-primary/[0.02]">
           <div className="flex items-center gap-2">
             <span className="text-2xl">📦</span>
-            <span className="font-bold text-lg">WMS Repuestos</span>
+            <span className="font-bold text-lg [text-shadow:0_1px_2px_rgba(0,0,0,0.1)]">{warehouseName}</span>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-0.5 tracking-wide">Refrigeración</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 tracking-wide truncate">{warehouseSubtitle}</p>
         </div>
 
         <ScrollArea className="flex-1 px-3 py-2">
           {navSections.map((section, si) => (
-            <div key={si} className="mb-2">
+            <div key={si} className={cn('mb-2', section.title === 'SISTEMA' && 'mt-2 pt-2 border-t')}>
               {section.title && (
                 <p className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
                   {section.title}
                 </p>
+              )}
+              {(section.title === 'CATÁLOGO' || section.title === 'OPERACIONES') && (
+                <div className="my-1 h-px bg-border/50" />
               )}
               {section.items.map((item) => {
                 const isActive = currentPage === item.id
@@ -192,10 +225,10 @@ export function WmsSidebar() {
                     key={item.id}
                     onClick={() => handleNav(item.id)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 mb-0.5 hover:scale-[1.02]',
+                      'w-full flex items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-200 mb-0.5 hover:scale-[1.02]',
                       isActive
-                        ? 'bg-primary text-primary-foreground border-l-[3px] border-l-primary-foreground/60'
-                        : 'hover:bg-accent text-foreground border-l-[3px] border-l-transparent'
+                        ? 'bg-primary/10 text-primary border-l-[3px] border-l-primary dark:bg-primary/15 rounded-r-lg'
+                        : 'hover:bg-accent text-foreground border-l-[3px] border-l-transparent rounded-lg'
                     )}
                   >
                     {item.icon}

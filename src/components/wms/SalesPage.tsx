@@ -24,6 +24,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from './lib/format'
+import { SortableHeader } from './lib/SortableHeader'
 
 interface SaleLine {
   idProducto: number
@@ -52,6 +53,10 @@ export function SalesPage() {
   const [lines, setLines] = useState<SaleLine[]>([])
   const [viewId, setViewId] = useState<number | null>(null)
   const [cancelId, setCancelId] = useState<number | null>(null)
+
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('fecha')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   const { data: clientes = [] } = useQuery({
     queryKey: ['clientes-sales'],
@@ -138,6 +143,30 @@ export function SalesPage() {
 
   const subtotal = lines.reduce((sum, l) => sum + l.precioUnitario * l.cantidad, 0)
 
+  // --- Sorting ---
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  function getSaleSortValue(v: any, field: string): any {
+    if (field === 'cliente') return v.cliente?.nombre ?? ''
+    return v[field]
+  }
+
+  const sortedVentas = [...ventas].sort((a: any, b: any) => {
+    let aVal: any = getSaleSortValue(a, sortField)
+    let bVal: any = getSaleSortValue(b, sortField)
+    if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = (bVal as string).toLowerCase() }
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+    return 0
+  })
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center">
@@ -158,16 +187,16 @@ export function SalesPage() {
       {/* Sales table */}
       <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs">Folio</TableHead>
-                  <TableHead className="text-xs">Fecha</TableHead>
-                  <TableHead className="text-xs">Cliente</TableHead>
+                  <SortableHeader field="folio" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Folio</SortableHeader>
+                  <SortableHeader field="fecha" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Fecha</SortableHeader>
+                  <SortableHeader field="cliente" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Cliente</SortableHeader>
                   <TableHead className="text-xs text-right hidden sm:table-cell">Subtotal</TableHead>
-                  <TableHead className="text-xs text-right">Total</TableHead>
-                  <TableHead className="text-xs text-center">Estado</TableHead>
+                  <SortableHeader field="total" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Total</SortableHeader>
+                  <SortableHeader field="estado" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Estado</SortableHeader>
                   <TableHead className="text-xs text-right">Detalle</TableHead>
                 </TableRow>
               </TableHeader>
@@ -175,10 +204,14 @@ export function SalesPage() {
                 {isLoading && Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
                 ))}
-                {!isLoading && ventas.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Sin ventas registradas</TableCell></TableRow>
+                {!isLoading && sortedVentas.length === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center py-12">
+                    <ShoppingCart className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-muted-foreground text-sm">No hay ventas registradas</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">Registra tu primera venta desde el botón "Nueva Venta"</p>
+                  </TableCell></TableRow>
                 )}
-                {!isLoading && ventas.map((v: any) => (
+                {!isLoading && sortedVentas.map((v: any) => (
                   <TableRow key={v.id} className="hover:bg-muted/50">
                     <TableCell className="text-xs font-mono py-2">{v.folio}</TableCell>
                     <TableCell className="text-xs py-2">{formatDate(v.fecha)}</TableCell>
@@ -202,10 +235,10 @@ export function SalesPage() {
       {/* Create sale dialog */}
       <Dialog open={showCreate} onOpenChange={(open) => { if (!open) { setShowCreate(false); setLines([]); setSelectedCliente('') } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Nueva Venta</DialogTitle><DialogDescription className="sr-only">Formulario para registrar una nueva venta</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>Nueva Venta</DialogTitle><DialogDescription className="sr-only">Formulario para registrar una nueva venta</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Cliente *</Label>
+              <Label className="text-sm font-medium">Cliente *</Label>
               <Select value={selectedCliente} onValueChange={setSelectedCliente}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
                 <SelectContent>
@@ -271,7 +304,7 @@ export function SalesPage() {
       {/* View sale detail dialog */}
       <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Detalle de Venta</DialogTitle><DialogDescription className="sr-only">Detalle de la venta seleccionada</DialogDescription></DialogHeader>
+          <DialogHeader className="dialog-header-accent"><DialogTitle>Detalle de Venta</DialogTitle><DialogDescription className="sr-only">Detalle de la venta seleccionada</DialogDescription></DialogHeader>
           {viewVenta && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">

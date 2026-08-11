@@ -1,21 +1,24 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    sevenDaysAgo.setHours(0, 0, 0, 0)
+    const { searchParams } = new URL(request.url)
+    const days = parseInt(searchParams.get('days') ?? '7', 10)
+
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+    startDate.setHours(0, 0, 0, 0)
 
     const sales = await db.venta.findMany({
-      where: { fecha: { gte: sevenDaysAgo } },
+      where: { fecha: { gte: startDate } },
       include: { detalles: { include: { producto: { select: { id: true, nombre: true, precioVenta: true } } } } },
       orderBy: { fecha: 'asc' },
     })
 
     // Group by day
     const dayMap = new Map<string, { date: string; total: number; count: number }>()
-    for (let i = 6; i >= 0; i--) {
+    for (let i = days - 1; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       const key = d.toISOString().split('T')[0]
