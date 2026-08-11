@@ -16,12 +16,13 @@ import {
   BarChart3,
   AlertTriangle,
   ChevronLeft,
+  Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
+import { formatCurrency } from './lib/format'
 import {
   Sheet,
   SheetContent,
@@ -91,6 +92,46 @@ const pageTitles: Record<WmsPage, string> = {
 
 export { pageTitles }
 
+function SidebarFooter() {
+  const [time, setTime] = useState('')
+
+  const { data: lastSale } = useQuery({
+    queryKey: ['last-sale'],
+    queryFn: () => fetch('/api/wms/ventas?limit=1').then(r => r.json()).then((data: any[]) => data[0] || null),
+    refetchInterval: 60000,
+  })
+
+  useEffect(() => {
+    function tick() {
+      const now = new Date()
+      setTime(
+        now.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) +
+        ' · ' +
+        now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+      )
+    }
+    tick()
+    const id = setInterval(tick, 30000)
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <div className="shrink-0">
+      {lastSale && (
+        <div className="px-4 py-2 border-t">
+          <p className="text-[10px] text-muted-foreground">Última Venta</p>
+          <p className="text-xs font-medium truncate">{lastSale.folio} — {lastSale.cliente?.nombre}</p>
+          <p className="text-[10px] text-muted-foreground">{formatCurrency(lastSale.total)}</p>
+        </div>
+      )}
+      <div className="border-t px-4 py-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <Clock className="h-3.5 w-3.5" />
+        <span>{time}</span>
+      </div>
+    </div>
+  )
+}
+
 export function WmsSidebar() {
   const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen } = useWmsStore()
   const [isMobile, setIsMobile] = useState(false)
@@ -121,19 +162,22 @@ export function WmsSidebar() {
   function renderNav() {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-2 px-4 py-4 border-b">
-          <span className="text-2xl">📦</span>
-          <span className="font-bold text-lg">WMS Repuestos</span>
+        {/* Header with gradient accent */}
+        <div className="px-4 py-4 border-b bg-gradient-to-br from-primary/5 via-transparent to-primary/[0.02]">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">📦</span>
+            <span className="font-bold text-lg">WMS Repuestos</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-0.5 tracking-wide">Refrigeración</p>
         </div>
+
         <ScrollArea className="flex-1 px-3 py-2">
           {navSections.map((section, si) => (
             <div key={si} className="mb-2">
               {section.title && (
-                <>
-                  <p className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-                    {section.title}
-                  </p>
-                </>
+                <p className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
+                  {section.title}
+                </p>
               )}
               {section.items.map((item) => {
                 const isActive = currentPage === item.id
@@ -142,10 +186,10 @@ export function WmsSidebar() {
                     key={item.id}
                     onClick={() => handleNav(item.id)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-0.5',
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 mb-0.5',
                       isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'hover:bg-accent text-foreground'
+                        ? 'bg-primary text-primary-foreground border-l-[3px] border-l-primary-foreground/60'
+                        : 'hover:bg-accent text-foreground border-l-[3px] border-l-transparent'
                     )}
                   >
                     {item.icon}
@@ -164,6 +208,8 @@ export function WmsSidebar() {
             </div>
           ))}
         </ScrollArea>
+
+        <SidebarFooter />
       </div>
     )
   }

@@ -11,13 +11,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const locationSchema = z.object({
   pasillo: z.string().min(1, 'Pasillo requerido'),
@@ -43,6 +44,14 @@ interface StockEntry {
   ubicacion: Ubicacion
 }
 
+// Get max stock in a pasillo for bar width calculation
+function getMaxStockInPasillo(locations: Ubicacion[], stockMap: Map<number, number>, pasillo: string): number {
+  const stocks = locations
+    .filter((u) => u.pasillo === pasillo)
+    .map((u) => stockMap.get(u.id) ?? 0)
+  return Math.max(...stocks, 1)
+}
+
 export function LocationsPage() {
   const queryClient = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -60,7 +69,7 @@ export function LocationsPage() {
 
   const { data: locationStock = [] } = useQuery<StockEntry[]>({
     queryKey: ['location-stock', selectedLocation?.id],
-    queryFn: () => fetch(`/api/wms/stock?idProducto=`).then((r) => r.json()).then((items: StockEntry[]) =>
+    queryFn: () => fetch('/api/wms/stock?idProducto=').then((r) => r.json()).then((items: StockEntry[]) =>
       items.filter((s) => s.idUbicacion === selectedLocation!.id)
     ),
     enabled: !!selectedLocation,
@@ -89,8 +98,18 @@ export function LocationsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-muted-foreground">{ubicaciones.length} ubicaciones registradas</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-muted-foreground">{ubicaciones.length} ubicaciones registradas</p>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Con stock
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/20 border border-muted-foreground/30" /> Sin stock
+            </span>
+          </div>
+        </div>
         <Button onClick={() => { form.reset(); setShowCreate(true) }}>
           <Plus className="h-4 w-4 mr-1" /> Nueva Ubicación
         </Button>
@@ -98,35 +117,65 @@ export function LocationsPage() {
 
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-          {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+          {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
         </div>
       ) : (
         <div className="space-y-6">
-          {pasillos.map((pasillo) => (
-            <Card key={pasillo} className="rounded-xl shadow-sm">
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Pasillo {pasillo}</CardTitle></CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {estantes(pasillo).map((estante) => (
-                    niveles(pasillo, estante).map((loc) => {
-                      const qty = stockMap.get(loc.id) ?? 0
-                      const hasStock = qty > 0
-                      return (
-                        <button
-                          key={loc.id}
-                          onClick={() => setSelectedLocation(loc)}
-                          className={`rounded-lg border p-3 text-center transition-colors hover:ring-2 hover:ring-primary ${hasStock ? 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800' : 'bg-muted border-muted-foreground/10'}`}
-                        >
-                          <p className="text-xs font-semibold">{loc.estante}-{loc.nivel}</p>
-                          <p className={`text-lg font-bold ${hasStock ? 'text-green-700 dark:text-green-300' : 'text-muted-foreground'}`}>{qty}</p>
-                        </button>
-                      )
-                    })
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {pasillos.map((pasillo) => {
+            const maxStock = getMaxStockInPasillo(ubicaciones, stockMap, pasillo)
+            return (
+              <Card key={pasillo} className="rounded-xl shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <span className="h-6 w-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{pasillo}</span>
+                    Pasillo {pasillo}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {estantes(pasillo).map((estante) => (
+                      niveles(pasillo, estante).map((loc) => {
+                        const qty = stockMap.get(loc.id) ?? 0
+                        const hasStock = qty > 0
+                        const barWidth = maxStock > 0 ? (qty / maxStock) * 100 : 0
+                        return (
+                          <button
+                            key={loc.id}
+                            onClick={() => setSelectedLocation(loc)}
+                            className={cn(
+                              'rounded-lg border p-3 text-left transition-all duration-150 hover:ring-2 hover:ring-primary/50 hover:scale-[1.02]',
+                              hasStock
+                                ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/50 dark:border-emerald-800'
+                                : 'bg-muted/50 border-border'
+                            )}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[11px] font-semibold text-foreground">{loc.pasillo}-{loc.estante}-{loc.nivel}</p>
+                              <span className={cn(
+                                'text-[11px] font-bold font-mono',
+                                hasStock ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'
+                              )}>
+                                {qty}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-foreground/5 overflow-hidden">
+                              <div
+                                className={cn(
+                                  'h-full rounded-full transition-all duration-300',
+                                  hasStock ? 'bg-emerald-500' : 'bg-muted-foreground/15'
+                                )}
+                                style={{ width: `${barWidth}%` }}
+                              />
+                            </div>
+                          </button>
+                        )
+                      })
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
           {pasillos.length === 0 && (
             <Card className="rounded-xl shadow-sm"><CardContent className="py-8 text-center text-muted-foreground">No hay ubicaciones registradas</CardContent></Card>
           )}
@@ -138,6 +187,7 @@ export function LocationsPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Stock en Ubicación</DialogTitle>
+            <DialogDescription className="sr-only">Productos almacenados en la ubicación seleccionada</DialogDescription>
           </DialogHeader>
           {selectedLocation && (
             <div className="space-y-3">
@@ -173,7 +223,7 @@ export function LocationsPage() {
       {/* Create dialog */}
       <Dialog open={showCreate} onOpenChange={(open) => { if (!open) setShowCreate(false) }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Nueva Ubicación</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Nueva Ubicación</DialogTitle><DialogDescription className="sr-only">Formulario para crear una nueva ubicación de almacenamiento</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values) => createMutation.mutate(values))} className="space-y-4">
             <div className="space-y-2"><Label>Pasillo *</Label><Input {...form.register('pasillo')} placeholder="Ej: A" />{form.formState.errors.pasillo && <p className="text-xs text-destructive">{form.formState.errors.pasillo.message}</p>}</div>
             <div className="space-y-2"><Label>Estante *</Label><Input {...form.register('estante')} placeholder="Ej: 1" />{form.formState.errors.estante && <p className="text-xs text-destructive">{form.formState.errors.estante.message}</p>}</div>

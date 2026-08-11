@@ -15,7 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Trash2, ShoppingCart, Eye } from 'lucide-react'
@@ -31,6 +31,16 @@ interface SaleLine {
 
 export function SalesPage() {
   const queryClient = useQueryClient()
+
+  const { data: salesSummary } = useQuery({
+    queryKey: ['sales-summary'],
+    queryFn: () => fetch('/api/wms/dashboard').then(r => r.json()).then(d => ({
+      hoy: d.ventasHoy,
+      semana: d.ventasSemana,
+      mes: d.ventasMes,
+    })),
+  })
+
   const [showCreate, setShowCreate] = useState(false)
   const [selectedCliente, setSelectedCliente] = useState('')
   const [selectedProduct, setSelectedProduct] = useState('')
@@ -106,10 +116,15 @@ export function SalesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap gap-3 items-center">
         <Button onClick={() => setShowCreate(true)}>
-          <ShoppingCart className="h-4 w-4 mr-1" /> Nueva Venta
+          <Plus className="h-4 w-4 mr-1" /> Nueva Venta
         </Button>
+        <div className="flex gap-2 ml-auto">
+          <Badge variant="outline" className="text-xs">Hoy: {formatCurrency(salesSummary?.hoy?.total ?? 0)} ({salesSummary?.hoy?.count ?? 0})</Badge>
+          <Badge variant="outline" className="text-xs">Semana: {formatCurrency(salesSummary?.semana?.total ?? 0)}</Badge>
+          <Badge variant="outline" className="text-xs">Mes: {formatCurrency(salesSummary?.mes?.total ?? 0)}</Badge>
+        </div>
       </div>
 
       {/* Sales table */}
@@ -159,7 +174,7 @@ export function SalesPage() {
       {/* Create sale dialog */}
       <Dialog open={showCreate} onOpenChange={(open) => { if (!open) { setShowCreate(false); setLines([]); setSelectedCliente('') } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Nueva Venta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Nueva Venta</DialogTitle><DialogDescription className="sr-only">Formulario para registrar una nueva venta</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Cliente *</Label>
@@ -228,7 +243,7 @@ export function SalesPage() {
       {/* View sale detail dialog */}
       <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Detalle de Venta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Detalle de Venta</DialogTitle><DialogDescription className="sr-only">Detalle de la venta seleccionada</DialogDescription></DialogHeader>
           {viewVenta && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">

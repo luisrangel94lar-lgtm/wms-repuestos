@@ -20,7 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Download } from 'lucide-react'
-import { formatDate, formatCurrency, tipoMovColors } from './lib/format'
+import { formatDateTime, formatCurrency, tipoMovColors } from './lib/format'
 
 const receivingSchema = z.object({
   idProducto: z.coerce.number().min(1, 'Producto requerido'),
@@ -55,10 +55,7 @@ export function ReceivingPage() {
 
   const { data: recentEntries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ['recent-entries'],
-    queryFn: () =>
-      fetch('/api/wms/movimientos').then((r) => r.json()).then((items: any[]) =>
-        items.filter((m) => m.tipoMovimiento?.nombre === 'ENTRADA').slice(0, 20)
-      ),
+    queryFn: () => fetch('/api/wms/movimientos?idTipo=1&limit=10').then(r => r.json()),
   })
 
   const form = useForm<ReceivingFormData>({
@@ -154,8 +151,8 @@ export function ReceivingPage() {
       </Card>
 
       {/* Recent entries */}
-      <Card className="rounded-xl shadow-sm">
-        <CardHeader className="pb-2"><CardTitle className="text-base">Entradas Recientes</CardTitle></CardHeader>
+      <Card className="rounded-xl shadow-sm mt-6">
+        <CardHeader className="pb-2"><CardTitle className="text-base">Recepciones Recientes</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -176,9 +173,9 @@ export function ReceivingPage() {
               )}
               {!entriesLoading && recentEntries.map((m: any) => (
                 <TableRow key={m.id} className="hover:bg-muted/50">
-                  <TableCell className="text-xs py-2">{formatDate(m.fecha)}</TableCell>
+                  <TableCell className="text-xs py-2">{formatDateTime(m.fecha)}</TableCell>
                   <TableCell className="text-xs py-2 font-medium">{m.producto?.nombre?.substring(0, 30)}</TableCell>
-                  <TableCell className="text-xs text-center font-mono py-2">+{m.cantidad}</TableCell>
+                  <TableCell className="text-xs py-2 text-center font-mono">{m.cantidad}</TableCell>
                   <TableCell className="text-xs py-2">{m.ubicacion ? `${m.ubicacion.pasillo}-${m.ubicacion.estante}-${m.ubicacion.nivel}` : '-'}</TableCell>
                   <TableCell className="text-xs py-2 text-muted-foreground">{m.referencia ?? '-'}</TableCell>
                 </TableRow>

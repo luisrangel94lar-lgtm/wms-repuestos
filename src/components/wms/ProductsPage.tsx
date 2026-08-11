@@ -30,6 +30,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -397,6 +398,7 @@ export function ProductsPage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editId ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
+            <DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del producto' : 'Formulario para crear un nuevo producto'}</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={form.handleSubmit((values: any) => {
@@ -486,6 +488,7 @@ export function ProductsPage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalle del Producto</DialogTitle>
+            <DialogDescription className="sr-only">Información detallada del producto seleccionado</DialogDescription>
           </DialogHeader>
           {viewProduct && (
             <div className="space-y-4">

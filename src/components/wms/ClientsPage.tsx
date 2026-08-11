@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -152,7 +152,7 @@ export function ClientsPage() {
       {/* Create/Edit Dialog */}
       <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editId ? 'Editar Cliente' : 'Nuevo Cliente'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editId ? 'Editar Cliente' : 'Nuevo Cliente'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del cliente' : 'Formulario para crear un nuevo cliente'}</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
             <div className="space-y-2"><Label>Nombre *</Label><Input {...form.register('nombre')} />{form.formState.errors.nombre && <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>}</div>
             <div className="space-y-2"><Label>Teléfono</Label><Input {...form.register('telefono')} /></div>
@@ -179,7 +179,7 @@ export function ClientsPage() {
       {/* View detail dialog */}
       <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Historial del Cliente</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Historial del Cliente</DialogTitle><DialogDescription className="sr-only">Historial de compras del cliente seleccionado</DialogDescription></DialogHeader>
           {viewCliente && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-sm">

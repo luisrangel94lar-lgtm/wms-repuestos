@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -18,7 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Search, ChevronDown, ChevronRight, Pencil, Trash2, Link as LinkIcon } from 'lucide-react'
+import { useWmsStore } from '@/store/wms'
 
 const equipoSchema = z.object({
   idMarca: z.coerce.number().min(1, 'Marca requerida'),
@@ -45,6 +46,7 @@ interface Equipo {
 
 export function EquipmentPage() {
   const queryClient = useQueryClient()
+  const { setCurrentPage } = useWmsStore()
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -76,11 +78,7 @@ export function EquipmentPage() {
 
   const { data: marcas = [] } = useQuery({
     queryKey: ['marcas-list'],
-    queryFn: async () => {
-      const res = await fetch('/api/wms/productos?pageSize=1')
-      const data = await res.json()
-      return []
-    },
+    queryFn: () => fetch('/api/wms/marcas').then((r) => r.json()),
   })
 
   const form = useForm<EquipoFormData>({ resolver: zodResolver(equipoSchema) as any, defaultValues: { idMarca: 0, modelo: '', tipoEquipo: '' } })
@@ -169,8 +167,8 @@ export function EquipmentPage() {
               {!isLoading && equipos.map((eq) => {
                 const isExpanded = expandedId === eq.id
                 return (
-                  <>
-                    <TableRow key={eq.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : eq.id)}>
+                  <Fragment key={eq.id}>
+                    <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : eq.id)}>
                       <TableCell className="py-2 w-8">{isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</TableCell>
                       <TableCell className="text-xs font-medium py-2">{eq.modelo}</TableCell>
                       <TableCell className="text-xs py-2">{eq.marca?.nombre}</TableCell>
@@ -189,14 +187,20 @@ export function EquipmentPage() {
                       </TableCell>
                     </TableRow>
                     {isExpanded && expandedEquipo && (
-                      <TableRow key={`${eq.id}-detail`}>
+                      <TableRow>
                         <TableCell colSpan={6} className="bg-muted/30 px-8 py-3">
                           <p className="text-xs font-semibold mb-2">Repuestos compatibles:</p>
                           {expandedEquipo.productoEquipo && expandedEquipo.productoEquipo.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
                               {expandedEquipo.productoEquipo.map((pe: any) => (
                                 <div key={pe.idProducto} className="flex items-center gap-1">
-                                  <Badge variant="secondary" className="text-[10px]">{pe.producto?.sku} - {pe.producto?.nombre}</Badge>
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="text-[10px] cursor-pointer hover:bg-secondary/80" 
+                                    onClick={() => { setCurrentPage('products') }}
+                                  >
+                                    {pe.producto?.sku} - {pe.producto?.nombre}
+                                  </Badge>
                                   <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" onClick={() => setLinkDialog({ equipoId: eq.id, mode: 'unlink' })}>
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
@@ -209,7 +213,7 @@ export function EquipmentPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 )
               })}
             </TableBody>
@@ -220,11 +224,18 @@ export function EquipmentPage() {
       {/* Create/Edit Dialog */}
       <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del equipo' : 'Formulario para crear un nuevo equipo'}</DialogDescription></DialogHeader>
           <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
             <div className="space-y-2">
               <Label>Marca *</Label>
-              <Input {...form.register('idMarca', { valueAsNumber: true })} type="number" placeholder="ID de marca" />
+              <Select value={form.watch('idMarca') ? String(form.watch('idMarca')) : ''} onValueChange={(v) => form.setValue('idMarca', Number(v))}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar marca" /></SelectTrigger>
+                <SelectContent>
+                  {marcas.map((m: any) => (
+                    <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {form.formState.errors.idMarca && <p className="text-xs text-destructive">{form.formState.errors.idMarca.message}</p>}
             </div>
             <div className="space-y-2">
@@ -247,12 +258,19 @@ export function EquipmentPage() {
       {/* Link Product Dialog */}
       <Dialog open={!!linkDialog} onOpenChange={(open) => { if (!open) setLinkDialog(null) }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{linkDialog?.mode === 'link' ? 'Vincular Repuesto' : 'Desvincular Repuesto'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{linkDialog?.mode === 'link' ? 'Vincular Repuesto' : 'Desvincular Repuesto'}</DialogTitle><DialogDescription className="sr-only">{linkDialog?.mode === 'link' ? 'Selecciona un producto para vincular como repuesto compatible' : 'Selecciona un producto para desvincular como repuesto compatible'}</DialogDescription></DialogHeader>
           {linkDialog?.mode === 'link' ? (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>ID del Producto</Label>
-                <Input type="number" value={linkProductId} onChange={(e) => setLinkProductId(e.target.value)} placeholder="ID del producto a vincular" />
+                <Label>Producto</Label>
+                <Select value={linkProductId} onValueChange={setLinkProductId}>
+                  <SelectTrigger><SelectValue placeholder="Buscar producto..." /></SelectTrigger>
+                  <SelectContent>
+                    {allProducts.map((p: any) => (
+                      <SelectItem key={p.id} value={String(p.id)}>{p.sku} - {p.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setLinkDialog(null)}>Cancelar</Button>
@@ -264,8 +282,15 @@ export function EquipmentPage() {
           ) : (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>ID del Producto a desvincular</Label>
-                <Input type="number" value={linkProductId} onChange={(e) => setLinkProductId(e.target.value)} placeholder="ID del producto" />
+                <Label>Producto a desvincular</Label>
+                <Select value={linkProductId} onValueChange={setLinkProductId}>
+                  <SelectTrigger><SelectValue placeholder="Buscar producto..." /></SelectTrigger>
+                  <SelectContent>
+                    {allProducts.map((p: any) => (
+                      <SelectItem key={p.id} value={String(p.id)}>{p.sku} - {p.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setLinkDialog(null)}>Cancelar</Button>

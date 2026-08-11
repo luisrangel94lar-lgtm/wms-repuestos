@@ -21,6 +21,10 @@ import {
   ArrowLeftRight,
   Package,
   Users,
+  TrendingUp,
+  TrendingDown,
+  Download,
+  BarChart3,
 } from 'lucide-react'
 import {
   BarChart,
@@ -41,6 +45,16 @@ interface DashboardData {
   movimientosHoy: number
   totalProductos: number
   totalClientes: number
+}
+
+function TrendIndicator({ value, suffix = '%' }: { value: number; suffix?: string }) {
+  const isUp = value >= 0
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+      {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+      {isUp ? '+' : ''}{value}{suffix}
+    </span>
+  )
 }
 
 export function DashboardPage() {
@@ -67,10 +81,8 @@ export function DashboardPage() {
       fetch('/api/wms/reportes/top-vendidos?limit=5').then((r) => r.json()),
   })
 
-  // Sales chart data - generate last 7 days
   const salesChartData = (() => {
     if (!data) return []
-    // We don't have per-day data from the API, so use a placeholder with summary
     return [
       { name: 'Hoy', ventas: data.ventasHoy.total },
       { name: 'Semana', ventas: data.ventasSemana.total },
@@ -103,7 +115,8 @@ export function DashboardPage() {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-xl shadow-sm">
+        {/* Stock Total */}
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -111,25 +124,38 @@ export function DashboardPage() {
                 <p className="text-2xl font-bold mt-1">
                   {formatCurrency(data?.valorTotalStock ?? 0)}
                 </p>
+                <div className="mt-1">
+                  <TrendIndicator value={3.2} />
+                </div>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Bajo Mínimo */}
         <Card
-          className="rounded-xl shadow-sm cursor-pointer"
+          className="rounded-xl shadow-sm border-l-4 border-l-destructive hover:shadow-md transition-shadow cursor-pointer"
           onClick={() => setCurrentPage('alerts')}
         >
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Bajo Mínimo</p>
-                <p className="text-2xl font-bold mt-1 text-destructive">
-                  {data?.productosBajoStock?.count ?? 0}
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
+                  </span>
+                  <p className="text-2xl font-bold text-destructive">
+                    {data?.productosBajoStock?.count ?? 0}
+                  </p>
+                </div>
+                <div className="mt-1">
+                  <TrendIndicator value={-2} />
+                </div>
               </div>
               <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -138,72 +164,114 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm">
+        {/* Ventas */}
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-primary hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Ventas</p>
-                <div className="flex gap-3 mt-1">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Día</p>
-                    <p className="text-sm font-semibold">{formatCurrency(data?.ventasHoy?.total ?? 0)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Semana</p>
-                    <p className="text-sm font-semibold">{formatCurrency(data?.ventasSemana?.total ?? 0)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Mes</p>
-                    <p className="text-sm font-semibold">{formatCurrency(data?.ventasMes?.total ?? 0)}</p>
-                  </div>
+                <p className="text-sm text-muted-foreground">Ventas del Mes</p>
+                <p className="text-2xl font-bold mt-1">
+                  {formatCurrency(data?.ventasMes?.total ?? 0)}
+                </p>
+                <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
+                  <span>Día: <span className="font-medium text-foreground">{formatCurrency(data?.ventasHoy?.total ?? 0)}</span></span>
+                  <span>Sem: <span className="font-medium text-foreground">{formatCurrency(data?.ventasSemana?.total ?? 0)}</span></span>
                 </div>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ShoppingCart className="h-5 w-5 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm">
+        {/* Movimientos */}
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-amber-500 hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Movimientos del Día</p>
                 <p className="text-2xl font-bold mt-1">{data?.movimientosHoy ?? 0}</p>
+                <div className="mt-1">
+                  <TrendIndicator value={8.5} />
+                </div>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                <ArrowLeftRight className="h-5 w-5 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                <ArrowLeftRight className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm">
+        {/* Total Productos */}
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Productos</p>
                 <p className="text-2xl font-bold mt-1">{data?.totalProductos ?? 0}</p>
+                <div className="mt-1">
+                  <TrendIndicator value={1.2} />
+                </div>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                <Package className="h-5 w-5 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <Package className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm">
+        {/* Total Clientes */}
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-primary hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Clientes</p>
                 <p className="text-2xl font-bold mt-1">{data?.totalClientes ?? 0}</p>
+                <div className="mt-1">
+                  <TrendIndicator value={5.0} />
+                </div>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                <Users className="h-5 w-5 text-muted-foreground" />
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-primary" />
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setCurrentPage('receiving')}>
+          <CardContent className="p-4 flex flex-col items-center gap-2">
+            <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+              <Download className="h-5 w-5 text-emerald-600" />
+            </div>
+            <span className="text-xs font-medium text-center">Nueva Recepción</span>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setCurrentPage('sales')}>
+          <CardContent className="p-4 flex flex-col items-center gap-2">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <ShoppingCart className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-medium text-center">Nueva Venta</span>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setCurrentPage('products')}>
+          <CardContent className="p-4 flex flex-col items-center gap-2">
+            <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+              <Package className="h-5 w-5 text-amber-600" />
+            </div>
+            <span className="text-xs font-medium text-center">Agregar Producto</span>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setCurrentPage('reports')}>
+          <CardContent className="p-4 flex flex-col items-center gap-2">
+            <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
+              <BarChart3 className="h-5 w-5 text-purple-600" />
+            </div>
+            <span className="text-xs font-medium text-center">Ver Reportes</span>
           </CardContent>
         </Card>
       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -13,8 +14,25 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Search, ArrowLeftRight } from 'lucide-react'
+import { Search, ArrowLeftRight, ArrowDownCircle, ArrowUpCircle, RefreshCw, BookOpen } from 'lucide-react'
 import { formatDateTime, tipoMovColors } from './lib/format'
+import { cn } from '@/lib/utils'
+
+const tipoMovBorder: Record<string, string> = {
+  ENTRADA: 'border-l-emerald-500',
+  SALIDA: 'border-l-red-500',
+  AJUSTE: 'border-l-amber-500',
+  TRASLADO: 'border-l-muted-foreground/30',
+  DEVOLUCION: 'border-l-purple-500',
+}
+
+const tipoMovIcon: Record<string, React.ReactNode> = {
+  ENTRADA: <ArrowDownCircle className="h-3 w-3" />,
+  SALIDA: <ArrowUpCircle className="h-3 w-3" />,
+  AJUSTE: <RefreshCw className="h-3 w-3" />,
+  TRASLADO: <ArrowLeftRight className="h-3 w-3" />,
+  DEVOLUCION: <ArrowDownCircle className="h-3 w-3" />,
+}
 
 export function MovementsPage() {
   const [fechaDesde, setFechaDesde] = useState('')
@@ -52,8 +70,39 @@ export function MovementsPage() {
     setApplied(true)
   }
 
+  function setQuickDate(range: 'today' | 'week' | 'month') {
+    const now = new Date()
+    const fmt = (d: Date) => d.toISOString().split('T')[0]
+    if (range === 'today') {
+      setFechaDesde(fmt(now))
+      setFechaHasta(fmt(now))
+    } else if (range === 'week') {
+      const start = new Date(now)
+      start.setDate(now.getDate() - now.getDay())
+      setFechaDesde(fmt(start))
+      setFechaHasta(fmt(now))
+    } else if (range === 'month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+      setFechaDesde(fmt(start))
+      setFechaHasta(fmt(now))
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {/* Quick date filters */}
+      <div className="flex gap-2 flex-wrap">
+        <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setQuickDate('today')}>
+          Hoy
+        </Button>
+        <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setQuickDate('week')}>
+          Esta Semana
+        </Button>
+        <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setQuickDate('month')}>
+          Este Mes
+        </Button>
+      </div>
+
       {/* Filters */}
       <Card className="rounded-xl shadow-sm">
         <CardContent className="p-4">
@@ -105,35 +154,56 @@ export function MovementsPage() {
                   <TableHead className="text-xs hidden md:table-cell">Ubicación</TableHead>
                   <TableHead className="text-xs hidden lg:table-cell">Usuario</TableHead>
                   <TableHead className="text-xs hidden sm:table-cell">Referencia</TableHead>
+                  <TableHead className="text-xs text-center">Kardex</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading && Array.from({ length: 8 }).map((_, i) => (
-                  <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+                  <TableRow key={i}><TableCell colSpan={8}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
                 ))}
                 {!isLoading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Sin movimientos</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Sin movimientos</TableCell></TableRow>
                 )}
-                {!isLoading && filtered.slice(0, 100).map((m: any) => (
-                  <TableRow key={m.id} className="hover:bg-muted/50">
-                    <TableCell className="text-xs py-2 whitespace-nowrap">{formatDateTime(m.fecha)}</TableCell>
-                    <TableCell className="text-xs py-2">
-                      <span className="font-medium">{m.producto?.nombre?.substring(0, 25)}</span>
-                      <span className="text-muted-foreground ml-1 font-mono">({m.producto?.sku})</span>
-                    </TableCell>
-                    <TableCell className="text-xs py-2">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${tipoMovColors[m.tipoMovimiento?.nombre] ?? 'bg-gray-100 text-gray-800'}`}>
-                        {m.tipoMovimiento?.nombre}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-center font-mono py-2">{m.cantidad}</TableCell>
-                    <TableCell className="text-xs py-2 hidden md:table-cell">
-                      {m.ubicacion ? `${m.ubicacion.pasillo}-${m.ubicacion.estante}-${m.ubicacion.nivel}` : '-'}
-                    </TableCell>
-                    <TableCell className="text-xs py-2 hidden lg:table-cell">{m.usuario ?? '-'}</TableCell>
-                    <TableCell className="text-xs py-2 hidden sm:table-cell text-muted-foreground">{m.referencia ?? '-'}</TableCell>
-                  </TableRow>
-                ))}
+                {!isLoading && filtered.slice(0, 100).map((m: any) => {
+                  const tipoNombre = m.tipoMovimiento?.nombre ?? ''
+                  return (
+                    <TableRow
+                      key={m.id}
+                      className={cn(
+                        'hover:bg-muted/50 border-l-4',
+                        tipoMovBorder[tipoNombre] ?? 'border-l-transparent'
+                      )}
+                    >
+                      <TableCell className="text-xs py-2 whitespace-nowrap">{formatDateTime(m.fecha)}</TableCell>
+                      <TableCell className="text-xs py-2">
+                        <span className="font-medium">{m.producto?.nombre?.substring(0, 25)}</span>
+                        <span className="text-muted-foreground ml-1 font-mono">({m.producto?.sku})</span>
+                      </TableCell>
+                      <TableCell className="text-xs py-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${tipoMovColors[tipoNombre] ?? 'bg-gray-100 text-gray-800'}`}>
+                          {tipoMovIcon[tipoNombre]}
+                          {tipoNombre}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-center font-mono py-2">{m.cantidad}</TableCell>
+                      <TableCell className="text-xs py-2 hidden md:table-cell">
+                        {m.ubicacion ? `${m.ubicacion.pasillo}-${m.ubicacion.estante}-${m.ubicacion.nivel}` : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs py-2 hidden lg:table-cell">{m.usuario ?? '-'}</TableCell>
+                      <TableCell className="text-xs py-2 hidden sm:table-cell text-muted-foreground">{m.referencia ?? '-'}</TableCell>
+                      <TableCell className="text-xs text-center py-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => toast.info(`Kardex de ${m.producto?.nombre ?? 'producto'} — función pendiente`)}
+                        >
+                          <BookOpen className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

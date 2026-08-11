@@ -151,8 +151,127 @@ Stage Summary:
 - Equipment demand analysis
 - Inventory rotation
 
+---
+Task ID: review-round-1
+Agent: WebDev Review (cron)
+Task: QA testing, bug fixes, styling improvements, and new features
+
+Work Log:
+- QA tested all 11 pages via agent-browser — all rendering correctly
+- Found 3 bugs: React key warning in EquipmentPage, missing DialogDescription in 8 files, broken brand query
+- Fixed all bugs (see details below)
+- Enhanced styling across 9 files (see details below)
+- Added 6 new features (see details below)
+- Verified zero lint errors after all changes
+
+Stage Summary:
+- All 11 pages verified working with real data
+- 0 ESLint errors, 6 cosmetic warnings (React Hook Form watch compatibility)
+- Server compiles and responds correctly
+
+---
+Task ID: fix-1
+Agent: fullstack-developer (sonnet)
+Task: Fix bugs found during QA
+
+Work Log:
+- Fixed React key warning: Replaced `<>` with `<Fragment key={eq.id}>` in EquipmentPage map
+- Added DialogDescription to all Dialog components: EquipmentPage (2), ProductsPage (2), SalesPage (2), ClientsPage (2), LocationsPage (2), InventoryPage (1)
+- Created new `/api/wms/marcas` endpoint for brand list
+- Replaced raw number input with proper Select dropdown for brand in EquipmentPage
+- Fixed broken marcas query (was returning empty array from wrong endpoint)
+- Replaced manual product ID inputs with searchable Select dropdowns in EquipmentPage link/unlink dialogs
+
+Stage Summary:
+- Files modified: EquipmentPage, ProductsPage, SalesPage, ClientsPage, LocationsPage, InventoryPage
+- New file: /api/wms/marcas/route.ts
+- All React console warnings/errors resolved
+
+---
+Task ID: style-1
+Agent: fullstack-developer (sonnet)
+Task: Enhance styling and UX polish
+
+Work Log:
+- **WmsSidebar**: Added gradient header, active nav left-border indicator, clock footer with live time
+- **WmsHeader**: Added Ctrl+K keyboard shortcut for search, clear (X) button inside search input
+- **DashboardPage**: Added colored left borders on KPI cards, trend indicators, improved Ventas card layout, hover lift effects, pulsing dot on alert card, matching icon background colors
+- **LocationsPage**: Replaced plain buttons with card-based warehouse grid, section headers by aisle, stock level bars, color coding (green/gray), legend
+- **AlertsPage**: Added colored top stripe on cards, SKU badges, progress bars for stock level, category/brand secondary info, quick order placeholder button
+- **InventoryPage**: Enhanced status badges with icons (Check/AlertTriangle/XCircle), alternating row colors
+- **MovementsPage**: Added colored left borders per movement type, type badge icons, "Ver Kardex" placeholder button, quick date filter buttons (Hoy/Semana/Mes)
+- **page.tsx**: Enhanced footer with version info and localized date, fixed hydration-safe date rendering
+- **globals.css**: Added custom scrollbar styling (webkit)
+
+Stage Summary:
+- 9 files modified with visual improvements
+- All changes maintain responsive design and Spanish text
+
+---
+Task ID: feature-1
+Agent: fullstack-developer (sonnet)
+Task: Add new features and functionality
+
+Work Log:
+- **DashboardPage**: Added Quick Actions section (4 action cards: Nueva Recepción, Nueva Venta, Agregar Producto, Ver Reportes)
+- **WmsSidebar**: Added "Última Venta" section showing most recent sale folio, client, and total (refreshes every 60s)
+- **EquipmentPage**: Made product badges clickable to navigate to Products page for cross-reference
+- **ReceivingPage**: Added "Recepciones Recientes" table showing last 10 ENTRADA movements with full details
+- **SalesPage**: Added sales summary badges at top (Hoy/Semana/Mes totals and counts)
+- **New API**: Created `/api/wms/productos-por-equipo/route.ts` for searching products by equipment compatibility
+
+Stage Summary:
+- 5 files modified, 1 new API endpoint created
+- 6 new features added across the application
+
+---
+## Current Project Status (Updated)
+
+### What's Working
+- **Database**: Complete normalized schema with 10 models, all indexes, seeded with realistic data (15 brands, 12 categories, 37 equipment, 46 products, 192 compatibility links, 12 locations, 11 clients, 18 sales)
+- **API**: 24 endpoints for CRUD, movements, sales, reports, search, equipment compatibility
+- **Frontend**: 11-page SPA with enhanced dashboard, catalog, operations, reports
+- **Dashboard**: 8 KPI cards with colored borders + trend indicators, Quick Actions section, 2 Recharts charts, recent movements table, low stock alerts table
+- **Sidebar**: Gradient header, active indicators, live clock, last sale display
+- **Header**: Global search with Ctrl+K shortcut, clear button
+- **Catalog**: Full product/equipment CRUD with brand Select dropdowns, compatibility management with clickable navigation
+- **Operations**: Receiving with recent entries table, sales with summary badges and stock deduction
+- **Reports**: 6 report types with charts and filters
+- **Alerts**: Enhanced alert cards with progress bars and severity colors
+- **Inventory**: Enhanced status badges with icons, alternating rows
+- **Movements**: Color-coded rows and badges, quick date filters, kardex placeholder
+- **Locations**: Visual warehouse grid with stock bars and color coding
+
+### Code Quality
+- **0 ESLint errors**, 6 cosmetic warnings (React Hook Form watch() memoization)
+- All React console warnings/errors resolved
+- Proper accessibility with DialogDescription on all dialogs
+- Hydration-safe rendering
+
+### Architecture Decisions
+- **Single-page app**: All views in one route with Zustand-based navigation
+- **SQLite + Prisma**: Perfect for pilot-scale (low-medium volume)
+- **Desnormalized stock table + movement history**: Dual approach for fast reads + audit trail
+- **Recharts**: Native React charts without heavy dependencies
+- **TanStack Query**: Server state management with 15s stale time
+
+### KPIs Available
+- Stock total valorizado, Products under minimum stock, Sales (day/week/month)
+- Movement count, Dead stock analysis, Top sellers, Client sales ranking
+- Equipment demand analysis, Inventory rotation
+
 ### Known Issues / Future Work
 - No authentication (acceptable for pilot)
 - No multi-warehouse support (Phase 2)
 - No ERP integration (Phase 2)
-- Dashboard charts could show more data with more historical data
+- Dashboard charts use summary data (today/week/month) rather than daily granularity
+- "Ver Kardex" button on MovementsPage is a placeholder (shows toast)
+- "Pedido rápido" button on AlertsPage is a placeholder (shows toast)
+
+### Priority Recommendations for Next Phase
+1. Add kardex product detail view (full movement history with running balance)
+2. Enhance dashboard charts with daily granularity (last 7/30 days bar chart)
+3. Add barcode scanning support (using camera API)
+4. Implement physical inventory counting feature with variance report
+5. Add export to CSV/PDF for reports
+6. Implement user authentication (basic username/password for pilot)

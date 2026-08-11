@@ -17,7 +17,7 @@ import { AlertsPage } from '@/components/wms/AlertsPage'
 import { Toaster } from '@/components/ui/sonner'
 import type { WmsPage } from '@/types/wms'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 const pageComponents: Record<WmsPage, React.ComponentType> = {
   dashboard: DashboardPage,
@@ -44,6 +44,14 @@ export default function Home() {
   }))
   const { currentPage } = useWmsStore()
   const PageComponent = pageComponents[currentPage]
+  const dateStr = useMemo(() =>
+    new Date().toLocaleDateString('es-MX', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }),
+  [])
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -55,8 +63,9 @@ export default function Home() {
             <main className="flex-1 overflow-y-auto p-4 md:p-6">
               <PageComponent />
             </main>
-            <footer className="border-t px-4 md:px-6 py-3 text-center text-xs text-muted-foreground bg-background">
-              WMS Pilot - Sistema de Gestión de Almacén
+            <footer className="border-t px-4 md:px-6 py-3 text-xs text-muted-foreground bg-background flex items-center justify-between">
+              <span>WMS Pilot v1.0 — Repuestos Refrigeración</span>
+              <span className="hidden sm:inline capitalize">{dateStr}</span>
             </footer>
           </div>
         </div>

@@ -7,14 +7,14 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Download, MapPin } from 'lucide-react'
+import { Download, MapPin, Check, AlertTriangle, XCircle } from 'lucide-react'
 import { formatCurrency } from './lib/format'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 
 interface StockEntry {
   idProducto: number
@@ -22,6 +22,26 @@ interface StockEntry {
   cantidad: number
   producto: { id: number; sku: string; nombre: string; costoUnitario: number; precioVenta: number; stockMinimo: number }
   ubicacion: { id: number; pasillo: string; estante: string; nivel: string }
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'out')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300">
+        <XCircle className="h-3 w-3" /> Sin Stock
+      </span>
+    )
+  if (status === 'low')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300">
+        <AlertTriangle className="h-3 w-3" /> Bajo Stock
+      </span>
+    )
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
+      <Check className="h-3 w-3" /> OK
+    </span>
+  )
 }
 
 export function InventoryPage() {
@@ -49,12 +69,6 @@ export function InventoryPage() {
   })
 
   const totalValor = inventory.reduce((sum, p) => sum + p.valorTotal, 0)
-
-  function StatusBadge({ status }: { status: string }) {
-    if (status === 'out') return <Badge variant="destructive" className="text-[10px]">Sin Stock</Badge>
-    if (status === 'low') return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 text-[10px]">Bajo</Badge>
-    return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]">OK</Badge>
-  }
 
   return (
     <div className="space-y-4">
@@ -90,8 +104,8 @@ export function InventoryPage() {
                 {!isLoading && inventory.length === 0 && (
                   <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Sin productos en inventario</TableCell></TableRow>
                 )}
-                {!isLoading && inventory.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-muted/50">
+                {!isLoading && inventory.map((p, idx) => (
+                  <TableRow key={p.id} className={cn('hover:bg-muted/50', idx % 2 === 1 && 'bg-muted/20')}>
                     <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{p.nombre}</TableCell>
                     <TableCell className="text-xs font-mono py-2">{p.sku}</TableCell>
                     <TableCell className="text-xs text-center font-mono py-2">{p.totalStock}</TableCell>
