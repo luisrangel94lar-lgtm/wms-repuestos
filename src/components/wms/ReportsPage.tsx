@@ -12,12 +12,13 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, FileDown } from 'lucide-react'
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
 import { formatCurrency, formatDate } from './lib/format'
+import { exportToCSV } from './lib/export-csv'
 
 const CHART_COLORS = ['#171717', '#404040', '#737373', '#a3a3a3', '#d4d4d4', '#e5e5e5']
 
@@ -95,10 +96,131 @@ export function ReportsPage() {
 
   function handleGenerate() { setRefreshKey((k) => k + 1) }
 
+  // CSV Export handlers
+  function exportInventarioValorizado() {
+    exportToCSV(
+      inventoryTable.map((p: any) => ({
+        categoria: p.categoria?.nombre ?? 'Sin categoría',
+        producto: p.nombre,
+        sku: p.sku,
+        stockTotal: p.totalStock,
+        costoUnitario: p.costoUnitario,
+        valorTotal: p.valorTotal,
+      })),
+      'inventario-valorizado',
+      [
+        { key: 'categoria', label: 'Categoría' },
+        { key: 'producto', label: 'Producto' },
+        { key: 'sku', label: 'SKU' },
+        { key: 'stockTotal', label: 'Stock Total' },
+        { key: 'costoUnitario', label: 'Costo Unitario', format: 'currency' },
+        { key: 'valorTotal', label: 'Valor Total', format: 'currency' },
+      ],
+    )
+  }
+
+  function exportInventarioMuerto() {
+    exportToCSV(
+      deadStock.map((item: any) => ({
+        sku: item.sku,
+        producto: item.nombre,
+        stock: item.totalStock,
+        valor: item.valorTotal,
+        ultimoMovimiento: item.lastMovementDate,
+        diasSinMovimiento: item.daysSinceLastMovement,
+      })),
+      'inventario-muerto',
+      [
+        { key: 'sku', label: 'SKU' },
+        { key: 'producto', label: 'Producto' },
+        { key: 'stock', label: 'Stock' },
+        { key: 'valor', label: 'Valor', format: 'currency' },
+        { key: 'ultimoMovimiento', label: 'Último Movimiento', format: 'date' },
+        { key: 'diasSinMovimiento', label: 'Días Sin Movimiento' },
+      ],
+    )
+  }
+
+  function exportTopVendidos() {
+    exportToCSV(
+      topSellers.map((t: any) => ({
+        sku: t.producto?.sku ?? '',
+        producto: t.producto?.nombre ?? '',
+        cantidadVendida: t.cantidadVendida,
+        valorTotal: t.valorTotal,
+      })),
+      'top-vendidos',
+      [
+        { key: 'sku', label: 'SKU' },
+        { key: 'producto', label: 'Producto' },
+        { key: 'cantidadVendida', label: 'Cantidad Vendida' },
+        { key: 'valorTotal', label: 'Valor Total', format: 'currency' },
+      ],
+    )
+  }
+
+  function exportVentasPorCliente() {
+    exportToCSV(
+      clientSales.map((cs: any) => ({
+        cliente: cs.cliente?.nombre ?? '',
+        totalVentas: cs.totalVentas,
+        productos: cs.totalProductos,
+        valorTotal: cs.totalValor,
+      })),
+      'ventas-por-cliente',
+      [
+        { key: 'cliente', label: 'Cliente' },
+        { key: 'totalVentas', label: 'Total Ventas' },
+        { key: 'productos', label: 'Productos' },
+        { key: 'valorTotal', label: 'Valor Total', format: 'currency' },
+      ],
+    )
+  }
+
+  function exportDemandaPorEquipo() {
+    exportToCSV(
+      equipmentDemand.map((ed: any) => ({
+        equipo: ed.equipo?.modelo ?? '',
+        marca: ed.equipo?.marca?.nombre ?? '',
+        tipo: ed.equipo?.tipoEquipo ?? '',
+        repuestos: ed.productos?.length ?? 0,
+        demandaTotal: ed.cantidadTotal,
+      })),
+      'demanda-por-equipo',
+      [
+        { key: 'equipo', label: 'Equipo' },
+        { key: 'marca', label: 'Marca' },
+        { key: 'tipo', label: 'Tipo' },
+        { key: 'repuestos', label: 'Repuestos' },
+        { key: 'demandaTotal', label: 'Demanda Total' },
+      ],
+    )
+  }
+
+  function exportRotacion() {
+    exportToCSV(
+      rotation.map((r: any) => ({
+        sku: r.producto?.sku ?? '',
+        producto: r.producto?.nombre ?? '',
+        ventas: r.totalVendido,
+        stockPromedio: r.stockActual,
+        rotacion: r.rotacionRate,
+      })),
+      'rotacion',
+      [
+        { key: 'sku', label: 'SKU' },
+        { key: 'producto', label: 'Producto' },
+        { key: 'ventas', label: 'Ventas' },
+        { key: 'stockPromedio', label: 'Stock Promedio' },
+        { key: 'rotacion', label: 'Rotación' },
+      ],
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* Date range filter */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3 items-end">
             <div className="space-y-1">
@@ -132,8 +254,13 @@ export function ReportsPage() {
 
         {/* Tab 1: Inventario Valorizado */}
         <TabsContent value="inventario-valorizado" className="space-y-4">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={exportInventarioValorizado}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
+            </Button>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="rounded-xl shadow-sm">
+            <Card className="rounded-xl shadow-sm transition-all duration-200">
               <CardHeader className="pb-2"><CardTitle className="text-base">Por Categoría</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-64">
@@ -148,7 +275,7 @@ export function ReportsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-xl shadow-sm">
+            <Card className="rounded-xl shadow-sm transition-all duration-200">
               <CardHeader className="pb-2"><CardTitle className="text-base">Por Producto (Top 20)</CardTitle></CardHeader>
               <CardContent>
                 <Table>
@@ -166,11 +293,16 @@ export function ReportsPage() {
 
         {/* Tab 2: Inventario Muerto */}
         <TabsContent value="inventario-muerto" className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Label className="text-sm">Días sin movimiento:</Label>
-            <Input type="number" className="w-24" value={diasMuertos} onChange={(e) => setDiasMuertos(e.target.value)} />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
+            <div className="flex items-center gap-3">
+              <Label className="text-sm">Días sin movimiento:</Label>
+              <Input type="number" className="w-24" value={diasMuertos} onChange={(e) => setDiasMuertos(e.target.value)} />
+            </div>
+            <Button variant="outline" size="sm" onClick={exportInventarioMuerto}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
+            </Button>
           </div>
-          <Card className="rounded-xl shadow-sm">
+          <Card className="rounded-xl shadow-sm transition-all duration-200">
             <CardContent className="p-0">
               <Table>
                 <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs">SKU</TableHead><TableHead className="text-xs text-center">Stock</TableHead><TableHead className="text-xs text-center">Días sin Mov.</TableHead><TableHead className="text-xs">Último Mov.</TableHead></TableRow></TableHeader>
@@ -193,8 +325,13 @@ export function ReportsPage() {
 
         {/* Tab 3: Top Vendidos */}
         <TabsContent value="top-vendidos" className="space-y-4">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={exportTopVendidos}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
+            </Button>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="rounded-xl shadow-sm">
+            <Card className="rounded-xl shadow-sm transition-all duration-200">
               <CardHeader className="pb-2"><CardTitle className="text-base">Gráfico</CardTitle></CardHeader>
               <CardContent>
                 <div className="h-72">
@@ -210,7 +347,7 @@ export function ReportsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="rounded-xl shadow-sm">
+            <Card className="rounded-xl shadow-sm transition-all duration-200">
               <CardHeader className="pb-2"><CardTitle className="text-base">Tabla</CardTitle></CardHeader>
               <CardContent>
                 <Table>
@@ -228,8 +365,13 @@ export function ReportsPage() {
         </TabsContent>
 
         {/* Tab 4: Ventas por Cliente */}
-        <TabsContent value="ventas-cliente">
-          <Card className="rounded-xl shadow-sm">
+        <TabsContent value="ventas-cliente" className="space-y-4">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={exportVentasPorCliente}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
+            </Button>
+          </div>
+          <Card className="rounded-xl shadow-sm transition-all duration-200">
             <CardContent className="p-0">
               <Table>
                 <TableHeader><TableRow><TableHead className="text-xs">Cliente</TableHead><TableHead className="text-xs text-center">Ventas</TableHead><TableHead className="text-xs text-center">Productos</TableHead><TableHead className="text-xs text-right">Valor Total</TableHead></TableRow></TableHeader>
@@ -250,8 +392,13 @@ export function ReportsPage() {
         </TabsContent>
 
         {/* Tab 5: Demanda por Equipo */}
-        <TabsContent value="demanda-equipo">
-          <Card className="rounded-xl shadow-sm">
+        <TabsContent value="demanda-equipo" className="space-y-4">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={exportDemandaPorEquipo}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
+            </Button>
+          </div>
+          <Card className="rounded-xl shadow-sm transition-all duration-200">
             <CardContent className="p-0">
               <Table>
                 <TableHeader><TableRow><TableHead className="text-xs">Equipo</TableHead><TableHead className="text-xs">Marca</TableHead><TableHead className="text-xs">Tipo</TableHead><TableHead className="text-xs text-center">Repuestos</TableHead><TableHead className="text-xs text-center">Demanda Total</TableHead></TableRow></TableHeader>
@@ -273,8 +420,13 @@ export function ReportsPage() {
         </TabsContent>
 
         {/* Tab 6: Rotación */}
-        <TabsContent value="rotacion">
-          <Card className="rounded-xl shadow-sm">
+        <TabsContent value="rotacion" className="space-y-4">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={exportRotacion}>
+              <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
+            </Button>
+          </div>
+          <Card className="rounded-xl shadow-sm transition-all duration-200">
             <CardContent className="p-0">
               <Table>
                 <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs hidden md:table-cell">Categoría</TableHead><TableHead className="text-xs text-center">Vendido</TableHead><TableHead className="text-xs text-center">Stock Actual</TableHead><TableHead className="text-xs text-center">Rotación</TableHead></TableRow></TableHeader>

@@ -347,3 +347,163 @@ Stage Summary:
 - No ERP integration (Phase 2)
 - Dashboard sales chart could show 30 days instead of 7
 - Barcode scanning not yet implemented
+
+---
+Task ID: style-3
+Agent: fullstack-developer
+Task: Styling improvements - dark mode, header breadcrumbs, micro-animations
+
+Work Log:
+- **Part 1: Dark/Light Mode Toggle**
+  - Installed `next-themes@0.4.6`
+  - Created `/src/components/theme-provider.tsx` wrapping next-themes ThemeProvider
+  - Updated `layout.tsx`: added ThemeProvider with attribute="class", defaultTheme="light", enableSystem, disableTransitionOnChange
+  - Changed html lang from "en" to "es"
+  - Added theme toggle button (Sun/Moon icon with rotate/scale animation) to WmsHeader between search and avatar
+  - Updated footer in page.tsx to show current theme (Claro/Oscuro) with Sun/Moon icon
+
+- **Part 2: Header Enhancement with Breadcrumbs**
+  - Added breadcrumbs map for all 11 pages with path and description
+  - Header restructured with top bar (title, search, theme toggle, avatar) and bottom section (breadcrumbs + description)
+  - Breadcrumbs use "/" separator, muted-foreground for parents, foreground font-medium for current page
+  - Page description shown below breadcrumb in 11px text
+
+- **Part 3: Micro-animations and Polish**
+  - Created `.animate-fade-in` CSS keyframe animation in globals.css (opacity 0→1, translateY 4px→0, 0.3s ease-out)
+  - Applied `animate-fade-in` to `<main>` content area in page.tsx
+  - Added `transition-all duration-200 hover:-translate-y-px` to all KPI cards in DashboardPage
+  - Added `transition-all duration-200` to all interactive Card elements across 11 pages
+  - Updated WmsSidebar nav items: added `hover:scale-[1.02]` and `duration-200`
+  - Improved user avatar area: styled avatar with initial, name, and dropdown menu placeholder
+  - Added subtle gradient background to main app container
+  - Footer enhanced with `bg-background/80 backdrop-blur-sm`
+
+Stage Summary:
+- 0 ESLint errors, 6 cosmetic warnings (unchanged)
+- 9 files modified, 1 new file created
+- Dark/light mode fully functional with system preference detection
+- Breadcrumbs provide navigation context for all pages
+- Consistent micro-animations across the entire application
+
+---
+Task ID: feature-3
+Agent: fullstack-developer
+Task: CSV export, stock adjustment, stock transfer, settings page
+
+Work Log:
+- **Part 1: CSV Export for All Reports**
+  - Created `/src/components/wms/lib/export-csv.ts` utility with `exportToCSV()` function
+  - UTF-8 BOM for Excel compatibility with Spanish characters
+  - Supports currency formatting ($ prefix) and date formatting (dd/mm/yyyy)
+  - Added "Exportar CSV" button with FileDown icon to all 6 report tabs in ReportsPage.tsx
+  - Each tab exports with proper column mapping: Inventario Valorizado, Inventario Muerto, Top Vendidos, Ventas por Cliente, Demanda por Equipo, Rotación
+  - Also replaced placeholder Export button on InventoryPage with functional CSV export
+
+- **Part 2: Stock Adjustment (AJUSTE) Feature**
+  - Added "Ajustar Stock" button (SlidersHorizontal icon) on each inventory row in InventoryPage.tsx
+  - Dialog shows: product name (read-only), current stock (read-only), new stock input, optional reason/motivo
+  - POSTs to `/api/wms/movimientos` with idTipo=3 (AJUSTE), reference "Ajuste manual"
+  - Uses first stock location for the adjustment (API sets stock at specific location)
+  - Invalidates inventory queries on success, shows success/error toast
+
+- **Part 3: Stock Transfer (TRASLADO) Feature**
+  - Added "Trasladar" button (ArrowRightLeft icon) on products with stock in multiple locations
+  - Dialog shows: product name, origin Select (locations with stock), destination Select (all locations), quantity (max = origin stock)
+  - Records TRASLADO movement (idTipo=4), then manually updates stock via PUT /api/wms/stock for both origin (decrement) and destination (increment)
+  - Validates origin ≠ destination and quantity ≤ origin stock
+  - Invalidates queries on success, shows success/error toast
+
+- **Part 4: Settings Page**
+  - Added 'settings' to WmsPage union type in `/src/types/wms.ts`
+  - Added SettingsPage import and entry in pageComponents map in `/src/app/page.tsx`
+  - Added "SISTEMA" section with Settings icon to WmsSidebar.tsx nav, plus 'settings: Configuración' to pageTitles
+  - Created `/src/components/wms/SettingsPage.tsx` with three sections:
+    - **Datos del Almacén**: warehouse name, address, phone (editable, auto-saved to localStorage)
+    - **Preferencias**: Moneda (MXN/USD), Tema (Claro/Oscuro integrates with next-themes), Idioma (Español/Inglés)
+    - **Acerca de**: Version 1.0.0, system name, tech stack badges
+  - Uses `useSyncExternalStore` for localStorage integration (avoids React Compiler setState-in-effect warning)
+  - All settings persisted under 'wms-settings' localStorage key
+
+Stage Summary:
+- 0 ESLint errors, 6 cosmetic warnings (unchanged React Hook Form watch compatibility)
+- 2 new files created (export-csv.ts, SettingsPage.tsx)
+- 5 files modified (ReportsPage.tsx, InventoryPage.tsx, wms.ts, WmsSidebar.tsx, page.tsx)
+- All 4 features fully functional
+
+---
+## Current Project Status (Updated - Round 3)
+
+### What's Working
+- **Database**: Complete normalized schema with 10 models, all indexes, seeded with realistic data (15 brands, 12 categories, 37 equipment, 46 products, 192 compatibility links, 12 locations, 11 clients, 18 sales)
+- **API**: 25 endpoints for CRUD, movements, sales, reports, search, equipment compatibility, daily sales
+- **Frontend**: 12-page SPA with enhanced dashboard, catalog, operations, reports, settings
+- **Dark/Light Mode**: Full theme toggle with next-themes, system preference detection, animated Sun/Moon icon
+- **Breadcrumbs**: All 12 pages have contextual breadcrumb path + one-line description
+- **Dashboard**: 6 KPI cards with colored borders + hover lift effect, Quick Actions (4 cards), daily sales bar chart, top sellers chart, recent movements table, low stock alerts table
+- **Sidebar**: Gradient header, active indicators with scale hover, live clock, last sale display, "SISTEMA" section for settings
+- **Header**: Breadcrumbs + description bar, global search with Ctrl+K, theme toggle, admin avatar dropdown
+- **Catalog**: Full product/equipment CRUD with brand Select dropdowns, compatibility management with clickable navigation
+- **Operations**: 
+  - Receiving with recent entries table and product pre-selection from alerts
+  - Sales with summary badges + print receipt
+  - **NEW: Stock Adjustment (AJUSTE)** dialog from inventory page with motivo
+  - **NEW: Stock Transfer (TRASLADO)** dialog for multi-location products with validation
+- **Reports**: 6 report types with charts, date filters, page descriptions
+- - **NEW: CSV Export** on all 6 report tabs + inventory page
+- **Alerts**: Enhanced cards with progress bars, quick-receive navigation
+- **Inventory**: Stats bar (3 summary cards), enhanced status badges with dark mode variants, alternating rows, CSV export
+- **Movements**: Color-coded rows and badges, quick date filters, functional Kardex dialog
+- **Locations**: Visual warehouse grid with stock bars and color coding
+- **Settings**: **NEW PAGE** - Warehouse data, preferences (currency/theme/language), about section, localStorage persistence
+- **Styling**: Custom scrollbars, fade-in animation, consistent hover effects with translate-y lift, gradient background
+
+### Code Quality
+- **0 ESLint errors**, 6 cosmetic warnings (React Hook Form watch() memoization - unchanged)
+- All React console warnings/errors resolved
+- Proper accessibility with DialogDescription on all dialogs
+- Hydration-safe rendering
+- Removed duplicate Toaster from layout.tsx (kept Sonner Toaster in page.tsx)
+
+### Architecture Decisions
+- **Single-page app**: All views in one route with Zustand-based navigation + cross-page context
+- **SQLite + Prisma**: Perfect for pilot-scale (low-medium volume)
+- **Desnormalized stock table + movement history**: Dual approach for fast reads + audit trail
+- **Recharts**: Native React charts without heavy dependencies
+- **TanStack Query**: Server state management with 15s stale time
+- **next-themes**: Dark/light mode with system preference detection
+- **localStorage**: Settings persistence via useSyncExternalStore
+
+### Features Added This Round (Round 3)
+1. Dark/Light mode toggle (next-themes)
+2. Breadcrumbs with page descriptions on all 12 pages
+3. Fade-in animation for page transitions
+4. KPI card hover lift effects (-translate-y-px)
+5. Admin avatar dropdown with menu
+6. CSV Export on 6 reports + inventory (7 exportable views)
+7. Stock Adjustment (AJUSTE) dialog with motivo field
+8. Stock Transfer (TRASLADO) dialog with origin/destination validation
+9. Settings page with warehouse data, preferences, about section
+10. Footer theme indicator (Claro/Oscuro)
+
+### KPIs Available
+- Stock total valorizado, Products under minimum stock, Sales (day/week/month)
+- Movement count, Dead stock analysis, Top sellers, Client sales ranking
+- Equipment demand analysis, Inventory rotation, Daily sales trends (7-day view)
+
+### Known Issues / Future Work
+- No authentication (acceptable for pilot)
+- No multi-warehouse support (Phase 2)
+- No ERP integration (Phase 2)
+- Dashboard sales chart could show 30 days instead of 7
+- Barcode scanning not yet implemented
+- Sandbox memory constraints prevent simultaneous Chrome + Next.js Turbopack (resource limitation, not code bug)
+
+### Priority Recommendations for Next Phase
+1. Add barcode scanning support (using camera API)
+2. Implement physical inventory counting feature with variance report
+3. User authentication (basic username/password for pilot)
+4. Multi-warehouse support
+5. ERP/contabilidad integration
+6. Picking list generation with optimized routes
+7. Email notifications for low stock alerts
+8. 30-day sales chart option on dashboard

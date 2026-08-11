@@ -108,7 +108,7 @@ export function ClientsPage() {
         <p className="text-sm text-muted-foreground">Base de datos de técnicos y clientes</p>
       </div>
 
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>

@@ -128,7 +128,7 @@ export function LocationsPage() {
           {pasillos.map((pasillo) => {
             const maxStock = getMaxStockInPasillo(ubicaciones, stockMap, pasillo)
             return (
-              <Card key={pasillo} className="rounded-xl shadow-sm">
+              <Card key={pasillo} className="rounded-xl shadow-sm transition-all duration-200">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <span className="h-6 w-6 rounded bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{pasillo}</span>
@@ -147,7 +147,7 @@ export function LocationsPage() {
                             key={loc.id}
                             onClick={() => setSelectedLocation(loc)}
                             className={cn(
-                              'rounded-lg border p-3 text-left transition-all duration-150 hover:ring-2 hover:ring-primary/50 hover:scale-[1.02]',
+                              'rounded-lg border p-3 text-left transition-all duration-200 hover:ring-2 hover:ring-primary/50 hover:scale-[1.02]',
                               hasStock
                                 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/50 dark:border-emerald-800'
                                 : 'bg-muted/50 border-border'

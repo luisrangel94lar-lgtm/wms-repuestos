@@ -114,7 +114,7 @@ export function MovementsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
             <div className="space-y-1">
@@ -155,7 +155,7 @@ export function MovementsPage() {
       </p>
 
       {/* Table */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>

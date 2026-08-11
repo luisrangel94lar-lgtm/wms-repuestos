@@ -148,7 +148,7 @@ export function EquipmentPage() {
         <p className="text-sm text-muted-foreground">Modelos de equipos y sus repuestos compatibles</p>
       </div>
 
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
           <Table>
             <TableHeader>

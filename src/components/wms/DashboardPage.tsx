@@ -114,7 +114,7 @@ export function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Stock Total */}
-        <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md hover:-translate-y-px transition-all duration-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -135,7 +135,7 @@ export function DashboardPage() {
 
         {/* Bajo Mínimo */}
         <Card
-          className="rounded-xl shadow-sm border-l-4 border-l-destructive hover:shadow-md transition-shadow cursor-pointer"
+          className="rounded-xl shadow-sm border-l-4 border-l-destructive hover:shadow-md hover:-translate-y-px transition-all duration-200 cursor-pointer"
           onClick={() => setCurrentPage('alerts')}
         >
           <CardContent className="p-4">
@@ -163,7 +163,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Ventas */}
-        <Card className="rounded-xl shadow-sm border-l-4 border-l-primary hover:shadow-md transition-shadow">
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-primary hover:shadow-md hover:-translate-y-px transition-all duration-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -184,7 +184,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Movimientos */}
-        <Card className="rounded-xl shadow-sm border-l-4 border-l-amber-500 hover:shadow-md transition-shadow">
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-amber-500 hover:shadow-md hover:-translate-y-px transition-all duration-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -202,7 +202,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Total Productos */}
-        <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md hover:-translate-y-px transition-all duration-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -220,7 +220,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Total Clientes */}
-        <Card className="rounded-xl shadow-sm border-l-4 border-l-primary hover:shadow-md transition-shadow">
+        <Card className="rounded-xl shadow-sm border-l-4 border-l-primary hover:shadow-md hover:-translate-y-px transition-all duration-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -240,7 +240,7 @@ export function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setCurrentPage('receiving')}>
+        <Card className="rounded-xl shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-200 cursor-pointer group" onClick={() => setCurrentPage('receiving')}>
           <CardContent className="p-4 flex flex-col items-center gap-2">
             <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
               <Download className="h-5 w-5 text-emerald-600" />
@@ -248,7 +248,7 @@ export function DashboardPage() {
             <span className="text-xs font-medium text-center">Nueva Recepción</span>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setCurrentPage('sales')}>
+        <Card className="rounded-xl shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-200 cursor-pointer group" onClick={() => setCurrentPage('sales')}>
           <CardContent className="p-4 flex flex-col items-center gap-2">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
               <ShoppingCart className="h-5 w-5" />
@@ -256,7 +256,7 @@ export function DashboardPage() {
             <span className="text-xs font-medium text-center">Nueva Venta</span>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setCurrentPage('products')}>
+        <Card className="rounded-xl shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-200 cursor-pointer group" onClick={() => setCurrentPage('products')}>
           <CardContent className="p-4 flex flex-col items-center gap-2">
             <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
               <Package className="h-5 w-5 text-amber-600" />
@@ -264,7 +264,7 @@ export function DashboardPage() {
             <span className="text-xs font-medium text-center">Agregar Producto</span>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setCurrentPage('reports')}>
+        <Card className="rounded-xl shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-200 cursor-pointer group" onClick={() => setCurrentPage('reports')}>
           <CardContent className="p-4 flex flex-col items-center gap-2">
             <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
               <BarChart3 className="h-5 w-5 text-purple-600" />

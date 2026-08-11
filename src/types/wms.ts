@@ -10,7 +10,8 @@ export type WmsPage =
   | 'clients'
   | 'movements'
   | 'reports'
-  | 'alerts';
+  | 'alerts'
+  | 'settings';
 
 // Nav item for sidebar
 export interface NavItem {

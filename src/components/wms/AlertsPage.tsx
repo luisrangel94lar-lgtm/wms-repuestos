@@ -54,7 +54,7 @@ export function AlertsPage() {
               <Card
                 key={a.id}
                 className={cn(
-                  'rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-shadow',
+                  'rounded-xl shadow-sm border overflow-hidden hover:shadow-md hover:-translate-y-px transition-all duration-200',
                   isZero
                     ? 'border-red-300 dark:border-red-800'
                     : 'border-amber-300 dark:border-amber-800'

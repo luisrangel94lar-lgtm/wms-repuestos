@@ -97,7 +97,7 @@ export function ReceivingPage() {
       </div>
 
       {/* Form */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Download className="h-4 w-4" /> Nueva Recepción

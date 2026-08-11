@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   AlertTriangle,
+  Settings,
   ChevronLeft,
   Clock,
 } from 'lucide-react'
@@ -74,6 +75,10 @@ const navSections: NavSection[] = [
   {
     items: [{ id: 'alerts', label: 'Alertas', icon: <AlertTriangle className="h-4 w-4" /> }],
   },
+  {
+    title: 'SISTEMA',
+    items: [{ id: 'settings', label: 'Configuración', icon: <Settings className="h-4 w-4" /> }],
+  },
 ]
 
 const pageTitles: Record<WmsPage, string> = {
@@ -88,6 +93,7 @@ const pageTitles: Record<WmsPage, string> = {
   movements: 'Movimientos',
   reports: 'Reportes',
   alerts: 'Alertas',
+  settings: 'Configuración',
 }
 
 export { pageTitles }
@@ -186,7 +192,7 @@ export function WmsSidebar() {
                     key={item.id}
                     onClick={() => handleNav(item.id)}
                     className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 mb-0.5',
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 mb-0.5 hover:scale-[1.02]',
                       isActive
                         ? 'bg-primary text-primary-foreground border-l-[3px] border-l-primary-foreground/60'
                         : 'hover:bg-accent text-foreground border-l-[3px] border-l-transparent'

@@ -132,7 +132,7 @@ export function SalesPage() {
       </div>
 
       {/* Sales table */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>

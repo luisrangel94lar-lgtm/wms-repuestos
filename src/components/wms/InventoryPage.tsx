@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -9,11 +9,17 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Download, MapPin, Check, AlertTriangle, XCircle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Download, MapPin, Check, AlertTriangle, XCircle, SlidersHorizontal, ArrowRightLeft, Loader2 } from 'lucide-react'
 import { formatCurrency } from './lib/format'
+import { exportToCSV } from './lib/export-csv'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 interface StockEntry {
@@ -22,6 +28,19 @@ interface StockEntry {
   cantidad: number
   producto: { id: number; sku: string; nombre: string; costoUnitario: number; precioVenta: number; stockMinimo: number }
   ubicacion: { id: number; pasillo: string; estante: string; nivel: string }
+}
+
+interface InventoryItem {
+  id: number
+  sku: string
+  nombre: string
+  costoUnitario: number
+  precioVenta: number
+  stockMinimo: number
+  totalStock: number
+  valorTotal: number
+  status: 'ok' | 'low' | 'out'
+  stocks: StockEntry[]
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -45,7 +64,21 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function InventoryPage() {
+  const queryClient = useQueryClient()
   const [selectedProduct, setSelectedProduct] = useState<StockEntry['producto'] | null>(null)
+
+  // Ajuste state
+  const [ajusteProduct, setAjusteProduct] = useState<InventoryItem | null>(null)
+  const [ajusteStock, setAjusteStock] = useState('')
+  const [ajusteMotivo, setAjusteMotivo] = useState('')
+  const [ajusteLoading, setAjusteLoading] = useState(false)
+
+  // Traslado state
+  const [trasladoProduct, setTrasladoProduct] = useState<InventoryItem | null>(null)
+  const [trasladoOrigen, setTrasladoOrigen] = useState('')
+  const [trasladoDestino, setTrasladoDestino] = useState('')
+  const [trasladoCantidad, setTrasladoCantidad] = useState('')
+  const [trasladoLoading, setTrasladoLoading] = useState(false)
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products-inventory'],
@@ -57,8 +90,13 @@ export function InventoryPage() {
     queryFn: () => fetch('/api/wms/stock').then((r) => r.json()),
   })
 
+  const { data: allLocations = [] } = useQuery({
+    queryKey: ['all-locations'],
+    queryFn: () => fetch('/api/wms/ubicaciones?activos=true').then((r) => r.json()),
+  })
+
   // Build inventory view
-  const inventory = products.map((p: any) => {
+  const inventory: InventoryItem[] = products.map((p: any) => {
     const stocks = stockEntries.filter((s) => s.idProducto === p.id)
     const totalStock = stocks.reduce((sum, s) => sum + s.cantidad, 0)
     const valorTotal = totalStock * p.costoUnitario
@@ -78,6 +116,169 @@ export function InventoryPage() {
   })
 
   const totalValor = inventory.reduce((sum, p) => sum + p.valorTotal, 0)
+
+  function invalidateInventory() {
+    queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+    queryClient.invalidateQueries({ queryKey: ['all-stock-inv'] })
+    queryClient.invalidateQueries({ queryKey: ['inventory-stats'] })
+  }
+
+  // --- AJUSTE handlers ---
+  function openAjuste(item: InventoryItem) {
+    setAjusteProduct(item)
+    setAjusteStock(String(item.totalStock))
+    setAjusteMotivo('')
+  }
+
+  async function submitAjuste() {
+    if (!ajusteProduct || ajusteStock === '') return
+    const newStock = parseInt(ajusteStock, 10)
+    if (isNaN(newStock) || newStock < 0) {
+      toast.error('Cantidad inválida')
+      return
+    }
+
+    // Pick the first stock location (or first location overall)
+    const locationId = ajusteProduct.stocks.length > 0
+      ? ajusteProduct.stocks[0].idUbicacion
+      : allLocations[0]?.id
+
+    if (!locationId) {
+      toast.error('No hay ubicaciones disponibles')
+      return
+    }
+
+    setAjusteLoading(true)
+    try {
+      const res = await fetch('/api/wms/movimientos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idProducto: ajusteProduct.id,
+          idUbicacion: locationId,
+          idTipo: 3, // AJUSTE
+          cantidad: newStock,
+          referencia: 'Ajuste manual',
+          observacion: ajusteMotivo || null,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error al ajustar stock')
+      }
+      toast.success('Stock ajustado correctamente')
+      setAjusteProduct(null)
+      invalidateInventory()
+    } catch (e: any) {
+      toast.error(e.message || 'Error al ajustar stock')
+    } finally {
+      setAjusteLoading(false)
+    }
+  }
+
+  // --- TRASLADO handlers ---
+  function openTraslado(item: InventoryItem) {
+    if (item.stocks.length < 1) return
+    setTrasladoProduct(item)
+    setTrasladoOrigen(String(item.stocks[0].idUbicacion))
+    setTrasladoDestino('')
+    setTrasladoCantidad('')
+  }
+
+  function getOrigenStock(): number {
+    if (!trasladoProduct) return 0
+    const entry = trasladoProduct.stocks.find((s) => String(s.idUbicacion) === trasladoOrigen)
+    return entry?.cantidad ?? 0
+  }
+
+  async function submitTraslado() {
+    if (!trasladoProduct || !trasladoOrigen || !trasladoDestino || !trasladoCantidad) return
+    if (trasladoOrigen === trasladoDestino) {
+      toast.error('El origen y destino no pueden ser iguales')
+      return
+    }
+    const qty = parseInt(trasladoCantidad, 10)
+    if (isNaN(qty) || qty <= 0) {
+      toast.error('Cantidad inválida')
+      return
+    }
+    const origenStock = getOrigenStock()
+    if (qty > origenStock) {
+      toast.error(`Stock insuficiente en origen (disponible: ${origenStock})`)
+      return
+    }
+
+    setTrasladoLoading(true)
+    try {
+      // 1. Record the TRASLADO movement
+      const res = await fetch('/api/wms/movimientos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idProducto: trasladoProduct.id,
+          idUbicacion: parseInt(trasladoOrigen, 10),
+          idTipo: 4, // TRASLADO
+          cantidad: qty,
+          referencia: `Traslado a ubicación ${trasladoDestino}`,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Error en traslado')
+      }
+
+      // 2. Decrease stock at origin
+      await fetch('/api/wms/stock', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idProducto: trasladoProduct.id,
+          idUbicacion: parseInt(trasladoOrigen, 10),
+          cantidad: origenStock - qty,
+        }),
+      })
+
+      // 3. Increase stock at destination
+      const destStock = trasladoProduct.stocks.find((s) => String(s.idUbicacion) === trasladoDestino)
+      const newDestStock = (destStock?.cantidad ?? 0) + qty
+      await fetch('/api/wms/stock', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idProducto: trasladoProduct.id,
+          idUbicacion: parseInt(trasladoDestino, 10),
+          cantidad: newDestStock,
+        }),
+      })
+
+      toast.success('Traslado realizado correctamente')
+      setTrasladoProduct(null)
+      invalidateInventory()
+    } catch (e: any) {
+      toast.error(e.message || 'Error en traslado')
+    } finally {
+      setTrasladoLoading(false)
+    }
+  }
+
+  // --- CSV Export ---
+  function exportInventory() {
+    exportToCSV(
+      inventory.map((p) => ({
+        producto: p.nombre,
+        sku: p.sku,
+        totalStock: p.totalStock,
+        valorTotal: p.valorTotal,
+      })),
+      'inventario',
+      [
+        { key: 'producto', label: 'Producto' },
+        { key: 'sku', label: 'SKU' },
+        { key: 'totalStock', label: 'Stock Total' },
+        { key: 'valorTotal', label: 'Valor Total', format: 'currency' },
+      ],
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -103,8 +304,8 @@ export function InventoryPage() {
             {inventory.length} productos · Valor total: <span className="font-semibold text-foreground">{formatCurrency(totalValor)}</span>
           </p>
         </div>
-        <Button variant="outline" onClick={() => toast.success('Exportación no disponible aún')}>
-          <Download className="h-4 w-4 mr-1" /> Exportar
+        <Button variant="outline" onClick={exportInventory}>
+          <Download className="h-4 w-4 mr-1" /> Exportar CSV
         </Button>
       </div>
 
@@ -123,7 +324,7 @@ export function InventoryPage() {
                   <TableHead className="text-xs text-center">Total Stock</TableHead>
                   <TableHead className="text-xs text-right">Valor Total</TableHead>
                   <TableHead className="text-xs text-center">Estado</TableHead>
-                  <TableHead className="text-xs text-right">Detalle</TableHead>
+                  <TableHead className="text-xs text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -141,9 +342,19 @@ export function InventoryPage() {
                     <TableCell className="text-xs text-right py-2">{formatCurrency(p.valorTotal)}</TableCell>
                     <TableCell className="text-xs text-center py-2"><StatusBadge status={p.status} /></TableCell>
                     <TableCell className="text-xs text-right py-2">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setSelectedProduct(p)}>
-                        <MapPin className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Ver ubicaciones" onClick={() => setSelectedProduct(p)}>
+                          <MapPin className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Ajustar stock" onClick={() => openAjuste(p)}>
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
+                        </Button>
+                        {p.stocks.length > 1 && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7" title="Trasladar" onClick={() => openTraslado(p)}>
+                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -156,7 +367,7 @@ export function InventoryPage() {
       {/* Stock by location dialog */}
       <Dialog open={!!selectedProduct} onOpenChange={(open) => { if (!open) setSelectedProduct(null) }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Stock por Ubicación</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Stock por Ubicación</DialogTitle><DialogDescription>Detalle de stock por ubicación del producto</DialogDescription></DialogHeader>
           {selectedProduct && (
             <div className="space-y-3">
               <p className="text-sm"><span className="text-muted-foreground">Producto:</span> <span className="font-medium">{selectedProduct.nombre}</span></p>
@@ -185,6 +396,109 @@ export function InventoryPage() {
                   })()}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Ajuste Dialog */}
+      <Dialog open={!!ajusteProduct} onOpenChange={(open) => { if (!open) setAjusteProduct(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Ajustar Stock</DialogTitle><DialogDescription>Modificar la cantidad de stock del producto</DialogDescription></DialogHeader>
+          {ajusteProduct && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Producto</Label>
+                <p className="text-sm font-medium">{ajusteProduct.nombre}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Stock Actual</Label>
+                <p className="text-sm font-mono">{ajusteProduct.totalStock}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Nuevo Stock</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={ajusteStock}
+                  onChange={(e) => setAjusteStock(e.target.value)}
+                  placeholder="Nueva cantidad"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Motivo (opcional)</Label>
+                <Input
+                  value={ajusteMotivo}
+                  onChange={(e) => setAjusteMotivo(e.target.value)}
+                  placeholder="Razón del ajuste"
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setAjusteProduct(null)} disabled={ajusteLoading}>Cancelar</Button>
+                <Button onClick={submitAjuste} disabled={ajusteLoading}>
+                  {ajusteLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                  Guardar Ajuste
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Traslado Dialog */}
+      <Dialog open={!!trasladoProduct} onOpenChange={(open) => { if (!open) setTrasladoProduct(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Trasladar Stock</DialogTitle><DialogDescription>Mover stock entre ubicaciones</DialogDescription></DialogHeader>
+          {trasladoProduct && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Producto</Label>
+                <p className="text-sm font-medium">{trasladoProduct.nombre}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Ubicación Origen</Label>
+                <Select value={trasladoOrigen} onValueChange={(v) => { setTrasladoOrigen(v); setTrasladoCantidad('') }}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar origen" /></SelectTrigger>
+                  <SelectContent>
+                    {trasladoProduct.stocks.filter((s) => s.cantidad > 0).map((s) => (
+                      <SelectItem key={s.idUbicacion} value={String(s.idUbicacion)}>
+                        {s.ubicacion.pasillo}-{s.ubicacion.estante}-{s.ubicacion.nivel} ({s.cantidad})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Ubicación Destino</Label>
+                <Select value={trasladoDestino} onValueChange={setTrasladoDestino}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar destino" /></SelectTrigger>
+                  <SelectContent>
+                    {allLocations.map((loc: any) => (
+                      <SelectItem key={loc.id} value={String(loc.id)} disabled={String(loc.id) === trasladoOrigen}>
+                        {loc.pasillo}-{loc.estante}-{loc.nivel}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Cantidad (máx: {getOrigenStock()})</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max={getOrigenStock()}
+                  value={trasladoCantidad}
+                  onChange={(e) => setTrasladoCantidad(e.target.value)}
+                  placeholder="Cantidad a trasladar"
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setTrasladoProduct(null)} disabled={trasladoLoading}>Cancelar</Button>
+                <Button onClick={submitTraslado} disabled={trasladoLoading}>
+                  {trasladoLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                  Trasladar
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
