@@ -1326,3 +1326,26 @@ Work Log:
 8. Server-side pagination for large tables
 9. i18n system implementation
 10. Data import from Excel for products and clients
+
+---
+Task ID: 8
+Agent: Main Architect
+Task: Local deployment setup - installation scripts, LAN access, PWA support
+
+Work Log:
+- Created `setup.sh` (Mac/Linux) automatic installation script with dependency checks, DB setup, IP detection
+- Created `setup.bat` (Windows) automatic installation script with same functionality
+- Added `dev:lan` script to package.json for LAN access (`-H 0.0.0.0`)
+- Added `start:lan` script for production LAN access
+- Added PWA manifest (`public/manifest.json`) with standalone display mode
+- Generated PWA app icon (`public/icon-512.png`) via AI image generation
+- Updated `layout.tsx` with proper viewport export (Next.js 16 requirement), PWA metadata, apple-web-app meta
+- Fixed viewport deprecation warning by separating viewport from metadata export
+- Verified via agent-browser: all pages load correctly, manifest accessible, no errors
+
+Stage Summary:
+- Users can install locally with one command: `bash setup.sh` (Mac/Linux) or `setup.bat` (Windows)
+- Mobile access via LAN: `bun run dev:lan` then open `http://<PC-IP>:3000` on phone
+- PWA support: app can be installed on mobile home screen for app-like experience
+- COP currency already implemented as default (confirmed in SettingsPage.tsx and format.ts)
+- All files created: setup.sh, setup.bat, public/manifest.json, public/icon-512.png
