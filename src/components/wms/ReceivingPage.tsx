@@ -179,7 +179,7 @@ export function ReceivingPage() {
             <Inbox className="h-4 w-4 text-primary" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Entradas Hoy</p>
-              <p className="text-lg font-bold">{Array.isArray(todayMovements) ? todayMovements.length : 0}</p>
+              <p className="text-lg font-bold stat-number">{Array.isArray(todayMovements) ? todayMovements.length : 0}</p>
             </div>
           </div>
         </Card>
@@ -188,7 +188,7 @@ export function ReceivingPage() {
             <Package className="h-4 w-4 text-primary" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Unidades Hoy</p>
-              <p className="text-lg font-bold">{Array.isArray(todayMovements) ? (todayMovements as any[]).reduce((s: number, m: any) => s + (m.cantidad || 0), 0) : 0}</p>
+              <p className="text-lg font-bold stat-number">{Array.isArray(todayMovements) ? (todayMovements as any[]).reduce((s: number, m: any) => s + (m.cantidad || 0), 0) : 0}</p>
             </div>
           </div>
         </Card>
@@ -197,7 +197,7 @@ export function ReceivingPage() {
             <CalendarDays className="h-4 w-4 text-primary" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Esta Semana</p>
-              <p className="text-lg font-bold">{Array.isArray(weekMovements) ? weekMovements.length : 0} <span className="text-xs font-normal text-muted-foreground">mov.</span></p>
+              <p className="text-lg font-bold stat-number">{Array.isArray(weekMovements) ? weekMovements.length : 0} <span className="text-xs font-normal text-muted-foreground">mov.</span></p>
             </div>
           </div>
         </Card>

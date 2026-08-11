@@ -26,6 +26,7 @@ import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle, ClipboardList, MapPi
 import { formatCurrency, formatDate, formatDateTime } from './lib/format'
 import { SortableHeader } from './lib/SortableHeader'
 import { printReceipt, getWarehouseSettings } from './lib/print-receipt'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface SaleLine {
   idProducto: number
@@ -115,17 +116,15 @@ export function SalesPage() {
 
   const cancelMutation = useMutation({
     mutationFn: (id: number) =>
-      fetch(`/api/wms/ventas/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'CANCELADA' }),
-      }).then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
-    onSuccess: () => {
-      toast.success('Venta cancelada correctamente')
+      fetch(`/api/wms/ventas/${id}/cancel`, { method: 'POST' })
+        .then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: (result: any) => {
+      toast.success(result.message ?? 'Venta cancelada correctamente')
       queryClient.invalidateQueries({ queryKey: ['ventas'] })
       queryClient.invalidateQueries({ queryKey: ['venta-detail', viewId] })
       queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
       queryClient.invalidateQueries({ queryKey: ['movimientos'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       setCancelId(null)
       setViewId(null)
     },
@@ -184,7 +183,7 @@ export function SalesPage() {
             <ShoppingCart className="h-4 w-4 text-primary" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Ventas Hoy</p>
-              <p className="text-lg font-bold">{formatCurrency(salesSummary?.hoy?.total ?? 0)}</p>
+              <p className="text-lg font-bold stat-number">{formatCurrency(salesSummary?.hoy?.total ?? 0)}</p>
               <p className="text-[10px] text-muted-foreground">{salesSummary?.hoy?.count ?? 0} venta(s)</p>
             </div>
           </div>
@@ -207,13 +206,13 @@ export function SalesPage() {
         <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
           <div>
             <p className="text-[10px] text-muted-foreground uppercase">Semana</p>
-            <p className="text-base font-bold">{formatCurrency(salesSummary?.semana?.total ?? 0)}</p>
+            <p className="text-base font-bold stat-number">{formatCurrency(salesSummary?.semana?.total ?? 0)}</p>
           </div>
         </Card>
         <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
           <div>
             <p className="text-[10px] text-muted-foreground uppercase">Mes</p>
-            <p className="text-base font-bold">{formatCurrency(salesSummary?.mes?.total ?? 0)}</p>
+            <p className="text-base font-bold stat-number">{formatCurrency(salesSummary?.mes?.total ?? 0)}</p>
           </div>
         </Card>
       </div>
@@ -384,39 +383,49 @@ export function SalesPage() {
                     >
                       <XCircle className="h-3.5 w-3.5 mr-1" /> Cancelar Venta
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setPickingId(viewVenta.id)}
-                    >
-                      <ClipboardList className="h-3.5 w-3.5 mr-1" /> Generar Lista de Picking
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          onClick={() => setPickingId(viewVenta.id)}
+                        >
+                          <ClipboardList className="h-3.5 w-3.5 mr-1" /> Generar Lista de Picking
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Generar lista de ubicaciones para recoger productos de esta venta</TooltipContent>
+                    </Tooltip>
                   </>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const warehouse = getWarehouseSettings()
-                    printReceipt({
-                      warehouseName: warehouse.name,
-                      warehouseAddress: warehouse.address,
-                      warehousePhone: warehouse.phone,
-                      folio: viewVenta.folio,
-                      fecha: formatDateTime(viewVenta.fecha),
-                      cliente: { nombre: viewVenta.cliente?.nombre ?? 'N/A', telefono: viewVenta.cliente?.telefono },
-                      detalles: (viewVenta.detalles ?? []).map((d: any) => ({
-                        producto: d.producto ? { nombre: d.producto.nombre, sku: d.producto.sku } : null,
-                        cantidad: d.cantidad,
-                        precioUnitario: d.precioUnitario,
-                      })),
-                      subtotal: viewVenta.subtotal ?? viewVenta.total ?? 0,
-                      total: viewVenta.total ?? 0,
-                      estado: viewVenta.estado,
-                    })
-                  }}
-                >
-                  <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const warehouse = getWarehouseSettings()
+                        printReceipt({
+                          warehouseName: warehouse.name,
+                          warehouseAddress: warehouse.address,
+                          warehousePhone: warehouse.phone,
+                          folio: viewVenta.folio,
+                          fecha: formatDateTime(viewVenta.fecha),
+                          cliente: { nombre: viewVenta.cliente?.nombre ?? 'N/A', telefono: viewVenta.cliente?.telefono },
+                          detalles: (viewVenta.detalles ?? []).map((d: any) => ({
+                            producto: d.producto ? { nombre: d.producto.nombre, sku: d.producto.sku } : null,
+                            cantidad: d.cantidad,
+                            precioUnitario: d.precioUnitario,
+                          })),
+                          subtotal: viewVenta.subtotal ?? viewVenta.total ?? 0,
+                          total: viewVenta.total ?? 0,
+                          estado: viewVenta.estado,
+                        })
+                      }}
+                    >
+                      <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Imprimir recibo de la venta</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           )}

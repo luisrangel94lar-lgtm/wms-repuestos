@@ -138,7 +138,7 @@ export function MovementsPage() {
             <BarChart3 className="h-4 w-4 text-primary" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Total</p>
-              <p className="text-lg font-bold">{movimientos.length}</p>
+              <p className="text-lg font-bold stat-number">{movimientos.length}</p>
             </div>
           </div>
         </Card>
@@ -147,7 +147,7 @@ export function MovementsPage() {
             <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Entradas</p>
-              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{movimientos.filter((m: any) => m.tipoMovimiento?.nombre === 'ENTRADA').length}</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 stat-number">{movimientos.filter((m: any) => m.tipoMovimiento?.nombre === 'ENTRADA').length}</p>
             </div>
           </div>
         </Card>
@@ -156,7 +156,7 @@ export function MovementsPage() {
             <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Salidas</p>
-              <p className="text-lg font-bold text-red-600 dark:text-red-400">{movimientos.filter((m: any) => m.tipoMovimiento?.nombre === 'SALIDA').length}</p>
+              <p className="text-lg font-bold text-red-600 dark:text-red-400 stat-number">{movimientos.filter((m: any) => m.tipoMovimiento?.nombre === 'SALIDA').length}</p>
             </div>
           </div>
         </Card>

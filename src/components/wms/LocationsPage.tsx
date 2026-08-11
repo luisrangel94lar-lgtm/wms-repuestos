@@ -162,22 +162,29 @@ export function LocationsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {estantes(pasillo).map((estante) => (
-                      niveles(pasillo, estante).map((loc) => {
+                    {estantes(pasillo).map((estante, estIdx) => (
+                      niveles(pasillo, estante).map((loc, lvlIdx) => {
                         const qty = stockMap.get(loc.id) ?? 0
                         const hasStock = qty > 0
                         const barWidth = maxStock > 0 ? (qty / maxStock) * 100 : 0
+                        const locIdx = estIdx * 10 + lvlIdx
                         return (
                           <div key={loc.id} className="relative group">
                             <button
                               onClick={() => setSelectedLocation(loc)}
                               className={cn(
-                                'w-full rounded-lg border p-3 text-left transition-all duration-200 hover:ring-2 hover:ring-primary/50 hover:scale-[1.02]',
+                                'location-card w-full rounded-lg border p-3 text-left relative',
                                 hasStock
                                   ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/50 dark:border-emerald-800'
                                   : 'bg-muted/50 border-border'
                               )}
+                              style={{ animationDelay: `${locIdx * 30}ms` }}
                             >
+                              {/* Stock indicator dot */}
+                              <span className={cn(
+                                'absolute top-1.5 right-1.5 h-2 w-2 rounded-full',
+                                hasStock ? 'bg-emerald-500' : 'bg-red-400'
+                              )} />
                               <div className="flex items-center justify-between mb-1">
                                 <p className="text-[11px] font-semibold text-foreground">{loc.pasillo}-{loc.estante}-{loc.nivel}</p>
                                 <span className={cn(

@@ -226,11 +226,34 @@ export function ReportsPage() {
   if (isLoadingReports) {
     return (
       <div className="space-y-4">
-        <Card className="rounded-xl shadow-sm"><CardContent className="p-4"><div className="flex gap-3"><Skeleton className="h-9 w-32" /><Skeleton className="h-9 w-32" /><Skeleton className="h-9 w-24" /></div></CardContent></Card>
-        <Skeleton className="h-10 w-full" />
+        <Card className="rounded-xl shadow-sm"><CardContent className="p-4"><div className="flex gap-3"><Skeleton className="h-9 w-32 shimmer" /><Skeleton className="h-9 w-32 shimmer" /><Skeleton className="h-9 w-24 shimmer" /></div></CardContent></Card>
+        <Skeleton className="h-10 w-full shimmer" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Skeleton className="h-72 rounded-xl" />
-          <Skeleton className="h-72 rounded-xl" />
+          {/* Pie chart skeleton */}
+          <Card className="rounded-xl shadow-sm">
+            <CardHeader className="pb-2"><Skeleton className="h-5 w-28 shimmer" /></CardHeader>
+            <CardContent>
+              <div className="h-64 flex items-center justify-center">
+                <Skeleton className="h-52 w-52 rounded-full shimmer" />
+              </div>
+            </CardContent>
+          </Card>
+          {/* Table skeleton with 5 rows */}
+          <Card className="rounded-xl shadow-sm border">
+            <CardHeader className="pb-2"><Skeleton className="h-5 w-36 shimmer" /></CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex gap-4 px-1"><Skeleton className="h-4 w-24 shimmer" /><Skeleton className="h-4 w-16 shimmer" /><Skeleton className="h-4 w-20 shimmer" /></div>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4 px-1">
+                    <Skeleton className="h-4 flex-1 shimmer" />
+                    <Skeleton className="h-4 w-10 shimmer" />
+                    <Skeleton className="h-4 w-16 shimmer" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )

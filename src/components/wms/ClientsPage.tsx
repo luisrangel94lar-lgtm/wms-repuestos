@@ -117,7 +117,7 @@ export function ClientsPage() {
             <Users className="h-4 w-4 text-primary" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Total Clientes</p>
-              <p className="text-lg font-bold">{clientes.length}</p>
+              <p className="text-lg font-bold stat-number">{clientes.length}</p>
             </div>
           </div>
         </Card>
@@ -126,7 +126,7 @@ export function ClientsPage() {
             <Wallet className="h-4 w-4 text-primary" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Total Compras</p>
-              <p className="text-lg font-bold">{clientes.reduce((s: number, c: any) => s + ((c as any)._count?.ventas ?? 0), 0)}</p>
+              <p className="text-lg font-bold stat-number">{clientes.reduce((s: number, c: any) => s + ((c as any)._count?.ventas ?? 0), 0)}</p>
             </div>
           </div>
         </Card>
@@ -135,7 +135,7 @@ export function ClientsPage() {
             <TrendingUp className="h-4 w-4 text-primary" />
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Promedio Compras</p>
-              <p className="text-lg font-bold">{clientes.length > 0 ? (clientes.reduce((s: number, c: any) => s + ((c as any)._count?.ventas ?? 0), 0) / clientes.length).toFixed(1) : '0'}</p>
+              <p className="text-lg font-bold stat-number">{clientes.length > 0 ? (clientes.reduce((s: number, c: any) => s + ((c as any)._count?.ventas ?? 0), 0) / clientes.length).toFixed(1) : '0'}</p>
             </div>
           </div>
         </Card>

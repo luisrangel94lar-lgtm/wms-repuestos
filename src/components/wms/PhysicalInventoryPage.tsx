@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ClipboardCheck, RotateCcw, Save, Search } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface StockLocation {
   idUbicacion: number
@@ -159,19 +160,19 @@ export function PhysicalInventoryPage() {
         <Card className="rounded-xl shadow-sm">
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Total Productos</p>
-            <p className="text-2xl font-bold mt-1">{summary.totalProductos}</p>
+            <p className="text-2xl font-bold mt-1 stat-number">{summary.totalProductos}</p>
           </CardContent>
         </Card>
         <Card className="rounded-xl shadow-sm">
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Contados</p>
-            <p className="text-2xl font-bold mt-1 text-primary">{summary.contados}</p>
+            <p className="text-2xl font-bold mt-1 text-primary stat-number">{summary.contados}</p>
           </CardContent>
         </Card>
         <Card className="rounded-xl shadow-sm">
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground">Con Varianza</p>
-            <p className={summary.conVarianza > 0 ? 'text-2xl font-bold mt-1 text-amber-600 dark:text-amber-400' : 'text-2xl font-bold mt-1'}>{summary.conVarianza}</p>
+            <p className={summary.conVarianza > 0 ? 'text-2xl font-bold mt-1 text-amber-600 dark:text-amber-400 stat-number' : 'text-2xl font-bold mt-1 stat-number'}>{summary.conVarianza}</p>
           </CardContent>
         </Card>
       </div>
@@ -237,8 +238,14 @@ export function PhysicalInventoryPage() {
                 )}
                 {!isLoading && rows.map((row, idx) => {
                   const variance = getVariance(row.rowKey, row.cantidadSistema)
+                  const hasVariance = variance !== null && variance !== 0
+                  const isZeroVariance = variance === 0
                   return (
-                    <TableRow key={row.rowKey} className="hover:bg-muted/50">
+                    <TableRow key={row.rowKey} className={cn(
+                      'hover:bg-muted/50',
+                      hasVariance && 'variance-detected',
+                      isZeroVariance && 'variance-zero'
+                    )}>
                       <TableCell className="text-xs font-mono py-2">{row.sku}</TableCell>
                       <TableCell className="text-xs font-medium py-2 max-w-[200px] truncate">{row.nombre}</TableCell>
                       <TableCell className="text-xs py-2">

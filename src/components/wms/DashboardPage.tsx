@@ -32,6 +32,8 @@ import {
   RefreshCw,
   SlidersHorizontal,
   RotateCcw,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import {
   BarChart,
@@ -123,6 +125,7 @@ function KpiCard({
   onClick,
   valueClassName,
   pulse,
+  trend,
 }: {
   label: string
   value: React.ReactNode
@@ -132,6 +135,7 @@ function KpiCard({
   onClick?: () => void
   valueClassName?: string
   pulse?: boolean
+  trend?: number
 }) {
   const c = colorMap[color] || colorMap.primary
   return (
@@ -151,11 +155,20 @@ function KpiCard({
             <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               {label}
             </p>
-            <p className={cn('text-2xl font-bold tracking-tight animate-count-up', valueClassName)}>
+            <p className={cn('text-2xl font-bold tracking-tight animate-count-up stat-number', valueClassName)}>
               {value}
             </p>
             {subtitle && (
               <p className="text-xs text-muted-foreground">{subtitle}</p>
+            )}
+            {trend !== undefined && trend !== 0 && (
+              <p className={cn(
+                'text-[11px] font-medium flex items-center gap-0.5',
+                trend > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+              )}>
+                {trend > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                {Math.abs(trend)}%
+              </p>
             )}
           </div>
           <div
@@ -216,6 +229,12 @@ export function DashboardPage() {
       fetch('/api/wms/reportes/top-vendidos?limit=5').then((r) => r.json()),
   })
 
+  const { data: kpiTrends } = useQuery({
+    queryKey: ['kpi-trends'],
+    queryFn: () => fetch('/api/wms/dashboard/kpi-trends').then((r) => r.json()),
+    refetchInterval: 60000,
+  })
+
   const salesChartData = dailySales
 
   const topSellersChart = topSellers.slice(0, 5).map((item: any) => ({
@@ -259,6 +278,7 @@ export function DashboardPage() {
             icon={<DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
             color="emerald"
             subtitle="Valor de todo el inventario"
+            trend={kpiTrends?.stockTrend}
           />
           <KpiCard
             label="Bajo Mínimo"
@@ -284,6 +304,7 @@ export function DashboardPage() {
             icon={<ShoppingCart className="h-5 w-5 text-primary" />}
             color="primary"
             subtitle={`Hoy: ${formatCurrency(data?.ventasHoy?.total ?? 0)} · Sem: ${formatCurrency(data?.ventasSemana?.total ?? 0)}`}
+            trend={kpiTrends?.salesTrend}
           />
           <KpiCard
             label="Movimientos del Día"
@@ -291,6 +312,7 @@ export function DashboardPage() {
             icon={<ArrowLeftRight className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
             color="amber"
             subtitle="Entradas y salidas de hoy"
+            trend={kpiTrends?.movementsTrend}
           />
           <KpiCard
             label="Total Productos"

@@ -1,0 +1,543 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { toast } from 'sonner'
+     6→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     7→import {
+     8→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+     9→} from '@/components/ui/table'
+    10→import { Badge } from '@/components/ui/badge'
+    11→import { Button } from '@/components/ui/button'
+    12→import { Input } from '@/components/ui/input'
+    13→import { Label } from '@/components/ui/label'
+    14→import {
+    15→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    16→} from '@/components/ui/select'
+    17→import {
+    18→  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+    19→} from '@/components/ui/dialog'
+    20→import {
+    21→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    22→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    23→} from '@/components/ui/alert-dialog'
+    24→import { Skeleton } from '@/components/ui/skeleton'
+    25→import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle, ClipboardList, MapPin, Target } from 'lucide-react'
+    26→import { formatCurrency, formatDate, formatDateTime } from './lib/format'
+    27→import { SortableHeader } from './lib/SortableHeader'
+    28→import { printReceipt, getWarehouseSettings } from './lib/print-receipt'
+    29→
+    30→interface SaleLine {
+    31→  idProducto: number
+    32→  nombre: string
+    33→  sku: string
+    34→  precioUnitario: number
+    35→  cantidad: number
+    36→}
+    37→
+    38→export function SalesPage() {
+    39→  const queryClient = useQueryClient()
+    40→
+    41→  const { data: salesSummary } = useQuery({
+    42→    queryKey: ['sales-summary'],
+    43→    queryFn: () => fetch('/api/wms/dashboard').then(r => r.json()).then(d => ({
+    44→      hoy: d.ventasHoy,
+    45→      semana: d.ventasSemana,
+    46→      mes: d.ventasMes,
+    47→    })),
+    48→  })
+    49→
+    50→  const [showCreate, setShowCreate] = useState(false)
+    51→  const [selectedCliente, setSelectedCliente] = useState('')
+    52→  const [selectedProduct, setSelectedProduct] = useState('')
+    53→  const [lineQty, setLineQty] = useState(1)
+    54→  const [lines, setLines] = useState<SaleLine[]>([])
+    55→  const [viewId, setViewId] = useState<number | null>(null)
+    56→  const [cancelId, setCancelId] = useState<number | null>(null)
+    57→  const [pickingId, setPickingId] = useState<number | null>(null)
+    58→
+    59→  // Sorting state
+    60→  const [sortField, setSortField] = useState<string>('fecha')
+    61→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+    62→
+    63→  const { data: clientes = [] } = useQuery({
+    64→    queryKey: ['clientes-sales'],
+    65→    queryFn: () => fetch('/api/wms/clientes').then((r) => r.json()),
+    66→    enabled: showCreate,
+    67→  })
+    68→
+    69→  const { data: products = [] } = useQuery({
+    70→    queryKey: ['products-sales'],
+    71→    queryFn: () => fetch('/api/wms/productos?pageSize=500').then((r) => r.json()).then((d: any) => d.items ?? []),
+    72→    enabled: showCreate,
+    73→  })
+    74→
+    75→  const { data: ventas = [], isLoading } = useQuery({
+    76→    queryKey: ['ventas'],
+    77→    queryFn: () => fetch('/api/wms/ventas').then((r) => r.json()),
+    78→  })
+    79→
+    80→  const { data: viewVenta } = useQuery({
+    81→    queryKey: ['venta-detail', viewId],
+    82→    queryFn: () => fetch(`/api/wms/ventas/${viewId}`).then((r) => r.json()),
+    83→    enabled: !!viewId,
+    84→  })
+    85→
+    86→  const { data: pickingData } = useQuery({
+    87→    queryKey: ['picking-list', pickingId],
+    88→    queryFn: () => fetch(`/api/wms/ventas/${pickingId}/picking`).then((r) => r.json()),
+    89→    enabled: !!pickingId,
+    90→  })
+    91→
+    92→  const createMutation = useMutation({
+    93→    mutationFn: () => {
+    94→      if (!selectedCliente) return Promise.reject({ error: 'Seleccione un cliente' })
+    95→      if (lines.length === 0) return Promise.reject({ error: 'Agregue productos' })
+    96→      return fetch('/api/wms/ventas', {
+    97→        method: 'POST',
+    98→        headers: { 'Content-Type': 'application/json' },
+    99→        body: JSON.stringify({
+   100→          idCliente: Number(selectedCliente),
+   101→          detalles: lines.map((l) => ({ idProducto: l.idProducto, cantidad: l.cantidad, precioUnitario: l.precioUnitario })),
+   102→        }),
+   103→      }).then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() })
+   104→    },
+   105→    onSuccess: () => {
+   106→      toast.success('Venta registrada correctamente')
+   107→      queryClient.invalidateQueries({ queryKey: ['ventas'] })
+   108→      queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+   109→      setShowCreate(false)
+   110→      setSelectedCliente('')
+   111→      setLines([])
+   112→    },
+   113→    onError: (err: any) => toast.error(err.error ?? 'Error al registrar venta'),
+   114→  })
+   115→
+   116→  const cancelMutation = useMutation({
+   117→    mutationFn: (id: number) =>
+   118→      fetch(`/api/wms/ventas/${id}`, {
+   119→        method: 'PATCH',
+   120→        headers: { 'Content-Type': 'application/json' },
+   121→        body: JSON.stringify({ estado: 'CANCELADA' }),
+   122→      }).then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+   123→    onSuccess: () => {
+   124→      toast.success('Venta cancelada correctamente')
+   125→      queryClient.invalidateQueries({ queryKey: ['ventas'] })
+   126→      queryClient.invalidateQueries({ queryKey: ['venta-detail', viewId] })
+   127→      queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+   128→      queryClient.invalidateQueries({ queryKey: ['movimientos'] })
+   129→      setCancelId(null)
+   130→      setViewId(null)
+   131→    },
+   132→    onError: (err: any) => toast.error(err.error ?? 'Error al cancelar venta'),
+   133→  })
+   134→
+   135→  function addLine() {
+   136→    const prod = products.find((p: any) => p.id === Number(selectedProduct))
+   137→    if (!prod) return
+   138→    const existing = lines.find((l) => l.idProducto === prod.id)
+   139→    if (existing) {
+   140→      setLines(lines.map((l) => l.idProducto === prod.id ? { ...l, cantidad: l.cantidad + lineQty } : l))
+   141→    } else {
+   142→      setLines([...lines, { idProducto: prod.id, nombre: prod.nombre, sku: prod.sku, precioUnitario: prod.precioVenta, cantidad: lineQty }])
+   143→    }
+   144→    setSelectedProduct('')
+   145→    setLineQty(1)
+   146→  }
+   147→
+   148→  function removeLine(idProducto: number) {
+   149→    setLines(lines.filter((l) => l.idProducto !== idProducto))
+   150→  }
+   151→
+   152→  const subtotal = lines.reduce((sum, l) => sum + l.precioUnitario * l.cantidad, 0)
+   153→
+   154→  // --- Sorting ---
+   155→  function handleSort(field: string) {
+   156→    if (sortField === field) {
+   157→      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+   158→    } else {
+   159→      setSortField(field)
+   160→      setSortDir('asc')
+   161→    }
+   162→  }
+   163→
+   164→  function getSaleSortValue(v: any, field: string): any {
+   165→    if (field === 'cliente') return v.cliente?.nombre ?? ''
+   166→    return v[field]
+   167→  }
+   168→
+   169→  const sortedVentas = [...ventas].sort((a: any, b: any) => {
+   170→    let aVal: any = getSaleSortValue(a, sortField)
+   171→    let bVal: any = getSaleSortValue(b, sortField)
+   172→    if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = (bVal as string).toLowerCase() }
+   173→    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1
+   174→    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1
+   175→    return 0
+   176→  })
+   177→
+   178→  return (
+   179→    <div className="space-y-4">
+   180→      {/* Stats Bar with Daily Goal Progress */}
+   181→      <div className="flex flex-wrap gap-3 items-stretch">
+   182→        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+   183→          <div className="flex items-center gap-2">
+   184→            <ShoppingCart className="h-4 w-4 text-primary" />
+   185→            <div>
+   186→              <p className="text-[10px] text-muted-foreground uppercase">Ventas Hoy</p>
+   187→              <p className="text-lg font-bold">{formatCurrency(salesSummary?.hoy?.total ?? 0)}</p>
+   188→              <p className="text-[10px] text-muted-foreground">{salesSummary?.hoy?.count ?? 0} venta(s)</p>
+   189→            </div>
+   190→          </div>
+   191→        </Card>
+   192→        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border flex-1 min-w-[220px]">
+   193→          <div className="flex items-center gap-2">
+   194→            <Target className="h-4 w-4 text-primary shrink-0" />
+   195→            <div className="flex-1">
+   196→              <p className="text-[10px] text-muted-foreground uppercase">Meta Diaria: $5,000</p>
+   197→              <div className="w-full bg-muted rounded-full h-2 mt-1">
+   198→                <div
+   199→                  className="h-2 rounded-full bg-primary transition-all duration-500"
+   200→                  style={{ width: `${Math.min(100, ((salesSummary?.hoy?.total ?? 0) / 5000) * 100)}%` }}
+   201→                />
+   202→              </div>
+   203→              <p className="text-[10px] text-muted-foreground mt-0.5">{Math.min(100, Math.round(((salesSummary?.hoy?.total ?? 0) / 5000) * 100))}% completado</p>
+   204→            </div>
+   205→          </div>
+   206→        </Card>
+   207→        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+   208→          <div>
+   209→            <p className="text-[10px] text-muted-foreground uppercase">Semana</p>
+   210→            <p className="text-base font-bold">{formatCurrency(salesSummary?.semana?.total ?? 0)}</p>
+   211→          </div>
+   212→        </Card>
+   213→        <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
+   214→          <div>
+   215→            <p className="text-[10px] text-muted-foreground uppercase">Mes</p>
+   216→            <p className="text-base font-bold">{formatCurrency(salesSummary?.mes?.total ?? 0)}</p>
+   217→          </div>
+   218→        </Card>
+   219→      </div>
+   220→
+   221→      <div className="flex flex-wrap gap-3 items-center">
+   222→        <Button onClick={() => setShowCreate(true)}>
+   223→          <Plus className="h-4 w-4 mr-1" /> Nueva Venta
+   224→        </Button>
+   225→      </div>
+   226→
+   227→      <div className="mb-4">
+   228→        <p className="text-sm text-muted-foreground">Registro de ventas a técnicos con tracking de stock</p>
+   229→      </div>
+   230→
+   231→      {/* Sales table */}
+   232→      <Card className="rounded-xl shadow-sm transition-all duration-200">
+   233→        <CardContent className="p-0">
+   234→          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
+   235→            <Table>
+   236→              <TableHeader>
+   237→                <TableRow>
+   238→                  <SortableHeader field="folio" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Folio</SortableHeader>
+   239→                  <SortableHeader field="fecha" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Fecha</SortableHeader>
+   240→                  <SortableHeader field="cliente" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Cliente</SortableHeader>
+   241→                  <TableHead className="text-xs text-right hidden md:table-cell">Subtotal</TableHead>
+   242→                  <SortableHeader field="total" align="right" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Total</SortableHeader>
+   243→                  <SortableHeader field="estado" align="center" sortField={sortField} sortDir={sortDir} onSort={handleSort}>Estado</SortableHeader>
+   244→                  <TableHead className="text-xs text-right">Detalle</TableHead>
+   245→                </TableRow>
+   246→              </TableHeader>
+   247→              <TableBody>
+   248→                {isLoading && Array.from({ length: 5 }).map((_, i) => (
+   249→                  <TableRow key={i}><TableCell colSpan={7}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+   250→                ))}
+   251→                {!isLoading && sortedVentas.length === 0 && (
+   252→                  <TableRow><TableCell colSpan={7} className="text-center py-12">
+   253→                    <ShoppingCart className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+   254→                    <p className="text-muted-foreground text-sm">No hay ventas registradas</p>
+   255→                    <p className="text-muted-foreground/60 text-xs mt-1">Registra tu primera venta desde el botón "Nueva Venta"</p>
+   256→                  </TableCell></TableRow>
+   257→                )}
+   258→                {!isLoading && sortedVentas.map((v: any) => (
+   259→                  <TableRow key={v.id} className="hover:bg-muted/50">
+   260→                    <TableCell className="text-xs font-mono py-2">{v.folio}</TableCell>
+   261→                    <TableCell className="text-xs py-2">{formatDate(v.fecha)}</TableCell>
+   262→                    <TableCell className="text-xs font-medium py-2">{v.cliente?.nombre}</TableCell>
+   263→                    <TableCell className="text-xs text-right py-2 hidden md:table-cell">{formatCurrency(v.subtotal ?? 0)}</TableCell>
+   264→                    <TableCell className="text-xs text-right py-2 font-medium">{formatCurrency(v.total ?? 0)}</TableCell>
+   265→                    <TableCell className="text-xs text-center py-2">
+   266→                      <Badge variant={v.estado === 'COMPLETADA' ? 'default' : 'outline'} className="text-[10px]">{v.estado}</Badge>
+   267→                    </TableCell>
+   268→                    <TableCell className="text-xs text-right py-2">
+   269→                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewId(v.id)}><Eye className="h-3.5 w-3.5" /></Button>
+   270→                    </TableCell>
+   271→                  </TableRow>
+   272→                ))}
+   273→              </TableBody>
+   274→            </Table>
+   275→          </div>
+   276→        </CardContent>
+   277→      </Card>
+   278→
+   279→      {/* Create sale dialog */}
+   280→      <Dialog open={showCreate} onOpenChange={(open) => { if (!open) { setShowCreate(false); setLines([]); setSelectedCliente('') } }}>
+   281→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   282→          <DialogHeader className="dialog-header-accent"><DialogTitle>Nueva Venta</DialogTitle><DialogDescription className="sr-only">Formulario para registrar una nueva venta</DialogDescription></DialogHeader>
+   283→          <div className="space-y-4">
+   284→            <div className="space-y-2">
+   285→              <Label className="text-sm font-medium">Cliente *</Label>
+   286→              <Select value={selectedCliente} onValueChange={setSelectedCliente}>
+   287→                <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
+   288→                <SelectContent>
+   289→                  {clientes.map((c: any) => (
+   290→                    <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
+   291→                  ))}
+   292→                </SelectContent>
+   293→              </Select>
+   294→            </div>
+   295→
+   296→            <div className="border rounded-lg p-3 space-y-3">
+   297→              <p className="text-sm font-medium">Productos</p>
+   298→              <div className="flex gap-2 items-end">
+   299→                <div className="flex-1 space-y-1">
+   300→                  <Label className="text-xs">Producto</Label>
+   301→                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+   302→                    <SelectTrigger className="h-9"><SelectValue placeholder="Buscar producto" /></SelectTrigger>
+   303→                    <SelectContent>
+   304→                      {products.map((p: any) => (
+   305→                        <SelectItem key={p.id} value={String(p.id)}>{p.sku} - {p.nombre} ({formatCurrency(p.precioVenta)})</SelectItem>
+   306→                      ))}
+   307→                    </SelectContent>
+   308→                  </Select>
+   309→                </div>
+   310→                <div className="w-20 space-y-1">
+   311→                  <Label className="text-xs">Cant.</Label>
+   312→                  <Input type="number" min={1} className="h-9" value={lineQty} onChange={(e) => setLineQty(Number(e.target.value))} />
+   313→                </div>
+   314→                <Button type="button" variant="outline" size="sm" className="h-9" onClick={addLine} disabled={!selectedProduct}><Plus className="h-4 w-4" /></Button>
+   315→              </div>
+   316→
+   317→              {lines.length > 0 && (
+   318→                <Table>
+   319→                  <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs text-center">Cant.</TableHead><TableHead className="text-xs text-right">Precio</TableHead><TableHead className="text-xs text-right">Importe</TableHead><TableHead /></TableRow></TableHeader>
+   320→                  <TableBody>
+   321→                    {lines.map((l) => (
+   322→                      <TableRow key={l.idProducto}>
+   323→                        <TableCell className="text-xs py-1.5">{l.nombre}</TableCell>
+   324→                        <TableCell className="text-xs text-center font-mono py-1.5">{l.cantidad}</TableCell>
+   325→                        <TableCell className="text-xs text-right py-1.5">{formatCurrency(l.precioUnitario)}</TableCell>
+   326→                        <TableCell className="text-xs text-right py-1.5">{formatCurrency(l.precioUnitario * l.cantidad)}</TableCell>
+   327→                        <TableCell className="py-1.5"><Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeLine(l.idProducto)}><Trash2 className="h-3 w-3" /></Button></TableCell>
+   328→                      </TableRow>
+   329→                    ))}
+   330→                  </TableBody>
+   331→                </Table>
+   332→              )}
+   333→            </div>
+   334→
+   335→            <div className="flex justify-end text-sm font-semibold">
+   336→              Total: {formatCurrency(subtotal)}
+   337→            </div>
+   338→          </div>
+   339→          <DialogFooter>
+   340→            <Button variant="outline" onClick={() => { setShowCreate(false); setLines([]); setSelectedCliente('') }}>Cancelar</Button>
+   341→            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !selectedCliente || lines.length === 0}>
+   342→              {createMutation.isPending ? 'Registrando...' : 'Registrar Venta'}
+   343→            </Button>
+   344→          </DialogFooter>
+   345→        </DialogContent>
+   346→      </Dialog>
+   347→
+   348→      {/* View sale detail dialog */}
+   349→      <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null) }}>
+   350→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   351→          <DialogHeader className="dialog-header-accent"><DialogTitle>Detalle de Venta</DialogTitle><DialogDescription className="sr-only">Detalle de la venta seleccionada</DialogDescription></DialogHeader>
+   352→          {viewVenta && (
+   353→            <div className="space-y-4">
+   354→              <div className="grid grid-cols-2 gap-3 text-sm">
+   355→                <div><span className="text-muted-foreground">Folio:</span> <span className="font-mono font-medium">{viewVenta.folio}</span></div>
+   356→                <div><span className="text-muted-foreground">Fecha:</span> {formatDate(viewVenta.fecha)}</div>
+   357→                <div><span className="text-muted-foreground">Cliente:</span> {viewVenta.cliente?.nombre}</div>
+   358→                <div><span className="text-muted-foreground">Estado:</span> <Badge variant={viewVenta.estado === 'COMPLETADA' ? 'default' : 'outline'} className="text-[10px]">{viewVenta.estado}</Badge></div>
+   359→              </div>
+   360→              <Table>
+   361→                <TableHeader><TableRow><TableHead className="text-xs">Producto</TableHead><TableHead className="text-xs text-center">Cant.</TableHead><TableHead className="text-xs text-right">Precio</TableHead><TableHead className="text-xs text-right">Importe</TableHead></TableRow></TableHeader>
+   362→                <TableBody>
+   363→                  {(viewVenta.detalles ?? []).map((d: any) => (
+   364→                    <TableRow key={d.idProducto}>
+   365→                      <TableCell className="text-xs py-1.5">{d.producto?.nombre}</TableCell>
+   366→                      <TableCell className="text-xs text-center font-mono py-1.5">{d.cantidad}</TableCell>
+   367→                      <TableCell className="text-xs text-right py-1.5">{formatCurrency(d.precioUnitario)}</TableCell>
+   368→                      <TableCell className="text-xs text-right py-1.5">{formatCurrency(d.precioUnitario * d.cantidad)}</TableCell>
+   369→                    </TableRow>
+   370→                  ))}
+   371→                </TableBody>
+   372→              </Table>
+   373→              <div className="flex justify-between text-sm font-semibold pt-2 border-t">
+   374→                <span>Total:</span>
+   375→                <span>{formatCurrency(viewVenta.total ?? 0)}</span>
+   376→              </div>
+   377→              <div className="flex justify-end gap-2 pt-3">
+   378→                {viewVenta.estado === 'COMPLETADA' && (
+   379→                  <>
+   380→                    <Button
+   381→                      variant="destructive"
+   382→                      size="sm"
+   383→                      onClick={() => setCancelId(viewVenta.id)}
+   384→                    >
+   385→                      <XCircle className="h-3.5 w-3.5 mr-1" /> Cancelar Venta
+   386→                    </Button>
+   387→                    <Button
+   388→                      size="sm"
+   389→                      onClick={() => setPickingId(viewVenta.id)}
+   390→                    >
+   391→                      <ClipboardList className="h-3.5 w-3.5 mr-1" /> Generar Lista de Picking
+   392→                    </Button>
+   393→                  </>
+   394→                )}
+   395→                <Button
+   396→                  variant="outline"
+   397→                  size="sm"
+   398→                  onClick={() => {
+   399→                    const warehouse = getWarehouseSettings()
+   400→                    printReceipt({
+   401→                      warehouseName: warehouse.name,
+   402→                      warehouseAddress: warehouse.address,
+   403→                      warehousePhone: warehouse.phone,
+   404→                      folio: viewVenta.folio,
+   405→                      fecha: formatDateTime(viewVenta.fecha),
+   406→                      cliente: { nombre: viewVenta.cliente?.nombre ?? 'N/A', telefono: viewVenta.cliente?.telefono },
+   407→                      detalles: (viewVenta.detalles ?? []).map((d: any) => ({
+   408→                        producto: d.producto ? { nombre: d.producto.nombre, sku: d.producto.sku } : null,
+   409→                        cantidad: d.cantidad,
+   410→                        precioUnitario: d.precioUnitario,
+   411→                      })),
+   412→                      subtotal: viewVenta.subtotal ?? viewVenta.total ?? 0,
+   413→                      total: viewVenta.total ?? 0,
+   414→                      estado: viewVenta.estado,
+   415→                    })
+   416→                  }}
+   417→                >
+   418→                  <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir
+   419→                </Button>
+   420→              </div>
+   421→            </div>
+   422→          )}
+   423→        </DialogContent>
+   424→      </Dialog>
+   425→
+   426→      {/* Picking List Dialog */}
+   427→      <Dialog open={!!pickingId} onOpenChange={(open) => { if (!open) setPickingId(null) }}>
+   428→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   429→          <DialogHeader className="dialog-header-accent">
+   430→            <DialogTitle className="flex items-center gap-2">
+   431→              <ClipboardList className="h-5 w-5" /> Lista de Picking
+   432→            </DialogTitle>
+   433→            <DialogDescription className="sr-only">Lista de recolección de productos para la venta</DialogDescription>
+   434→          </DialogHeader>
+   435→          {pickingData && (
+   436→            <div className="space-y-4">
+   437→              <div className="grid grid-cols-3 gap-3 text-sm bg-muted/50 rounded-lg p-3">
+   438→                <div><span className="text-muted-foreground">Folio:</span> <span className="font-mono font-medium">{pickingData.folio}</span></div>
+   439→                <div><span className="text-muted-foreground">Fecha:</span> {formatDate(pickingData.fecha)}</div>
+   440→                <div><span className="text-muted-foreground">Cliente:</span> <span className="font-medium">{pickingData.cliente?.nombre}</span></div>
+   441→              </div>
+   442→              <div id="picking-print-content">
+   443→                <Table>
+   444→                  <TableHeader>
+   445→                    <TableRow>
+   446→                      <TableHead className="text-xs w-8">#</TableHead>
+   447→                      <TableHead className="text-xs">Producto</TableHead>
+   448→                      <TableHead className="text-xs">SKU</TableHead>
+   449→                      <TableHead className="text-xs text-center">Cant. Necesaria</TableHead>
+   450→                      <TableHead className="text-xs">Recoger De</TableHead>
+   451→                      <TableHead className="text-xs text-center">Disponible</TableHead>
+   452→                      <TableHead className="text-xs text-center">Estado</TableHead>
+   453→                    </TableRow>
+   454→                  </TableHeader>
+   455→                  <TableBody>
+   456→                    {pickingData.items.map((item: any, idx: number) => (
+   457→                      <TableRow key={item.idProducto} className={!item.suficiente ? 'bg-red-50/50 dark:bg-red-950/20' : ''}>
+   458→                        <TableCell className="text-xs font-mono py-2">{idx + 1}</TableCell>
+   459→                        <TableCell className="text-xs font-medium py-2">{item.producto.nombre}</TableCell>
+   460→                        <TableCell className="text-xs font-mono py-2">{item.producto.sku}</TableCell>
+   461→                        <TableCell className="text-xs text-center font-mono py-2 font-semibold">{item.cantidadNecesaria}</TableCell>
+   462→                        <TableCell className="text-xs py-2">
+   463→                          {item.ubicaciones.length > 0 ? (
+   464→                            <div className="flex flex-col gap-0.5">
+   465→                              {item.ubicaciones.map((loc: any) => (
+   466→                                <span key={loc.idUbicacion} className="flex items-center gap-1 font-mono">
+   467→                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+   468→                                  {loc.codigo}
+   469→                                  <span className="text-muted-foreground">({loc.cantidad})</span>
+   470→                                </span>
+   471→                              ))}
+   472→                            </div>
+   473→                          ) : (
+   474→                            <span className="text-muted-foreground">Sin ubicación</span>
+   475→                          )}
+   476→                        </TableCell>
+   477→                        <TableCell className="text-xs text-center font-mono py-2">{item.cantidadDisponible}</TableCell>
+   478→                        <TableCell className="text-xs text-center py-2">
+   479→                          {item.suficiente ? (
+   480→                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-[10px]">OK</Badge>
+   481→                          ) : (
+   482→                            <Badge variant="destructive" className="text-[10px]">INSUFICIENTE</Badge>
+   483→                          )}
+   484→                        </TableCell>
+   485→                      </TableRow>
+   486→                    ))}
+   487→                  </TableBody>
+   488→                </Table>
+   489→              </div>
+   490→              <div className="flex justify-end gap-2 pt-2 border-t">
+   491→                <Button
+   492→                  variant="outline"
+   493→                  size="sm"
+   494→                  onClick={() => {
+   495→                    const printContent = document.getElementById('picking-print-content')
+   496→                    if (!printContent) return
+   497→                    const win = window.open('', '_blank')
+   498→                    if (!win) return
+   499→                    win.document.write(`
+   500→                      <html><head><title>Lista de Picking - ${pickingData.folio}</title></head><body>
+   501→                      <h2 style="text-align:center">Lista de Picking</h2>
+   502→                      <p><strong>Folio:</strong> ${pickingData.folio} &nbsp; <strong>Fecha:</strong> ${formatDate(pickingData.fecha)} &nbsp; <strong>Cliente:</strong> ${pickingData.cliente?.nombre}</p>
+   503→                      <hr/>
+   504→                      ${printContent.innerHTML}
+   505→                      </body></html>
+   506→                    `)
+   507→                    win.document.close()
+   508→                    win.print()
+   509→                  }}
+   510→                >
+   511→                  <Printer className="h-3.5 w-3.5 mr-1" /> Imprimir Picking
+   512→                </Button>
+   513→                <Button variant="outline" size="sm" onClick={() => setPickingId(null)}>Cerrar</Button>
+   514→              </div>
+   515→            </div>
+   516→          )}
+   517→        </DialogContent>
+   518→      </Dialog>
+   519→
+   520→      {/* Cancel sale confirmation dialog */}
+   521→      <AlertDialog open={!!cancelId} onOpenChange={(open) => { if (!open) setCancelId(null) }}>
+   522→        <AlertDialogContent>
+   523→          <AlertDialogHeader>
+   524→            <AlertDialogTitle>¿Cancelar venta?</AlertDialogTitle>
+   525→            <AlertDialogDescription>
+   526→              Se revertirá el stock y se cambiará el estado a CANCELADA.
+   527→            </AlertDialogDescription>
+   528→          </AlertDialogHeader>
+   529→          <AlertDialogFooter>
+   530→            <AlertDialogCancel>No cancelar</AlertDialogCancel>
+   531→            <AlertDialogAction
+   532→              onClick={() => cancelId && cancelMutation.mutate(cancelId)}
+   533→              disabled={cancelMutation.isPending}
+   534→            >
+   535→              {cancelMutation.isPending ? 'Cancelando...' : 'Sí, cancelar venta'}
+   536→            </AlertDialogAction>
+   537→          </AlertDialogFooter>
+   538→        </AlertDialogContent>
+   539→      </AlertDialog>
+   540→    </div>
+   541→  )
+   542→}
+   543→

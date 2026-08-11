@@ -491,3 +491,106 @@
 [data-state="open"][data-radix-overlay] {
   animation: dialog-overlay-enter 200ms ease-out;
 }
+
+/* ============================================= */
+/* TABLE ROW CLICKABLE                             */
+/* ============================================= */
+
+.table-row-clickable tr {
+  cursor: pointer;
+}
+.table-row-clickable tr:active td {
+  background: oklch(0.88 0.04 160 / 50%);
+  transition: background 0.1s ease;
+}
+.dark .table-row-clickable tr:active td {
+  background: oklch(0.26 0.04 160 / 50%);
+}
+
+/* ============================================= */
+/* BADGE TEAL                                      */
+/* ============================================= */
+
+.badge-teal {
+  background: oklch(0.55 0.15 160);
+  color: white;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+
+/* ============================================= */
+/* LOCATION CARD                                   */
+/* ============================================= */
+
+@keyframes location-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.location-card {
+  animation: location-appear 0.3s ease-out backwards;
+  transition: all 0.2s ease;
+}
+.location-card:hover {
+  box-shadow: 0 4px 12px oklch(0 0 0 / 8%);
+  transform: translateY(-2px);
+}
+.dark .location-card:hover {
+  box-shadow: 0 4px 12px oklch(0 0 0 / 25%);
+}
+
+/* ============================================= */
+/* PHYSICAL INVENTORY VARIANCE                     */
+/* ============================================= */
+
+.variance-detected {
+  background: oklch(0.88 0.08 80 / 35%);
+}
+.dark .variance-detected {
+  background: oklch(0.28 0.06 80 / 35%);
+}
+.variance-zero {
+  background: oklch(0.90 0.06 160 / 25%);
+}
+.dark .variance-zero {
+  background: oklch(0.24 0.04 160 / 25%);
+}
+
+/* ============================================= */
+/* IMPROVED FOCUS STATES                           */
+/* ============================================= */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px oklch(0.985 0.002 155), 0 0 0 4px oklch(0.55 0.15 160 / 50%);
+}
+.dark button:focus-visible,
+.dark a:focus-visible,
+.dark input:focus-visible,
+.dark select:focus-visible,
+.dark textarea:focus-visible {
+  box-shadow: 0 0 0 2px oklch(0.16 0.012 155), 0 0 0 4px oklch(0.70 0.15 160 / 50%);
+}
+
+/* ============================================= */
+/* STAT NUMBER FORMATTING                          */
+/* ============================================= */
+
+.stat-number {
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0.5px 0 oklch(0 0 0 / 8%);
+}
+.dark .stat-number {
+  text-shadow: 0 0.5px 0 oklch(0 0 0 / 25%);
+}

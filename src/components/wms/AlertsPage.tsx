@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, ShoppingCart, Package, Zap, PackageCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface Alerta {
   id: number
@@ -37,11 +38,11 @@ export function AlertsPage() {
       <div className="flex flex-wrap gap-3 mb-4">
         <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
           <p className="text-xs text-muted-foreground">Total Alertas</p>
-          <p className="text-lg font-bold">{alertas.length}</p>
+          <p className="text-lg font-bold stat-number">{alertas.length}</p>
         </Card>
         <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
           <p className="text-xs text-muted-foreground">Sin Stock</p>
-          <p className="text-lg font-bold text-red-600 dark:text-red-400">{alertas.filter(a => a.stockActual === 0).length}</p>
+          <p className="text-lg font-bold text-red-600 dark:text-red-400 stat-number">{alertas.filter(a => a.stockActual === 0).length}</p>
         </Card>
         <Card className="card-hover rounded-lg px-4 py-2.5 shadow-sm border">
           <p className="text-xs text-muted-foreground">Deficiencia Total</p>
@@ -127,22 +128,32 @@ export function AlertsPage() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs gap-1"
-                          onClick={() => { setCurrentPage('receiving'); setReceivingProductId(a.id, a.deficiencia) }}
-                        >
-                          <Zap className="h-3 w-3" /> Pedido rápido
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 text-xs gap-1"
-                          onClick={() => setCurrentPage('products')}
-                        >
-                          <Package className="h-3 w-3" /> Ver producto
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs gap-1"
+                              onClick={() => { setCurrentPage('receiving'); setReceivingProductId(a.id, a.deficiencia) }}
+                            >
+                              <Zap className="h-3 w-3" /> Pedido rápido
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Pre-fills product and suggested quantity in Recepción</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 text-xs gap-1"
+                              onClick={() => setCurrentPage('products')}
+                            >
+                              <Package className="h-3 w-3" /> Ver producto
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Ver detalles del producto en el catálogo</TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>

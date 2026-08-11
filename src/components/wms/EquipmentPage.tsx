@@ -24,8 +24,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  HoverCard, HoverCardContent, HoverCardTrigger,
+} from '@/components/ui/hover-card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, ChevronDown, ChevronRight, Pencil, Trash2, Link as LinkIcon, Tag, Cpu } from 'lucide-react'
+import { Plus, Search, ChevronDown, ChevronRight, Pencil, Trash2, Link as LinkIcon, Tag, Cpu, ExternalLink } from 'lucide-react'
 import { useWmsStore } from '@/store/wms'
 
 const equipoSchema = z.object({
@@ -55,6 +58,7 @@ export function EquipmentPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [linkDialog, setLinkDialog] = useState<{ equipoId: number; mode: 'link' | 'unlink' } | null>(null)
   const [linkProductId, setLinkProductId] = useState('')
+  const [hoverEquipoId, setHoverEquipoId] = useState<number | null>(null)
 
   const { data: equipos = [], isLoading } = useQuery<Equipo[]>({
     queryKey: ['equipos', search],
@@ -68,6 +72,12 @@ export function EquipmentPage() {
     queryKey: ['equipo-detail', expandedId],
     queryFn: () => fetch(`/api/wms/equipos/${expandedId}`).then((r) => r.json()),
     enabled: !!expandedId,
+  })
+
+  const { data: hoverEquipo } = useQuery({
+    queryKey: ['equipo-hover', hoverEquipoId],
+    queryFn: () => fetch(`/api/wms/equipos/${hoverEquipoId}`).then((r) => r.json()),
+    enabled: !!hoverEquipoId && hoverEquipoId !== expandedId,
   })
 
   const { data: allProducts = [] } = useQuery({
@@ -129,6 +139,12 @@ export function EquipmentPage() {
 
   function handleSearch() { setSearch(searchInput) }
 
+  function getHoverData(eq: Equipo) {
+    if (expandedId === eq.id && expandedEquipo) return expandedEquipo
+    if (hoverEquipoId === eq.id && hoverEquipo) return hoverEquipo
+    return null
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3">
@@ -171,6 +187,9 @@ export function EquipmentPage() {
               )}
               {!isLoading && equipos.map((eq) => {
                 const isExpanded = expandedId === eq.id
+                const repCount = (eq as any)._count?.productoEquipo ?? 0
+                const hoverData = getHoverData(eq)
+                const parts = hoverData?.productoEquipo ?? []
                 return (
                   <Fragment key={eq.id}>
                     <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : eq.id)}>
@@ -178,10 +197,35 @@ export function EquipmentPage() {
                       <TableCell className="text-xs font-medium py-2">{eq.modelo}</TableCell>
                       <TableCell className="text-xs py-2">{eq.marca?.nombre}</TableCell>
                       <TableCell className="text-xs py-2 hidden md:table-cell">{eq.tipoEquipo ?? '-'}</TableCell>
-                      <TableCell className="text-xs text-center py-2">
-                        <Badge variant="outline" className="text-[10px]">
-                          {(eq as any)._count?.productoEquipo ?? 0}
-                        </Badge>
+                      <TableCell className="text-xs text-center py-2" onClick={(e) => e.stopPropagation()}>
+                        <HoverCard openDelay={300} onOpenChange={(open) => { if (open) setHoverEquipoId(eq.id); else if (hoverEquipoId === eq.id) setHoverEquipoId(null) } }>
+                          <HoverCardTrigger asChild>
+                            <Badge variant="outline" className="text-[10px] cursor-default">
+                              {repCount}
+                            </Badge>
+                          </HoverCardTrigger>
+                          {repCount > 0 && (
+                            <HoverCardContent className="w-72 p-3" side="bottom" align="center">
+                              <p className="text-xs font-semibold mb-2">Repuestos compatibles:</p>
+                              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                {parts.slice(0, 5).map((pe: any) => (
+                                  <div key={pe.idProducto} className="text-xs flex items-center gap-1.5">
+                                    <Badge variant="secondary" className="text-[10px] font-mono shrink-0">{pe.producto?.sku}</Badge>
+                                    <span className="truncate">{pe.producto?.nombre}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {repCount > 5 && (
+                                <button
+                                  className="text-[10px] text-primary hover:underline mt-2 flex items-center gap-0.5"
+                                  onClick={(e) => { e.stopPropagation(); setExpandedId(eq.id) }}
+                                >
+                                  <ExternalLink className="h-3 w-3" /> Ver todos ({repCount})
+                                </button>
+                              )}
+                            </HoverCardContent>
+                          )}
+                        </HoverCard>
                       </TableCell>
                       <TableCell className="text-xs text-right py-2" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
@@ -308,7 +352,7 @@ export function EquipmentPage() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setLinkDialog(null)}>Cancelar</Button>
-                <Button onClick={() => linkProductId && linkMutation.mutate({ idProducto: Number(linkProductId), idEquipo: linkDialog.equipoId })} disabled={linkMutation.isPending || !linkProductId}>
+                <Button onClick={() => linkProductId && linkMutation.mutate({ idProducto: Number(linkProductId), idEquipo: linkDialog!.equipoId })} disabled={linkMutation.isPending || !linkProductId}>
                   {linkMutation.isPending ? 'Vinculando...' : 'Vincular'}
                 </Button>
               </DialogFooter>

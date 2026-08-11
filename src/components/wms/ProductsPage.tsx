@@ -46,17 +46,18 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode, Calculator, Package, DollarSign, Layers, Tag, ScanBarcode, Image } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, Filter, Activity, Barcode, Calculator, Package, DollarSign, Layers, Tag, ScanBarcode, Image, Upload, FileSpreadsheet } from 'lucide-react'
 import { formatCurrency } from './lib/format'
 import { cn } from '@/lib/utils'
 import { BarcodeScanner } from './BarcodeScanner'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  Tooltip as RechartsTooltip,
   AreaChart,
   Area,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
 } from 'recharts'
 
@@ -177,6 +178,9 @@ export function ProductsPage() {
   const [viewId, setViewId] = useState<number | null>(null)
   const [timelineId, setTimelineId] = useState<number | null>(null)
   const [showBarcode, setShowBarcode] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const { data, isLoading } = useQuery<CategoriasResponse>({
     queryKey: ['products', page, search, idCategoria, idMarca, bajoStock],
@@ -367,13 +371,18 @@ export function ProductsPage() {
           <Button variant="outline" onClick={handleSearch}>
             <Search className="h-4 w-4" />
           </Button>
-          <Button
-            variant={bajoStock ? 'default' : 'outline'}
-            onClick={() => { setBajoStock(!bajoStock); setPage(1) }}
-          >
-            <Filter className="h-4 w-4 mr-1" />
-            Bajo Stock
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={bajoStock ? 'default' : 'outline'}
+                onClick={() => { setBajoStock(!bajoStock); setPage(1) }}
+              >
+                <Filter className="h-4 w-4 mr-1" />
+                Bajo Stock
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Mostrar solo productos bajo stock mínimo</TooltipContent>
+          </Tooltip>
           <Select value={idCategoria} onValueChange={(v) => { setIdCategoria(v === '_all' ? '' : v); setPage(1) }}>
             <SelectTrigger className="w-[140px] h-9 text-xs">
               <SelectValue placeholder="Categoría" />
@@ -398,14 +407,28 @@ export function ProductsPage() {
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => { form.reset(); setShowCreate(true) }}>
-            <Plus className="h-4 w-4 mr-1" />
-            Nuevo Producto
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={() => { form.reset(); setShowCreate(true) }}>
+                <Plus className="h-4 w-4 mr-1" />
+                Nuevo Producto
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Crear un nuevo producto en el catálogo</TooltipContent>
+          </Tooltip>
+          <Button variant="outline" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Importar CSV
           </Button>
-          <Button variant="outline" onClick={() => setShowBarcode(true)}>
-            <Barcode className="h-4 w-4 mr-1" />
-            Código de Barras
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={() => setShowBarcode(true)}>
+                <Barcode className="h-4 w-4 mr-1" />
+                Código de Barras
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Buscar producto por código de barras</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -416,7 +439,7 @@ export function ProductsPage() {
       {/* Table */}
       <Card className="rounded-xl shadow-sm transition-all duration-200">
         <CardContent className="p-0">
-          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto overflow-x-auto">
+          <div className="table-container table-row-clickable max-h-[calc(100vh-14rem)] overflow-y-auto overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -743,7 +766,7 @@ export function ProductsPage() {
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                       <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip
+                      <RechartsTooltip
                         contentStyle={{
                           borderRadius: '8px',
                           border: '1px solid var(--border)',
@@ -790,6 +813,70 @@ export function ProductsPage() {
       </AlertDialog>
 
       <BarcodeScanner open={showBarcode} onOpenChange={setShowBarcode} />
+
+      {/* CSV Import Dialog */}
+      <Dialog open={showImport} onOpenChange={(open) => { if (!open) { setShowImport(false); setImportFile(null) } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="dialog-header-accent">
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" /> Importar CSV
+            </DialogTitle>
+            <DialogDescription className="sr-only">Importar productos desde un archivo CSV</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Archivo CSV</Label>
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+              <p className="text-xs font-medium">Formato esperado (columnas del CSV):</p>
+              <div className="flex flex-wrap gap-1">
+                {['sku', 'nombre', 'descripcion', 'categoria', 'marca', 'unidadMedida', 'costoUnitario', 'precioVenta', 'stockMinimo', 'activo'].map((col) => (
+                  <code key={col} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{col}</code>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Los SKUs existentes se omitirán. Categorías y marcas deben existir previamente (se buscan por nombre).</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowImport(false); setImportFile(null) }}>Cancelar</Button>
+            <Button
+              onClick={async () => {
+                if (!importFile) return
+                setImporting(true)
+                try {
+                  const formData = new FormData()
+                  formData.append('file', importFile)
+                  const res = await fetch('/api/wms/productos/import', { method: 'POST', body: formData })
+                  const data = await res.json()
+                  if (!res.ok) {
+                    toast.error(data.error ?? 'Error al importar')
+                  } else {
+                    toast.success(`${data.imported} productos importados, ${data.skipped} omitidos`)
+                    if (data.errors?.length > 0) {
+                      toast.warning(`${data.errors.length} errores: ${data.errors.slice(0, 3).join('; ')}`)
+                    }
+                    queryClient.invalidateQueries({ queryKey: ['products'] })
+                    setShowImport(false)
+                    setImportFile(null)
+                  }
+                } catch {
+                  toast.error('Error de conexión')
+                } finally {
+                  setImporting(false)
+                }
+              }}
+              disabled={!importFile || importing}
+            >
+              {importing ? 'Importando...' : 'Importar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

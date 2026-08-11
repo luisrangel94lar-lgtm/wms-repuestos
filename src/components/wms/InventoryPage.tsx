@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { SortableHeader } from './lib/SortableHeader'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface StockEntry {
   idProducto: number
@@ -435,15 +436,15 @@ export function InventoryPage() {
       <div className="flex flex-wrap gap-3 mb-4">
         <Card className="rounded-lg px-4 py-3 shadow-sm">
           <p className="text-xs text-muted-foreground">Productos Activos</p>
-          <p className="text-lg font-bold">{products.length}</p>
+          <p className="text-lg font-bold stat-number">{products.length}</p>
         </Card>
         <Card className="rounded-lg px-4 py-3 shadow-sm">
           <p className="text-xs text-muted-foreground">Valor Total</p>
-          <p className="text-lg font-bold">{formatCurrency(inventoryStats?.stockValue ?? totalValor)}</p>
+          <p className="text-lg font-bold stat-number">{formatCurrency(inventoryStats?.stockValue ?? totalValor)}</p>
         </Card>
         <Card className="rounded-lg px-4 py-3 shadow-sm">
           <p className="text-xs text-muted-foreground">Bajo Mínimo</p>
-          <p className="text-lg font-bold text-destructive">{inventoryStats?.bajoStock ?? 0}</p>
+          <p className="text-lg font-bold text-destructive stat-number">{inventoryStats?.bajoStock ?? 0}</p>
         </Card>
       </div>
 
@@ -464,7 +465,7 @@ export function InventoryPage() {
 
       <Card className="rounded-xl shadow-sm">
         <CardContent className="p-0">
-          <div className="table-container max-h-[calc(100vh-14rem)] overflow-y-auto">
+          <div className="table-container table-row-clickable max-h-[calc(100vh-14rem)] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -547,12 +548,22 @@ export function InventoryPage() {
       {selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-xl border bg-background/95 backdrop-blur shadow-lg px-4 py-3">
           <span className="text-sm font-medium">{selectedIds.size} seleccionados</span>
-          <Button size="sm" onClick={() => setBatchDialogOpen(true)}>
-            <SlidersHorizontal className="h-4 w-4 mr-1" /> Ajustar Stock
-          </Button>
-          <Button size="sm" variant="outline" onClick={exportSelected}>
-            <Download className="h-4 w-4 mr-1" /> Exportar Seleccionados
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" onClick={() => setBatchDialogOpen(true)}>
+                <SlidersHorizontal className="h-4 w-4 mr-1" /> Ajustar Stock
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Ajustar stock en lote para productos seleccionados</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="outline" onClick={exportSelected}>
+                <Download className="h-4 w-4 mr-1" /> Exportar Seleccionados
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Exportar productos seleccionados a CSV</TooltipContent>
+          </Tooltip>
           <Button size="sm" variant="ghost" onClick={clearSelection}>
             <XIcon className="h-4 w-4" />
           </Button>

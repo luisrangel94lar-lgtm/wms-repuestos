@@ -1,7 +1,8 @@
 'use client'
 
-import { useSyncExternalStore, useCallback } from 'react'
+import { useSyncExternalStore, useCallback, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
-import { Save, Building2, Globe, Palette, Info } from 'lucide-react'
+import { Save, Building2, Globe, Palette, Info, Download, Upload, Database, AlertTriangle } from 'lucide-react'
 
 const STORAGE_KEY = 'wms-settings'
 const SETTINGS_EVENT = 'wms-settings-changed'
@@ -55,7 +56,11 @@ function getServerSnapshot(): WmsSettings {
 
 export function SettingsPage() {
   const { setTheme } = useTheme()
+  const queryClient = useQueryClient()
   const settings = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  const [exporting, setExporting] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const updateSetting = useCallback(<K extends keyof WmsSettings>(key: K, value: WmsSettings[K]) => {
     const current = getSnapshot()
@@ -71,6 +76,64 @@ export function SettingsPage() {
 
   function handleSave() {
     toast.success('Configuración guardada correctamente')
+  }
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/wms/settings/backup')
+      if (!res.ok) {
+        toast.error('Error al exportar datos')
+        return
+      }
+      const data = await res.json()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `wms-backup-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success('Respaldo descargado correctamente')
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  async function handleRestore() {
+    const file = fileInputRef.current?.files?.[0]
+    if (!file) {
+      toast.error('Seleccione un archivo')
+      return
+    }
+    setRestoring(true)
+    try {
+      const text = await file.text()
+      const json = JSON.parse(text)
+      const res = await fetch('/api/wms/settings/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error ?? 'Error al restaurar')
+        return
+      }
+      const result = await res.json()
+      const imp = result.imported
+      toast.success(`Datos restaurados: ${imp.products} productos, ${imp.equipment} equipos, ${imp.locations} ubicaciones, ${imp.clients} clientes, ${imp.stock} stock`)
+      queryClient.invalidateQueries()
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch {
+      toast.error('Error al procesar archivo')
+    } finally {
+      setRestoring(false)
+    }
   }
 
   return (
@@ -157,6 +220,76 @@ export function SettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Respaldo de Datos */}
+      <Card className="rounded-xl shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Respaldo de Datos
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">Exporta o importa los datos maestros del sistema (productos, equipos, ubicaciones, clientes y stock).</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div className="flex items-start gap-2 rounded-lg border p-3">
+                <Download className="h-4 w-4 mt-0.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Exportar Datos</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Descarga todos los datos maestros como archivo JSON.</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleExport}
+                disabled={exporting}
+              >
+                <Download className="h-4 w-4 mr-1" />
+                {exporting ? 'Exportando...' : 'Descargar Respaldo'}
+              </Button>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-start gap-2 rounded-lg border p-3">
+                <Upload className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Importar Datos</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Restaura datos desde un archivo de respaldo JSON previo.</p>
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={restoring}
+              >
+                <Upload className="h-4 w-4 mr-1" />
+                Seleccionar Archivo
+              </Button>
+              {fileInputRef.current?.files?.[0] && (
+                <Button
+                  className="w-full"
+                  onClick={handleRestore}
+                  disabled={restoring}
+                >
+                  {restoring ? 'Restaurando...' : 'Restaurar Datos'}
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3">
+            <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <p className="text-[11px] text-amber-800 dark:text-amber-200">Los registros que ya existan (mismo SKU, modelo o nombre) se omitirán durante la importación. No se eliminarán datos existentes.</p>
           </div>
         </CardContent>
       </Card>
