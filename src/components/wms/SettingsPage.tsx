@@ -1,6 +1,6 @@
 'use client'
 
-import { useSyncExternalStore, useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,9 +13,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { Save, Building2, Globe, Palette, Info, Download, Upload, Database, AlertTriangle } from 'lucide-react'
-
-const STORAGE_KEY = 'wms-settings'
-const SETTINGS_EVENT = 'wms-settings-changed'
+import { getSettingsSnapshot, updateSettings as updateSettingsStore } from '@/lib/settings-store'
 
 interface WmsSettings {
   warehouseName: string
@@ -35,21 +33,6 @@ const DEFAULT_SETTINGS: WmsSettings = {
   idioma: 'Español',
 }
 
-function subscribe(callback: () => void) {
-  window.addEventListener(SETTINGS_EVENT, callback)
-  return () => window.removeEventListener(SETTINGS_EVENT, callback)
-}
-
-function getSnapshot(): WmsSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
-  } catch {
-    // ignore parse errors
-  }
-  return DEFAULT_SETTINGS
-}
-
 function getServerSnapshot(): WmsSettings {
   return DEFAULT_SETTINGS
 }
@@ -57,16 +40,25 @@ function getServerSnapshot(): WmsSettings {
 export function SettingsPage() {
   const { setTheme } = useTheme()
   const queryClient = useQueryClient()
-  const settings = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  const [revision, setRevision] = useState(0)
+  const raw = getSettingsSnapshot()
+  const _rev = revision // force re-read on settings change
+  const settings: WmsSettings = {
+    warehouseName: (raw.warehouseName as string) || DEFAULT_SETTINGS.warehouseName,
+    warehouseAddress: (raw.warehouseAddress as string) || DEFAULT_SETTINGS.warehouseAddress,
+    warehousePhone: (raw.warehousePhone as string) || DEFAULT_SETTINGS.warehousePhone,
+    moneda: (raw.moneda as string) || DEFAULT_SETTINGS.moneda,
+    tema: (raw.tema as string) || DEFAULT_SETTINGS.tema,
+    idioma: (raw.idioma as string) || DEFAULT_SETTINGS.idioma,
+  }
+  void _rev
   const [exporting, setExporting] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const updateSetting = useCallback(<K extends keyof WmsSettings>(key: K, value: WmsSettings[K]) => {
-    const current = getSnapshot()
-    const next = { ...current, [key]: value }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-    window.dispatchEvent(new Event(SETTINGS_EVENT))
+    updateSettingsStore({ [key]: value })
+    setRevision(r => r + 1)
 
     // Integrate with next-themes for theme
     if (key === 'tema') {

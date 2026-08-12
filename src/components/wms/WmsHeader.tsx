@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState, useCallback, useSyncExternalStore } from 'react'
+import { subscribeSettings, getSettingsSnapshot, stableSubscribe } from '@/lib/settings-store'
 import { useQuery } from '@tanstack/react-query'
 import { useWmsStore } from '@/store/wms'
 import { pageTitles } from './WmsSidebar'
@@ -94,7 +95,7 @@ export function WmsHeader() {
   const [notifOpen, setNotifOpen] = useState(false)
   const [seenIds, setSeenIdsState] = useState<string[]>(() => getSeenIds())
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
+  const mounted = useSyncExternalStore(stableSubscribe, () => true, () => false)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const avatarRef = useRef<HTMLDivElement>(null)

@@ -30,28 +30,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useQuery } from '@tanstack/react-query'
-
-const SETTINGS_KEY = 'wms-settings'
-const SETTINGS_EVENT = 'wms-settings-changed'
-
-function subscribeSettings(callback: () => void) {
-  window.addEventListener(SETTINGS_EVENT, callback)
-  return () => window.removeEventListener(SETTINGS_EVENT, callback)
-}
-
-const EMPTY_SETTINGS_SIDEBAR: Record<string, unknown> = {}
-
-function getSettingsSnapshot() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch { /* ignore */ }
-  return EMPTY_SETTINGS_SIDEBAR
-}
-
-function getSettingsServerSnapshot() {
-  return EMPTY_SETTINGS_SIDEBAR
-}
+import { subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot } from '@/lib/settings-store'
 
 interface NavItemConfig {
   id: WmsPage

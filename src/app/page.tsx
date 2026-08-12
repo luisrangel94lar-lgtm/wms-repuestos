@@ -22,28 +22,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useSyncExternalStore } from 'react'
 import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
-
-const SETTINGS_KEY = 'wms-settings'
-const SETTINGS_EVENT = 'wms-settings-changed'
-
-function subscribeSettings(callback: () => void) {
-  window.addEventListener(SETTINGS_EVENT, callback)
-  return () => window.removeEventListener(SETTINGS_EVENT, callback)
-}
-
-const EMPTY_SETTINGS: Record<string, unknown> = {}
-
-function getSettingsSnapshot() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch { /* ignore */ }
-  return EMPTY_SETTINGS
-}
-
-function getSettingsServerSnapshot() {
-  return EMPTY_SETTINGS
-}
+import { subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot, stableSubscribe } from '@/lib/settings-store'
 
 const pageComponents: Record<WmsPage, React.ComponentType> = {
   dashboard: DashboardPage,
@@ -72,7 +51,7 @@ export default function Home() {
   }))
   const { currentPage } = useWmsStore()
   const { theme } = useTheme()
-  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
+  const mounted = useSyncExternalStore(stableSubscribe, () => true, () => false)
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
   const warehouseName = (settings as any).warehouseName || 'WMS Pilot v1.0'
   const PageComponent = pageComponents[currentPage]
