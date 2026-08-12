@@ -1349,3 +1349,22 @@ Stage Summary:
 - PWA support: app can be installed on mobile home screen for app-like experience
 - COP currency already implemented as default (confirmed in SettingsPage.tsx and format.ts)
 - All files created: setup.sh, setup.bat, public/manifest.json, public/icon-512.png
+
+---
+Task ID: 9
+Agent: Main Architect
+Task: Remote access solutions - Cloudflare Tunnel, ngrok, VPS deployment guide
+
+Work Log:
+- User clarified access is from another city (not same LAN)
+- Created comprehensive `ACCESO-REMOTO.md` guide with 3 deployment options
+- Option 1: Cloudflare Tunnel (free, recommended) - secure tunnel from local PC to internet
+- Option 2: ngrok (quick temporary) - instant public URL
+- Option 3: VPS deployment (production) - full server setup with Nginx, SSL, systemd
+- Added `tunnel` and `tunnel:ngrok` scripts to package.json for one-command tunnel access
+
+Stage Summary:
+- User can now access WMS from any city using any of the 3 methods
+- ACCESO-REMOTO.md contains full step-by-step guides in Spanish
+- Recommended path: Cloudflare Tunnel (free + domain) for daily use
+- No database changes needed - all 3 methods work with local SQLite
