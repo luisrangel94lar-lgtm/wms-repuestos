@@ -103,14 +103,23 @@ export function WmsHeader() {
 
   const { data: notifications = [] } = useQuery<NotificationItem[]>({
     queryKey: ['notifications'],
-    queryFn: () => fetch('/api/wms/notificaciones').then((r) => r.json()),
+    queryFn: async () => {
+      try {
+        const r = await fetch('/api/wms/notificaciones')
+        if (!r.ok) return []
+        const data = await r.json()
+        return Array.isArray(data) ? data : []
+      } catch {
+        return []
+      }
+    },
     refetchInterval: 60000,
   })
 
-  const unreadCount = notifications.filter((n) => !seenIds.includes(n.id)).length
+  const unreadCount = Array.isArray(notifications) ? notifications.filter((n) => !seenIds.includes(n.id)).length : 0
 
   function markAllSeen() {
-    const allIds = notifications.map((n) => n.id)
+    const allIds = Array.isArray(notifications) ? notifications.map((n) => n.id) : []
     setSeenIds(allIds)
     setSeenIdsState(allIds)
   }
