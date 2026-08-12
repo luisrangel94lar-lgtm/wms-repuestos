@@ -12,7 +12,9 @@ export type WmsPage =
   | 'reports'
   | 'alerts'
   | 'physicalInventory'
-  | 'settings';
+  | 'settings'
+  | 'userManagement'
+  | 'license';
 
 // Nav item for sidebar
 export interface NavItem {

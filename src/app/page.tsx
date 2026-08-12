@@ -1,6 +1,7 @@
 'use client'
 
-import { useWmsStore } from '@/store/wms'
+import { useWmsStore, type SessionData, type LicenseInfo } from '@/store/wms'
+import { SessionProvider } from 'next-auth/react'
 import { WmsSidebar } from '@/components/wms/WmsSidebar'
 import { WmsHeader } from '@/components/wms/WmsHeader'
 import { DashboardPage } from '@/components/wms/DashboardPage'
@@ -16,10 +17,13 @@ import { ReportsPage } from '@/components/wms/ReportsPage'
 import { AlertsPage } from '@/components/wms/AlertsPage'
 import { SettingsPage } from '@/components/wms/SettingsPage'
 import { PhysicalInventoryPage } from '@/components/wms/PhysicalInventoryPage'
+import { UserManagementPage } from '@/components/wms/UserManagementPage'
+import { LicensePage } from '@/components/wms/LicensePage'
+import { LoginPage } from '@/components/wms/LoginPage'
 import { Toaster } from '@/components/ui/sonner'
 import type { WmsPage } from '@/types/wms'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, useSyncExternalStore } from 'react'
+import { useState, useEffect, useSyncExternalStore } from 'react'
 import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
 import { subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot, stableSubscribe } from '@/lib/settings-store'
@@ -38,6 +42,8 @@ const pageComponents: Record<WmsPage, React.ComponentType> = {
   alerts: AlertsPage,
   physicalInventory: PhysicalInventoryPage,
   settings: SettingsPage,
+  userManagement: UserManagementPage,
+  license: LicensePage,
 }
 
 export default function Home() {
@@ -49,7 +55,7 @@ export default function Home() {
       },
     },
   }))
-  const { currentPage } = useWmsStore()
+  const { currentPage, isAuthenticated, setSession, setLicenseInfo, showLogin, setShowLogin } = useWmsStore()
   const { theme } = useTheme()
   const mounted = useSyncExternalStore(stableSubscribe, () => true, () => false)
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
@@ -62,9 +68,47 @@ export default function Home() {
     day: 'numeric',
   })
 
+  // Check auth status on mount
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth/session-check')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.authenticated && data.session) {
+            setSession(data.session as SessionData)
+            if (data.license) {
+              setLicenseInfo(data.license as LicenseInfo)
+            }
+          } else {
+            setShowLogin(true)
+          }
+        } else {
+          setShowLogin(true)
+        }
+      } catch {
+        setShowLogin(true)
+      }
+    }
+    checkSession()
+  }, [setSession, setLicenseInfo, setShowLogin])
+
+  // Show login page if not authenticated
+  if (!isAuthenticated || showLogin) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <SessionProvider>
+          <LoginPage />
+          <Toaster richColors position="top-right" />
+        </SessionProvider>
+      </QueryClientProvider>
+    )
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-background to-background/[0.97] dark:from-background dark:to-background/[0.85]">
+      <SessionProvider>
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-background to-background/[0.97] dark:from-background dark:to-background/[0.85]">
         <div className="flex flex-1 overflow-hidden">
           <WmsSidebar />
           <div className="flex-1 flex flex-col min-w-0">
@@ -92,6 +136,7 @@ export default function Home() {
         </div>
       </div>
       <Toaster richColors position="top-right" />
+      </SessionProvider>
     </QueryClientProvider>
   )
 }

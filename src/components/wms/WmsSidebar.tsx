@@ -18,6 +18,8 @@ import {
   ClipboardCheck,
   Settings,
   Clock,
+  UserCog,
+  KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -44,7 +46,7 @@ interface NavSection {
   items: NavItemConfig[]
 }
 
-const navSections: NavSection[] = [
+const baseNavSections: NavSection[] = [
   {
     items: [{ id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> }],
   },
@@ -82,9 +84,20 @@ const navSections: NavSection[] = [
   {
     title: 'SISTEMA',
     titleColor: 'bg-slate-400 dark:bg-slate-500',
-    items: [{ id: 'settings', label: 'Configuración', icon: <Settings className="h-4 w-4" /> }],
+    items: [
+      { id: 'settings', label: 'Configuración', icon: <Settings className="h-4 w-4" /> },
+    ],
   },
 ]
+
+const adminSection: NavSection = {
+  title: 'ADMIN',
+  titleColor: 'bg-emerald-500',
+  items: [
+    { id: 'userManagement', label: 'Usuarios', icon: <UserCog className="h-4 w-4" /> },
+    { id: 'license', label: 'Licencia', icon: <KeyRound className="h-4 w-4" /> },
+  ],
+}
 
 const pageTitles: Record<WmsPage, string> = {
   dashboard: 'Dashboard',
@@ -100,6 +113,8 @@ const pageTitles: Record<WmsPage, string> = {
   alerts: 'Alertas',
   physicalInventory: 'Inventario Físico',
   settings: 'Configuración',
+  userManagement: 'Usuarios',
+  license: 'Licencia',
 }
 
 export { pageTitles }
@@ -207,7 +222,10 @@ function SidebarFooter() {
 }
 
 export function WmsSidebar() {
-  const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen } = useWmsStore()
+  const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, session } = useWmsStore()
+  const userRol = session?.user?.rol
+  const isAdmin = userRol === 'admin'
+  const navSections = isAdmin ? [...baseNavSections, adminSection] : baseNavSections
   const [isMobile, setIsMobile] = useState(false)
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
   const warehouseName = (settings as any).warehouseName || 'WMS Repuestos'

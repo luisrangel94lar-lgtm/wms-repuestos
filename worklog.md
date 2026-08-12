@@ -1368,3 +1368,34 @@ Stage Summary:
 - ACCESO-REMOTO.md contains full step-by-step guides in Spanish
 - Recommended path: Cloudflare Tunnel (free + domain) for daily use
 - No database changes needed - all 3 methods work with local SQLite
+
+---
+Task ID: 10
+Agent: Main Architect + Sub-agents (b22614dd, 3cc3ed5c)
+Task: Implement Authentication, RBAC, User Management & License System
+
+Work Log:
+- Added Usuario and Licencia models to Prisma schema
+- Created NextAuth.js v4 credentials provider with JWT sessions (24h maxAge)
+- Password hashing: SHA-256 with salt (scryptSync caused event loop blocking, switched to SHA-256)
+- Created LoginPage.tsx - professional login form with teal/emerald theme
+- Created UserManagementPage.tsx - admin-only user CRUD with role assignment
+- Created LicensePage.tsx - license info display, trial counter, activation form
+- Implemented RBAC: 4 roles (admin, gerente, vendedor, tecnico) with page-level access control
+- Created auth-helpers.ts: hashPassword, verifyPassword, getRolePermissions, hasPageAccess
+- Created 9 API routes: register, users CRUD, change-password, license, session-check, NextAuth
+- Added SessionProvider (next-auth/react) wrapper to page.tsx
+- Fixed useSyncExternalStore infinite loop bug (created shared settings-store.ts module)
+- Updated WmsSidebar.tsx with ADMIN section (Users + License nav items)
+- Seeded admin user (admin@almacen.com / admin123) and 30-day trial license
+- Fixed NEXTAUTH_URL in .env to prevent server crash
+- 0 lint errors
+
+Stage Summary:
+- Full auth system: login/logout, JWT sessions, role-based access
+- Admin can create/manage users with 4 roles and page-level permissions
+- License system: 30-day trial, activation with license keys (prefix-based: T=trial, M=monthly, A=annual, V=lifetime)
+- Default credentials: admin@almacen.com / admin123
+- License key format examples: TRIAL-XXXX, M-XXXX, A-XXXX, V-XXXX
+- Port changed back to 3000 for development (user uses 3001 on their PC)
+- Files created: auth.ts, auth-helpers.ts, license.ts, LoginPage.tsx, UserManagementPage.tsx, LicensePage.tsx, seed-auth.ts + 9 API routes

@@ -183,3 +183,43 @@ model VentaDetalle {
   @@id([idVenta, idProducto])
   @@map("venta_detalle")
 }
+
+// ============================================
+// AUTENTICACIÓN Y ROLES
+// ============================================
+
+model Usuario {
+  id            Int       @id @default(autoincrement())
+  nombre        String
+  email         String    @unique
+  password      String    // bcrypt hash
+  rol           String    @default("tecnico") // admin, gerente, vendedor, tecnico
+  activo        Boolean   @default(true)
+  ultimoAcceso  DateTime?
+  fechaCreacion DateTime  @default(now())
+  creadoPor     Int?
+  creador       Usuario?  @relation("CreadorUsuario", fields: [creadoPor], references: [id])
+  usuariosCreados Usuario[] @relation("CreadorUsuario")
+
+  @@map("usuarios")
+}
+
+// ============================================
+// LICENCIA
+// ============================================
+
+model Licencia {
+  id            Int      @id @default(autoincrement())
+  clave         String   @unique         // license key (UUID)
+  tipo          String   @default("trial") // trial, mensual, anual, vitalicio
+  estado        String   @default("activa") // activa, vencida, revocada
+  fechaActivacion DateTime?
+  fechaVencimiento DateTime?
+  maxUsuarios   Int      @default(3)     // max concurrent users
+  diasPrueba    Int      @default(30)    // trial days
+  datosEmpresa  String?                  // JSON with company info
+  notas         String?
+  fechaCreacion DateTime @default(now())
+
+  @@map("licencias")
+}
