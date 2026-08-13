@@ -9,6 +9,7 @@ import { SearchResults } from './SearchResults'
 import { Menu, Search, X, Sun, Moon, ChevronRight, ChevronDown, Bell, AlertTriangle, ShoppingCart, Download, CheckCheck, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
@@ -30,6 +31,8 @@ const breadcrumbs: Record<WmsPage, { path: string; description: string }> = {
   alerts: { path: 'Alertas', description: 'Productos que requieren reabastecimiento urgente' },
   settings: { path: 'Sistema / Configuración', description: 'Preferencias del sistema y datos del almacén' },
   physicalInventory: { path: 'Operaciones / Inventario Físico', description: 'Conteo físico del inventario con detección de varianzas' },
+  empresas: { path: 'Super Admin / Empresas', description: 'Gestión de empresas registradas en el sistema' },
+  almacenes: { path: 'Super Admin / Almacenes', description: 'Gestión de almacenes por empresa' },
 }
 
 interface NotificationItem {
@@ -87,7 +90,7 @@ const pageMapping: Record<string, WmsPage> = {
 }
 
 export function WmsHeader() {
-  const { currentPage, toggleSidebar, searchQuery, setSearchQuery, setCurrentPage } = useWmsStore()
+  const { currentPage, toggleSidebar, searchQuery, setSearchQuery, setCurrentPage, session } = useWmsStore()
   const [localQuery, setLocalQuery] = useState(searchQuery)
   const [showResults, setShowResults] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
@@ -392,6 +395,11 @@ export function WmsHeader() {
               A
             </div>
             <span className="hidden sm:inline text-sm font-medium">Admin</span>
+            {session?.user?.empresaId && (
+              <Badge variant="outline" className="text-[10px] h-5 px-1.5 ml-1">
+                Empresa #{session.user.empresaId}
+              </Badge>
+            )}
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
           {avatarOpen && (

@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    // Products are global (stock is global), just check session exists.
+    // No data filtering needed for alerts.
     const productos = await db.producto.findMany({
       where: { activo: true },
       include: {

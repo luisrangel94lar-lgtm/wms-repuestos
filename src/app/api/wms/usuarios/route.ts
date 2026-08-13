@@ -12,19 +12,26 @@ export async function GET(req: NextRequest) {
     }
 
     const user = session.user as any
-    if (user.rol !== 'admin') {
+    if (!['admin', 'super_admin'].includes(user.rol)) {
       return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     }
 
     const url = new URL(req.url)
     const countOnly = url.searchParams.get('count') === '1'
 
+    // Role-based filtering
+    const where: Record<string, unknown> = {}
+    if (user.rol === 'admin' && user.empresaId) {
+      where.empresaId = user.empresaId
+    }
+
     if (countOnly) {
-      const count = await db.usuario.count()
+      const count = await db.usuario.count({ where })
       return NextResponse.json({ count })
     }
 
     const users = await db.usuario.findMany({
+      where,
       select: {
         id: true,
         nombre: true,
@@ -33,6 +40,8 @@ export async function GET(req: NextRequest) {
         activo: true,
         ultimoAcceso: true,
         fechaCreacion: true,
+        empresaId: true,
+        almacenId: true,
       },
       orderBy: { fechaCreacion: 'asc' },
     })
@@ -52,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     const user = session.user as any
-    if (user.rol !== 'admin') {
+    if (!['admin', 'super_admin'].includes(user.rol)) {
       return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     }
 
@@ -91,6 +100,8 @@ export async function POST(req: NextRequest) {
         rol: rol || 'tecnico',
         activo: activo !== false,
         creadoPor: user.id,
+        empresaId: user.empresaId ?? body.empresaId ?? null,
+        almacenId: body.almacenId ?? null,
       },
       select: {
         id: true,
@@ -100,6 +111,8 @@ export async function POST(req: NextRequest) {
         activo: true,
         ultimoAcceso: true,
         fechaCreacion: true,
+        empresaId: true,
+        almacenId: true,
       },
     })
 

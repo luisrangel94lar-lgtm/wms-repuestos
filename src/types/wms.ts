@@ -14,7 +14,9 @@ export type WmsPage =
   | 'physicalInventory'
   | 'settings'
   | 'userManagement'
-  | 'license';
+  | 'license'
+  | 'empresas'
+  | 'almacenes';
 
 // Nav item for sidebar
 export interface NavItem {
@@ -164,4 +166,45 @@ export interface SearchResult {
   sku?: string;
   nombre: string;
   subtext?: string;
+}
+
+// Multi-empresa types
+export interface Empresa {
+  id: number
+  nombre: string
+  nit: string | null
+  direccion: string | null
+  telefono: string | null
+  email: string | null
+  logo: string | null
+  activa: boolean
+  plan: string
+  fechaCreacion: string
+  _count?: {
+    usuarios: number
+    almacenes: number
+  }
+}
+
+export interface Almacen {
+  id: number
+  nombre: string
+  direccion: string | null
+  telefono: string | null
+  encargado: string | null
+  activo: boolean
+  empresaId: number
+  empresa?: { id: number; nombre: string }
+  _count?: {
+    usuarios: number
+    ubicaciones: number
+  }
+}
+
+export interface EmpresaStats {
+  totalEmpresas: number
+  totalAlmacenes: number
+  totalUsuarios: number
+  empresasActivas: number
+  almacenesActivos: number
 }

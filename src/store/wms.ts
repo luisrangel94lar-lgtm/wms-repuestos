@@ -6,6 +6,8 @@ export interface SessionUser {
   nombre: string
   email: string
   rol: string
+  empresaId?: number
+  almacenId?: number
 }
 
 export interface SessionData {
@@ -31,6 +33,8 @@ interface WmsState {
   licenseInfo: LicenseInfo | null
   isAuthenticated: boolean
   showLogin: boolean
+  selectedEmpresaId: number | null
+  selectedAlmacenId: number | null
   setCurrentPage: (page: WmsPage) => void
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
@@ -39,6 +43,8 @@ interface WmsState {
   setSession: (session: SessionData | null) => void
   setLicenseInfo: (info: LicenseInfo | null) => void
   setShowLogin: (show: boolean) => void
+  setSelectedEmpresaId: (id: number | null) => void
+  setSelectedAlmacenId: (id: number | null) => void
   logout: () => void
 }
 
@@ -52,6 +58,8 @@ export const useWmsStore = create<WmsState>((set) => ({
   licenseInfo: null,
   isAuthenticated: false,
   showLogin: false,
+  selectedEmpresaId: null,
+  selectedAlmacenId: null,
   setCurrentPage: (page) => set({ currentPage: page }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -60,6 +68,8 @@ export const useWmsStore = create<WmsState>((set) => ({
   setSession: (session) => set({ session, isAuthenticated: session !== null }),
   setLicenseInfo: (info) => set({ licenseInfo: info }),
   setShowLogin: (show) => set({ showLogin: show }),
+  setSelectedEmpresaId: (id) => set({ selectedEmpresaId: id }),
+  setSelectedAlmacenId: (id) => set({ selectedAlmacenId: id }),
   logout: () => {
     fetch('/api/auth/signout', { method: 'POST' }).catch(() => {})
     set({ session: null, isAuthenticated: false, showLogin: true })

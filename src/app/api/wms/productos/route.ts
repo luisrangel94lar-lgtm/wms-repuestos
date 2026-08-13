@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') ?? '1', 10)
     const pageSize = parseInt(searchParams.get('pageSize') ?? '20', 10)
@@ -23,14 +30,13 @@ export async function GET(request: NextRequest) {
     if (idCategoria) where.idCategoria = parseInt(idCategoria, 10)
     if (idMarca) where.idMarca = parseInt(idMarca, 10)
 
-    // For bajoStock, we need to find products where total stock < stockMinimo
-    // We do this with a subquery approach: fetch all matching products with stocks,
-    // then filter and paginate on the application side for bajoStock mode
+    // Products are global (not per-almacen), so no data filtering needed.
+    // Auth check above is sufficient.
+
     let items: any[]
     let total: number
 
     if (bajoStock) {
-      // Fetch all products matching other filters with their stocks
       const productos = await db.producto.findMany({
         where,
         include: { categoria: true, marca: true, stocks: true },
@@ -72,6 +78,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
     const body = await request.json()
     const producto = await db.producto.create({
       data: {

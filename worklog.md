@@ -1399,3 +1399,55 @@ Stage Summary:
 - License key format examples: TRIAL-XXXX, M-XXXX, A-XXXX, V-XXXX
 - Port changed back to 3000 for development (user uses 3001 on their PC)
 - Files created: auth.ts, auth-helpers.ts, license.ts, LoginPage.tsx, UserManagementPage.tsx, LicensePage.tsx, seed-auth.ts + 9 API routes
+
+---
+Task ID: 1
+Agent: full-stack-developer
+Task: Update core infrastructure files for multi-empresa SaaS
+
+Work Log:
+- Updated prisma/schema.prisma with Empresa and Almacen models
+- Added empresaId/almacenId fields to Usuario, Ubicacion, Venta, Movimiento, Licencia
+- Updated src/types/wms.ts with Empresa, Almacen, EmpresaStats types
+- Added empresas/almacenes to WmsPage type
+- Updated src/store/wms.ts with selectedEmpresaId and selectedAlmacenId
+- Updated src/lib/auth.ts with empresaId/almacenId in JWT and session callbacks
+- Updated src/lib/auth-helpers.ts with super_admin role support
+
+Stage Summary:
+- 5 core files updated for multi-empresa architecture
+- Schema supports SQLite (sandbox) with autoincrement IDs
+
+---
+Task ID: 3
+Agent: full-stack-developer
+Task: Create and modify frontend components for multi-empresa SaaS
+
+Work Log:
+- Created CompaniesPage.tsx for empresa management (stats cards, CRUD table, create/edit/deactivate dialogs)
+- Created WarehousesPage.tsx for almacen management (empresa filter for super_admin, CRUD table, stats cards)
+- Modified WmsSidebar.tsx with super_admin section (empresas/almacenes/users/license) and AlmacenSelector dropdown
+- Modified WmsHeader.tsx with empresas/almacenes breadcrumbs and empresa context badge
+- Modified page.tsx to route empresas/almacenes to new page components
+
+Stage Summary:
+- 2 new frontend components created (CompaniesPage, WarehousesPage)
+- 3 existing components updated for multi-empresa navigation
+- Super_admin has dedicated nav section with empresas/almacenes
+- Almacen selector shows in sidebar footer when multiple almacenes available
+- 0 ESLint errors
+
+---
+Task ID: 2
+Agent: full-stack-developer
+Task: Create and modify API routes for multi-empresa SaaS
+
+Work Log:
+- Created 5 new API routes: empresas CRUD, almacenes CRUD, empresa stats
+- Modified 8 existing API routes with role-based filtering
+- Added auth checks to dashboard, productos, ventas, stock, movimientos, ubicaciones, alertas
+- Updated usuarios route for super_admin support
+
+Stage Summary:
+- All API routes now support multi-empresa role hierarchy
+- super_admin sees all, admin filters by empresa, others filter by almacen

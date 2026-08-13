@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    const user = session.user as any
+
     const { searchParams } = new URL(request.url)
     const idProducto = searchParams.get('idProducto')
     const idTipo = searchParams.get('idTipo')
@@ -16,6 +24,19 @@ export async function GET(request: NextRequest) {
       where.fecha = {} as Record<string, unknown>
       if (fechaDesde) (where.fecha as Record<string, unknown>).gte = new Date(fechaDesde)
       if (fechaHasta) (where.fecha as Record<string, unknown>).lte = new Date(fechaHasta)
+    }
+
+    // Role-based filtering
+    if (user.rol !== 'super_admin') {
+      if (['gerente', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
+        where.almacenId = user.almacenId
+      } else if (user.rol === 'admin' && user.empresaId) {
+        const almacenes = await db.almacen.findMany({
+          where: { empresaId: user.empresaId },
+          select: { id: true },
+        })
+        where.almacenId = { in: almacenes.map((a) => a.id) }
+      }
     }
 
     const movimientos = await db.movimiento.findMany({
@@ -32,7 +53,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    const user = session.user as any
+
     const body = await request.json()
+    const movAlmacenId = user.almacenId ?? body.almacenId ?? null
 
     // Batch mode
     if (Array.isArray(body.batch)) {
@@ -67,6 +95,7 @@ export async function POST(request: NextRequest) {
               referencia: item.referencia ?? null,
               usuario: item.usuario ?? null,
               observacion: item.observacion ?? null,
+              almacenId: movAlmacenId,
             },
             include: { producto: true, ubicacion: true, tipoMovimiento: true },
           })
@@ -108,7 +137,6 @@ export async function POST(request: NextRequest) {
     // Single movement
     const { idProducto, idUbicacion, idTipo, cantidad, costoUnitario, referencia, usuario, observacion } = body
 
-    // Look up the movement type to determine action
     const tipo = await db.tipoMovimiento.findUnique({ where: { id: idTipo } })
     if (!tipo) {
       return NextResponse.json({ error: 'Tipo de movimiento no encontrado' }, { status: 400 })
@@ -124,10 +152,10 @@ export async function POST(request: NextRequest) {
         referencia: referencia ?? null,
         usuario: usuario ?? null,
         observacion: observacion ?? null,
+        almacenId: movAlmacenId,
       },
     })
 
-    // Update stock based on movement type
     if (idUbicacion) {
       if (tipo.nombre === 'ENTRADA') {
         await db.stock.upsert({
