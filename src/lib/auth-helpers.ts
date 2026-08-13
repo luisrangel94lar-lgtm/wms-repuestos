@@ -24,9 +24,12 @@ export function getRolePermissions(rol: string): string[] {
     'dashboard', 'products', 'equipment', 'locations', 'inventory',
     'receiving', 'sales', 'clients', 'movements', 'reports',
     'alerts', 'physicalInventory', 'settings', 'userManagement', 'license',
+    'empresas', 'almacenes',
   ]
 
   switch (rol) {
+    case 'super_admin':
+      return allPages
     case 'admin':
       return allPages
     case 'gerente':
@@ -45,10 +48,10 @@ export function hasPageAccess(rol: string, page: string): boolean {
 }
 
 export function isAdmin(rol: string): boolean {
-  return rol === 'admin'
+  return rol === 'admin' || rol === 'super_admin'
 }
 
-export const VALID_ROLES = ['admin', 'gerente', 'vendedor', 'tecnico'] as const
+export const VALID_ROLES = ['super_admin', 'admin', 'gerente', 'vendedor', 'tecnico'] as const
 export type UserRole = (typeof VALID_ROLES)[number]
 
 export function isValidRole(rol: string): rol is UserRole {

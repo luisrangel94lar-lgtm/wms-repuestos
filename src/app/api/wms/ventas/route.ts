@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    const user = session.user as any
+
     const { searchParams } = new URL(request.url)
     const fechaDesde = searchParams.get('fechaDesde')
     const fechaHasta = searchParams.get('fechaHasta')
@@ -17,6 +25,19 @@ export async function GET(request: NextRequest) {
     }
     if (idCliente) where.idCliente = parseInt(idCliente, 10)
     if (estado) where.estado = estado
+
+    // Role-based filtering
+    if (user.rol !== 'super_admin') {
+      if (['gerente', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
+        where.almacenId = user.almacenId
+      } else if (user.rol === 'admin' && user.empresaId) {
+        const almacenes = await db.almacen.findMany({
+          where: { empresaId: user.empresaId },
+          select: { id: true },
+        })
+        where.almacenId = { in: almacenes.map((a) => a.id) }
+      }
+    }
 
     const ventas = await db.venta.findMany({
       where,
@@ -35,6 +56,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    const user = session.user as any
+
     const body = await request.json()
     const { idCliente, detalles } = body
 
@@ -62,6 +89,9 @@ export async function POST(request: NextRequest) {
     }
     const total = subtotal
 
+    // Determine almacenId from session or body
+    const ventaAlmacenId = user.almacenId ?? body.almacenId ?? null
+
     // Create the venta with details inside a transaction
     const venta = await db.$transaction(async (tx) => {
       const created = await tx.venta.create({
@@ -71,6 +101,7 @@ export async function POST(request: NextRequest) {
           subtotal,
           total,
           estado: 'COMPLETADA',
+          almacenId: ventaAlmacenId,
         },
       })
 
@@ -90,13 +121,11 @@ export async function POST(request: NextRequest) {
         })
 
         // Decrease stock via SALIDA movement
-        // Find any stock entry for this product to use its location
         const stockEntry = await tx.stock.findFirst({
           where: { idProducto: d.idProducto },
         })
 
         if (stockEntry) {
-          // Check sufficient stock
           if (stockEntry.cantidad < d.cantidad) {
             throw new Error(`Stock insuficiente para producto ${d.idProducto}`)
           }
@@ -114,6 +143,7 @@ export async function POST(request: NextRequest) {
                 idTipo: tipoSalida.id,
                 cantidad: d.cantidad,
                 referencia: folio,
+                almacenId: ventaAlmacenId,
               },
             })
           }

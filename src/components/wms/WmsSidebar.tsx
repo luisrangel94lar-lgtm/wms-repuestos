@@ -20,7 +20,15 @@ import {
   Clock,
   UserCog,
   KeyRound,
+  Building2,
 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -99,6 +107,17 @@ const adminSection: NavSection = {
   ],
 }
 
+const superAdminSection: NavSection = {
+  title: 'SUPER ADMIN',
+  titleColor: 'bg-red-500',
+  items: [
+    { id: 'empresas', label: 'Empresas', icon: <Building2 className="h-4 w-4" /> },
+    { id: 'almacenes', label: 'Almacenes', icon: <Warehouse className="h-4 w-4" /> },
+    { id: 'userManagement', label: 'Usuarios', icon: <UserCog className="h-4 w-4" /> },
+    { id: 'license', label: 'Licencia', icon: <KeyRound className="h-4 w-4" /> },
+  ],
+}
+
 const pageTitles: Record<WmsPage, string> = {
   dashboard: 'Dashboard',
   products: 'Productos',
@@ -115,6 +134,8 @@ const pageTitles: Record<WmsPage, string> = {
   settings: 'Configuración',
   userManagement: 'Usuarios',
   license: 'Licencia',
+  empresas: 'Empresas',
+  almacenes: 'Almacenes',
 }
 
 export { pageTitles }
@@ -180,6 +201,32 @@ function QuickStats() {
   )
 }
 
+function AlmacenSelector() {
+  const { session, selectedAlmacenId, setSelectedAlmacenId } = useWmsStore()
+  const { data: almacenes = [] } = useQuery({
+    queryKey: ['almacenes-selector'],
+    queryFn: () => fetch('/api/wms/almacenes').then(r => r.json()),
+    enabled: !!session,
+  })
+
+  if (!almacenes || almacenes.length <= 1) return null
+
+  return (
+    <div className="mx-3 mb-2">
+      <Select value={selectedAlmacenId?.toString() ?? ''} onValueChange={(v) => setSelectedAlmacenId(Number(v))}>
+        <SelectTrigger className="h-7 text-[10px]">
+          <SelectValue placeholder="Seleccionar almacén" />
+        </SelectTrigger>
+        <SelectContent>
+          {almacenes.map((a: any) => (
+            <SelectItem key={a.id} value={a.id.toString()}>{a.nombre}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 function SidebarFooter() {
   const [time, setTime] = useState('')
 
@@ -206,6 +253,7 @@ function SidebarFooter() {
   return (
     <div className="shrink-0">
       <QuickStats />
+      <AlmacenSelector />
       {lastSale && (
         <div className="mx-3 mb-2 rounded-lg p-2.5 mt-1 bg-primary/5 border border-primary/10">
           <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wider">Última Venta</p>
@@ -224,8 +272,13 @@ function SidebarFooter() {
 export function WmsSidebar() {
   const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, session } = useWmsStore()
   const userRol = session?.user?.rol
-  const isAdmin = userRol === 'admin'
-  const navSections = isAdmin ? [...baseNavSections, adminSection] : baseNavSections
+  const isSuperAdmin = userRol === 'super_admin'
+  const isAdmin = userRol === 'admin' || isSuperAdmin
+  const navSections = isSuperAdmin
+    ? [...baseNavSections, superAdminSection]
+    : isAdmin
+      ? [...baseNavSections, adminSection]
+      : baseNavSections
   const [isMobile, setIsMobile] = useState(false)
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
   const warehouseName = (settings as any).warehouseName || 'WMS Repuestos'

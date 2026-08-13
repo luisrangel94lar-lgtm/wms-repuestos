@@ -19,6 +19,8 @@ import { SettingsPage } from '@/components/wms/SettingsPage'
 import { PhysicalInventoryPage } from '@/components/wms/PhysicalInventoryPage'
 import { UserManagementPage } from '@/components/wms/UserManagementPage'
 import { LicensePage } from '@/components/wms/LicensePage'
+import { CompaniesPage } from '@/components/wms/CompaniesPage'
+import { WarehousesPage } from '@/components/wms/WarehousesPage'
 import { LoginPage } from '@/components/wms/LoginPage'
 import { Toaster } from '@/components/ui/sonner'
 import type { WmsPage } from '@/types/wms'
@@ -44,6 +46,8 @@ const pageComponents: Record<WmsPage, React.ComponentType> = {
   settings: SettingsPage,
   userManagement: UserManagementPage,
   license: LicensePage,
+  empresas: CompaniesPage,
+  almacenes: WarehousesPage,
 }
 
 export default function Home() {

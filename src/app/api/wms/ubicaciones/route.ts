@@ -1,13 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    const user = session.user as any
+
     const { searchParams } = new URL(request.url)
     const activos = searchParams.get('activos')
 
     const where: Record<string, unknown> = {}
     if (activos === 'true') where.activo = true
+
+    // Role-based filtering
+    if (user.rol !== 'super_admin') {
+      if (['gerente', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
+        where.almacenId = user.almacenId
+      } else if (user.rol === 'admin' && user.empresaId) {
+        const almacenes = await db.almacen.findMany({
+          where: { empresaId: user.empresaId },
+          select: { id: true },
+        })
+        where.almacenId = { in: almacenes.map((a) => a.id) }
+      }
+    }
 
     const ubicaciones = await db.ubicacion.findMany({
       where,
@@ -22,6 +43,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    const user = session.user as any
+
     const body = await request.json()
     const ubicacion = await db.ubicacion.create({
       data: {
@@ -29,6 +56,7 @@ export async function POST(request: NextRequest) {
         estante: body.estante,
         nivel: body.nivel,
         activo: body.activo ?? true,
+        almacenId: user.almacenId ?? body.almacenId ?? null,
       },
     })
     return NextResponse.json(ubicacion, { status: 201 })
@@ -41,6 +69,11 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
     const { id, pasillo, estante, nivel, activo } = await request.json()
 
     const ubicacion = await db.ubicacion.update({
@@ -58,6 +91,11 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const id = parseInt(searchParams.get('id')!, 10)
 
