@@ -31,6 +31,8 @@ const breadcrumbs: Record<WmsPage, { path: string; description: string }> = {
   alerts: { path: 'Alertas', description: 'Productos que requieren reabastecimiento urgente' },
   settings: { path: 'Sistema / Configuración', description: 'Preferencias del sistema y datos del almacén' },
   physicalInventory: { path: 'Operaciones / Inventario Físico', description: 'Conteo físico del inventario con detección de varianzas' },
+  userManagement: { path: 'Sistema / Usuarios', description: 'Administración de usuarios y permisos' },
+  license: { path: 'Sistema / Licencia', description: 'Gestión de licencias del sistema' },
   empresas: { path: 'Super Admin / Empresas', description: 'Gestión de empresas registradas en el sistema' },
   almacenes: { path: 'Super Admin / Almacenes', description: 'Gestión de almacenes por empresa' },
 }

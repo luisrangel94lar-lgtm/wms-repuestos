@@ -54,7 +54,7 @@ export function WarehousesPage() {
   })
 
   // Filter by empresa if super_admin
-  const filterEmpresaId = isSuperAdmin ? (selectedEmpresaId ?? '') : ''
+  const filterEmpresaId: string = isSuperAdmin ? String(selectedEmpresaId ?? '') : ''
 
   const { data: almacenes = [], isLoading } = useQuery<Almacen[]>({
     queryKey: ['almacenes', filterEmpresaId],
