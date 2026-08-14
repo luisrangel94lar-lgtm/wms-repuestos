@@ -27,8 +27,11 @@ export function getSettingsSnapshot(): Record<string, unknown> {
   return cachedSettings
 }
 
+// Cache the server snapshot to avoid infinite loop warning
+const SERVER_SNAPSHOT: Record<string, unknown> = {}
+
 export function getSettingsServerSnapshot(): Record<string, unknown> {
-  return {}
+  return SERVER_SNAPSHOT
 }
 
 export function updateSettings(updates: Record<string, unknown>) {
