@@ -1,0 +1,373 @@
+'use client'
+
+import { Fragment, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { toast } from 'sonner'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  HoverCard, HoverCardContent, HoverCardTrigger,
+} from '@/components/ui/hover-card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Plus, Search, ChevronDown, ChevronRight, Pencil, Trash2, Link as LinkIcon, Tag, Cpu, ExternalLink } from 'lucide-react'
+import { useWmsStore } from '@/store/wms'
+
+const equipoSchema = z.object({
+  idMarca: z.coerce.number().min(1, 'Marca requerida'),
+  modelo: z.string().min(1, 'Modelo requerido'),
+  tipoEquipo: z.string().optional(),
+})
+
+type EquipoFormData = z.infer<typeof equipoSchema>
+
+interface Equipo {
+  id: number
+  idMarca: number
+  modelo: string
+  tipoEquipo: string | null
+  marca: { id: number; nombre: string }
+}
+
+export function EquipmentPage() {
+  const queryClient = useQueryClient()
+  const { setCurrentPage } = useWmsStore()
+  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [editId, setEditId] = useState<number | null>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [linkDialog, setLinkDialog] = useState<{ equipoId: number; mode: 'link' | 'unlink' } | null>(null)
+  const [linkProductId, setLinkProductId] = useState('')
+  const [hoverEquipoId, setHoverEquipoId] = useState<number | null>(null)
+
+  const { data: equipos = [], isLoading } = useQuery<Equipo[]>({
+    queryKey: ['equipos', search],
+    queryFn: () => {
+      const params = search ? `?search=${encodeURIComponent(search)}` : ''
+      return fetch(`/api/wms/equipos${params}`).then((r) => r.json())
+    },
+  })
+
+  const { data: expandedEquipo } = useQuery({
+    queryKey: ['equipo-detail', expandedId],
+    queryFn: () => fetch(`/api/wms/equipos/${expandedId}`).then((r) => r.json()),
+    enabled: !!expandedId,
+  })
+
+  const { data: hoverEquipo } = useQuery({
+    queryKey: ['equipo-hover', hoverEquipoId],
+    queryFn: () => fetch(`/api/wms/equipos/${hoverEquipoId}`).then((r) => r.json()),
+    enabled: !!hoverEquipoId && hoverEquipoId !== expandedId,
+  })
+
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ['all-products-link'],
+    queryFn: () => fetch('/api/wms/productos?pageSize=100').then((r) => r.json()).then((d: any) => d.items ?? []),
+    enabled: !!linkDialog && linkDialog.mode === 'link',
+  })
+
+  const { data: marcas = [] } = useQuery({
+    queryKey: ['marcas-list'],
+    queryFn: () => fetch('/api/wms/marcas').then((r) => r.json()),
+  })
+
+  const form = useForm<EquipoFormData>({ resolver: zodResolver(equipoSchema) as any, defaultValues: { idMarca: 0, modelo: '', tipoEquipo: '' } })
+
+  const createMutation = useMutation({
+    mutationFn: (values: EquipoFormData) =>
+      fetch('/api/wms/equipos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
+        .then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: () => { toast.success('Equipo creado'); queryClient.invalidateQueries({ queryKey: ['equipos'] }); setShowCreate(false); form.reset() },
+    onError: (err: any) => toast.error(err.error ?? 'Error al crear equipo'),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: number; values: EquipoFormData }) =>
+      fetch(`/api/wms/equipos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) })
+        .then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: () => { toast.success('Equipo actualizado'); queryClient.invalidateQueries({ queryKey: ['equipos'] }); setEditId(null); form.reset() },
+    onError: (err: any) => toast.error(err.error ?? 'Error al actualizar'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/wms/equipos/${id}`, { method: 'DELETE' }).then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: () => { toast.success('Equipo eliminado'); queryClient.invalidateQueries({ queryKey: ['equipos'] }); setDeleteId(null) },
+    onError: (err: any) => toast.error(err.error ?? 'Error al eliminar'),
+  })
+
+  const linkMutation = useMutation({
+    mutationFn: ({ idProducto, idEquipo }: { idProducto: number; idEquipo: number }) =>
+      fetch('/api/wms/producto-equipo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idProducto, idEquipo }) })
+        .then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: () => { toast.success('Compatibilidad agregada'); queryClient.invalidateQueries({ queryKey: ['equipo-detail'] }); setLinkDialog(null); setLinkProductId('') },
+    onError: (err: any) => toast.error(err.error ?? 'Error al vincular'),
+  })
+
+  const unlinkMutation = useMutation({
+    mutationFn: ({ idProducto, idEquipo }: { idProducto: number; idEquipo: number }) =>
+      fetch('/api/wms/producto-equipo', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idProducto, idEquipo }) })
+        .then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() }),
+    onSuccess: () => { toast.success('Compatibilidad eliminada'); queryClient.invalidateQueries({ queryKey: ['equipo-detail'] }); setLinkDialog(null); setLinkProductId('') },
+    onError: (err: any) => toast.error(err.error ?? 'Error al desvincular'),
+  })
+
+  function openEdit(eq: Equipo) {
+    setEditId(eq.id)
+    form.reset({ idMarca: eq.idMarca, modelo: eq.modelo, tipoEquipo: eq.tipoEquipo ?? '' })
+  }
+
+  function handleSearch() { setSearch(searchInput) }
+
+  function getHoverData(eq: Equipo) {
+    if (expandedId === eq.id && expandedEquipo) return expandedEquipo
+    if (hoverEquipoId === eq.id && hoverEquipo) return hoverEquipo
+    return null
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex gap-2 flex-1">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar modelo o marca..." className="pl-9" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
+          </div>
+          <Button variant="outline" onClick={handleSearch}><Search className="h-4 w-4" /></Button>
+        </div>
+        <Button onClick={() => { form.reset({ idMarca: 0, modelo: '', tipoEquipo: '' }); setShowCreate(true) }}>
+          <Plus className="h-4 w-4 mr-1" /> Nuevo Equipo
+        </Button>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">Modelos de equipos y sus repuestos compatibles</p>
+      </div>
+
+      <Card className="rounded-xl shadow-sm transition-all duration-200">
+        <CardContent className="p-0">
+          <div className="table-container max-h-[calc(100vh-12rem)] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8" />
+                <TableHead className="text-xs">Modelo</TableHead>
+                <TableHead className="text-xs">Marca</TableHead>
+                <TableHead className="text-xs hidden md:table-cell">Tipo</TableHead>
+                <TableHead className="text-xs text-center">Repuestos</TableHead>
+                <TableHead className="text-xs text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-8 w-full" /></TableCell></TableRow>
+              ))}
+              {!isLoading && equipos.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No se encontraron equipos</TableCell></TableRow>
+              )}
+              {!isLoading && equipos.map((eq) => {
+                const isExpanded = expandedId === eq.id
+                const repCount = (eq as any)._count?.productoEquipo ?? 0
+                const hoverData = getHoverData(eq)
+                const parts = hoverData?.productoEquipo ?? []
+                return (
+                  <Fragment key={eq.id}>
+                    <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : eq.id)}>
+                      <TableCell className="py-2 w-8">{isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</TableCell>
+                      <TableCell className="text-xs font-medium py-2">{eq.modelo}</TableCell>
+                      <TableCell className="text-xs py-2">{eq.marca?.nombre}</TableCell>
+                      <TableCell className="text-xs py-2 hidden md:table-cell">{eq.tipoEquipo ?? '-'}</TableCell>
+                      <TableCell className="text-xs text-center py-2" onClick={(e) => e.stopPropagation()}>
+                        <HoverCard openDelay={300} onOpenChange={(open) => { if (open) setHoverEquipoId(eq.id); else if (hoverEquipoId === eq.id) setHoverEquipoId(null) } }>
+                          <HoverCardTrigger asChild>
+                            <Badge variant="outline" className="text-[10px] cursor-default">
+                              {repCount}
+                            </Badge>
+                          </HoverCardTrigger>
+                          {repCount > 0 && (
+                            <HoverCardContent className="w-72 p-3" side="bottom" align="center">
+                              <p className="text-xs font-semibold mb-2">Repuestos compatibles:</p>
+                              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                {parts.slice(0, 5).map((pe: any) => (
+                                  <div key={pe.idProducto} className="text-xs flex items-center gap-1.5">
+                                    <Badge variant="secondary" className="text-[10px] font-mono shrink-0">{pe.producto?.sku}</Badge>
+                                    <span className="truncate">{pe.producto?.nombre}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {repCount > 5 && (
+                                <button
+                                  className="text-[10px] text-primary hover:underline mt-2 flex items-center gap-0.5"
+                                  onClick={(e) => { e.stopPropagation(); setExpandedId(eq.id) }}
+                                >
+                                  <ExternalLink className="h-3 w-3" /> Ver todos ({repCount})
+                                </button>
+                              )}
+                            </HoverCardContent>
+                          )}
+                        </HoverCard>
+                      </TableCell>
+                      <TableCell className="text-xs text-right py-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setLinkDialog({ equipoId: eq.id, mode: 'link' })}><LinkIcon className="h-3.5 w-3.5" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(eq)}><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(eq.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && expandedEquipo && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="bg-muted/30 px-8 py-3">
+                          <p className="text-xs font-semibold mb-2">Repuestos compatibles:</p>
+                          {expandedEquipo.productoEquipo && expandedEquipo.productoEquipo.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {expandedEquipo.productoEquipo.map((pe: any) => (
+                                <div key={pe.idProducto} className="flex items-center gap-1">
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="text-[10px] cursor-pointer hover:bg-secondary/80" 
+                                    onClick={() => { setCurrentPage('products') }}
+                                  >
+                                    {pe.producto?.sku} - {pe.producto?.nombre}
+                                  </Badge>
+                                  <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" title="Desvincular repuesto" onClick={() => {
+                                    setLinkDialog({ equipoId: eq.id, mode: 'unlink' })
+                                    setLinkProductId(String(pe.idProducto))
+                                  }}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Sin repuestos vinculados</p>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                )
+              })}
+            </TableBody>
+          </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="dialog-header-accent"><DialogTitle>{editId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del equipo' : 'Formulario para crear un nuevo equipo'}</DialogDescription></DialogHeader>
+          <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
+            <div className="form-section-header"><Tag className="h-3.5 w-3.5" /> Identificación</div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Marca *</Label>
+              <Select value={form.watch('idMarca') ? String(form.watch('idMarca')) : ''} onValueChange={(v) => form.setValue('idMarca', Number(v))}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar marca" /></SelectTrigger>
+                <SelectContent>
+                  {marcas.map((m: any) => (
+                    <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.idMarca && <p className="text-xs text-destructive">{form.formState.errors.idMarca.message}</p>}
+            </div>
+            <hr className="form-section-divider" />
+            <div className="form-section-header"><Cpu className="h-3.5 w-3.5" /> Detalles del Equipo</div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Modelo *</Label>
+              <Input {...form.register('modelo')} />
+              {form.formState.errors.modelo && <p className="text-xs text-destructive">{form.formState.errors.modelo.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Tipo de Equipo</Label>
+              <Input {...form.register('tipoEquipo')} placeholder="Ej: Aire acondicionado split" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setEditId(null) }}>Cancelar</Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>{createMutation.isPending || updateMutation.isPending ? 'Guardando...' : editId ? 'Actualizar' : 'Crear'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link/Unlink Product Dialog */}
+      <Dialog open={!!linkDialog} onOpenChange={(open) => { if (!open) { setLinkDialog(null); setLinkProductId('') } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{linkDialog?.mode === 'link' ? 'Vincular Repuesto' : 'Desvincular Repuesto'}</DialogTitle><DialogDescription className="sr-only">{linkDialog?.mode === 'link' ? 'Selecciona un producto para vincular como repuesto compatible' : 'Selecciona un producto para desvincular como repuesto compatible'}</DialogDescription></DialogHeader>
+          {linkDialog?.mode === 'unlink' ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Producto a desvincular</Label>
+                <Select value={linkProductId} onValueChange={setLinkProductId}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                  <SelectContent>
+                    {expandedEquipo?.productoEquipo?.map((pe: any) => (
+                      <SelectItem key={pe.idProducto} value={String(pe.idProducto)}>
+                        {pe.producto?.sku} - {pe.producto?.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setLinkDialog(null)}>Cancelar</Button>
+                <Button variant="destructive" onClick={() => linkProductId && unlinkMutation.mutate({ idProducto: Number(linkProductId), idEquipo: linkDialog!.equipoId })} disabled={unlinkMutation.isPending || !linkProductId}>
+                  {unlinkMutation.isPending ? 'Desvinculando...' : 'Desvincular'}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Producto</Label>
+                <Select value={linkProductId} onValueChange={setLinkProductId}>
+                  <SelectTrigger><SelectValue placeholder="Buscar producto..." /></SelectTrigger>
+                  <SelectContent>
+                    {allProducts.map((p: any) => (
+                      <SelectItem key={p.id} value={String(p.id)}>{p.sku} - {p.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setLinkDialog(null)}>Cancelar</Button>
+                <Button onClick={() => linkProductId && linkMutation.mutate({ idProducto: Number(linkProductId), idEquipo: linkDialog!.equipoId })} disabled={linkMutation.isPending || !linkProductId}>
+                  {linkMutation.isPending ? 'Vinculando...' : 'Vincular'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Alert */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>¿Eliminar equipo?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)}>Eliminar</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}

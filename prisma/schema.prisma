@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CATÁLOGO
+// ============================================
+
+model Marca {
+  id       Int        @id @default(autoincrement())
+  nombre   String     @unique
+  equipos  Equipo[]
+  productos Producto[]
+
+  @@map("marcas")
+}
+
+model Categoria {
+  id             Int          @id @default(autoincrement())
+  nombre         String
+  categoriaPadre Int?
+  categoriaPadreRel Categoria? @relation("CategoriaSubcategoria", fields: [categoriaPadre], references: [id])
+  subcategorias  Categoria[]  @relation("CategoriaSubcategoria")
+  productos      Producto[]
+
+  @@map("categorias")
+}
+
+model Equipo {
+  id         Int     @id @default(autoincrement())
+  idMarca    Int
+  modelo     String
+  tipoEquipo String?
+  marca      Marca   @relation(fields: [idMarca], references: [id])
+  productoEquipo ProductoEquipo[]
+
+  @@map("equipos_compatibles")
+}
+
+model Producto {
+  id            Int        @id @default(autoincrement())
+  sku           String     @unique
+  nombre        String
+  descripcion   String?
+  idCategoria   Int?
+  idMarca       Int?
+  codigoBarras  String?
+  unidadMedida  String     @default("unidad")
+  costoUnitario Float      @default(0)
+  precioVenta   Float      @default(0)
+  stockMinimo   Int        @default(0)
+  stockMaximo   Int?
+  fotoUrl       String?
+  activo        Boolean    @default(true)
+  fechaCreacion DateTime   @default(now())
+  categoria     Categoria? @relation(fields: [idCategoria], references: [id])
+  marca         Marca?     @relation(fields: [idMarca], references: [id])
+  productoEquipo ProductoEquipo[]
+  stocks        Stock[]
+  movimientos   Movimiento[]
+  ventaDetalles VentaDetalle[]
+
+  @@index([stockMinimo], map: "idx_productos_stock_minimo")
+  @@index([sku])
+  @@index([nombre])
+  @@map("productos")
+}
+
+model ProductoEquipo {
+  idProducto Int
+  idEquipo   Int
+  producto   Producto @relation(fields: [idProducto], references: [id], onDelete: Cascade)
+  equipo     Equipo   @relation(fields: [idEquipo], references: [id], onDelete: Cascade)
+
+  @@id([idProducto, idEquipo])
+  @@map("producto_equipo")
+}
+
+// ============================================
+// UBICACIONES Y STOCK
+// ============================================
+
+model Ubicacion {
+  id         Int    @id @default(autoincrement())
+  pasillo    String
+  estante    String
+  nivel      String
+  activo     Boolean @default(true)
+  almacenId  Int?
+  almacen    Almacen? @relation(fields: [almacenId], references: [id])
+  stocks     Stock[]
+  movimientos Movimiento[]
+
+  @@unique([pasillo, estante, nivel])
+  @@map("ubicaciones")
+}
+
+model Stock {
+  idProducto  Int
+  idUbicacion Int
+  cantidad    Int    @default(0)
+  producto    Producto  @relation(fields: [idProducto], references: [id], onDelete: Cascade)
+  ubicacion   Ubicacion @relation(fields: [idUbicacion], references: [id], onDelete: Cascade)
+
+  @@id([idProducto, idUbicacion])
+  @@map("stock")
+}
+
+// ============================================
+// MOVIMIENTOS (kardex)
+// ============================================
+
+model TipoMovimiento {
+  id         Int          @id @default(autoincrement())
+  nombre     String       @unique
+  movimientos Movimiento[]
+
+  @@map("tipos_movimiento")
+}
+
+model Movimiento {
+  id             Int              @id @default(autoincrement())
+  idProducto     Int
+  idUbicacion    Int?
+  idTipo         Int
+  cantidad       Int
+  costoUnitario  Float?
+  referencia     String?
+  usuario        String?
+  observacion    String?
+  fecha          DateTime         @default(now())
+  almacenId      Int?
+  almacen        Almacen?        @relation(fields: [almacenId], references: [id])
+  producto       Producto         @relation(fields: [idProducto], references: [id])
+  ubicacion      Ubicacion?      @relation(fields: [idUbicacion], references: [id])
+  tipoMovimiento TipoMovimiento @relation(fields: [idTipo], references: [id])
+
+  @@index([fecha], map: "idx_movimientos_fecha")
+  @@index([idProducto], map: "idx_movimientos_producto")
+  @@map("movimientos")
+}
+
+// ============================================
+// CLIENTES Y VENTAS
+// ============================================
+
+model Cliente {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  telefono      String?
+  email         String?
+  tipoCliente   String   @default("Tecnico")
+  fechaRegistro DateTime @default(now())
+  ventas        Venta[]
+
+  @@map("clientes")
+}
+
+model Venta {
+  id        Int      @id @default(autoincrement())
+  idCliente Int
+  folio     String   @unique
+  fecha     DateTime @default(now())
+  subtotal  Float?
+  total     Float?
+  estado    String   @default("COMPLETADA")
+  almacenId Int?
+  almacen   Almacen? @relation(fields: [almacenId], references: [id])
+  cliente   Cliente  @relation(fields: [idCliente], references: [id])
+  detalles  VentaDetalle[]
+
+  @@index([fecha], map: "idx_ventas_fecha")
+  @@map("ventas")
+}
+
+model VentaDetalle {
+  idVenta        Int
+  idProducto     Int
+  cantidad       Int
+  precioUnitario Float
+  venta          Venta    @relation(fields: [idVenta], references: [id], onDelete: Cascade)
+  producto       Producto @relation(fields: [idProducto], references: [id])
+
+  @@id([idVenta, idProducto])
+  @@map("venta_detalle")
+}
+
+// ============================================
+// AUTENTICACIÓN Y ROLES
+// ============================================
+
+model Usuario {
+  id            Int       @id @default(autoincrement())
+  nombre        String
+  email         String    @unique
+  password      String    // bcrypt hash
+  rol           String    @default("tecnico") // admin, gerente, vendedor, tecnico
+  activo        Boolean   @default(true)
+  ultimoAcceso  DateTime?
+  fechaCreacion DateTime  @default(now())
+  creadoPor     Int?
+  empresaId     Int?
+  almacenId     Int?
+  creador       Usuario?  @relation("CreadorUsuario", fields: [creadoPor], references: [id])
+  empresa       Empresa?  @relation(fields: [empresaId], references: [id])
+  almacen       Almacen?  @relation(fields: [almacenId], references: [id])
+  usuariosCreados Usuario[] @relation("CreadorUsuario")
+
+  @@map("usuarios")
+}
+
+// ============================================
+// MULTI-EMPRESA
+// ============================================
+
+model Empresa {
+  id            Int        @id @default(autoincrement())
+  nombre        String
+  nit           String?    @unique
+  direccion     String?
+  telefono      String?
+  email         String?
+  logo          String?
+  activa        Boolean    @default(true)
+  plan          String    @default("mensual")  // mensual, anual, vitalicio
+  fechaCreacion DateTime   @default(now())
+  usuarios      Usuario[]
+  almacenes     Almacen[]
+  licencias     Licencia[]
+
+  @@map("empresas")
+}
+
+model Almacen {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  direccion     String?
+  telefono      String?
+  encargado     String?
+  activo        Boolean  @default(true)
+  empresaId     Int
+  empresa       Empresa  @relation(fields: [empresaId], references: [id])
+  usuarios      Usuario[]
+  ubicaciones   Ubicacion[]
+  ventas        Venta[]
+  movimientos   Movimiento[]
+
+  @@map("almacenes")
+}
+
+// ============================================
+// LICENCIA
+// ============================================
+
+model Licencia {
+  id            Int      @id @default(autoincrement())
+  clave         String   @unique         // license key (UUID)
+  tipo          String   @default("trial") // trial, mensual, anual, vitalicio
+  estado        String   @default("activa") // activa, vencida, revocada
+  fechaActivacion DateTime?
+  fechaVencimiento DateTime?
+  maxUsuarios   Int      @default(3)     // max concurrent users
+  diasPrueba    Int      @default(30)    // trial days
+  datosEmpresa  String?                  // JSON with company info
+  notas         String?
+  fechaCreacion DateTime @default(now())
+  empresaId     Int?
+  empresa       Empresa? @relation(fields: [empresaId], references: [id])
+
+  @@map("licencias")
+}
