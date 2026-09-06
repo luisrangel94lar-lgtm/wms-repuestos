@@ -1,30 +1,30 @@
 import { PrismaClient } from '@prisma/client'
-import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 
 const db = new PrismaClient()
-
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString('hex')
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex')
-  return `${salt}:${hash}`
-}
 
 async function main() {
   console.log('Seeding auth data...')
 
-  const existingAdmin = await db.usuario.findUnique({ where: { email: 'admin@almacen.com' } })
+  const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || 'admin@almacen.com').toLowerCase()
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD
+  if (!adminPassword || adminPassword.length < 12) {
+    throw new Error('INITIAL_ADMIN_PASSWORD debe tener al menos 12 caracteres')
+  }
+
+  const existingAdmin = await db.usuario.findUnique({ where: { email: adminEmail } })
   if (!existingAdmin) {
-    const hashedPassword = hashPassword('admin123')
+    const hashedPassword = bcrypt.hashSync(adminPassword, 12)
     await db.usuario.create({
       data: {
         nombre: 'Administrador',
-        email: 'admin@almacen.com',
+        email: adminEmail,
         password: hashedPassword,
         rol: 'admin',
         activo: true,
       },
     })
-    console.log('✅ Admin user created: admin@almacen.com / admin123')
+    console.log(`✅ Admin user created: ${adminEmail}`)
   } else {
     console.log('ℹ️  Admin user already exists')
   }

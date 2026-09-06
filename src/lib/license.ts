@@ -59,10 +59,11 @@ export async function checkLicenseStatus(): Promise<LicenseStatus> {
   }
 
   const now = new Date()
-  const isExpired =
+  const isExpired = Boolean(
     license.estado === 'vencida' ||
     license.estado === 'revocada' ||
     (license.fechaVencimiento && license.fechaVencimiento < now)
+  )
 
   let daysLeft = 0
   if (license.fechaVencimiento) {
@@ -155,7 +156,7 @@ export async function activateLicense(key: string): Promise<boolean> {
         tipo,
         fechaActivacion: now,
         fechaVencimiento,
-        maxUsuarios,
+        maxUsuarios: maxUsers,
       },
     })
   } else {
@@ -167,7 +168,7 @@ export async function activateLicense(key: string): Promise<boolean> {
         estado: 'activa',
         fechaActivacion: now,
         fechaVencimiento,
-        maxUsuarios,
+        maxUsuarios: maxUsers,
         diasPrueba: tipo === 'trial' ? durationDays : 0,
       },
     })

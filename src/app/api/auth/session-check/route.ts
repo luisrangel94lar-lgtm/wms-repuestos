@@ -3,6 +3,15 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
+interface SessionLicenseInfo {
+  active: boolean
+  type: string
+  daysLeft: number
+  expired: boolean
+  fechaVencimiento: Date | null
+  maxUsuarios: number
+}
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -18,7 +27,7 @@ export async function GET() {
       orderBy: { fechaCreacion: 'desc' },
     })
 
-    let licenseInfo = null
+    let licenseInfo: SessionLicenseInfo | null = null
     if (licencia) {
       const now = new Date()
       let expired = false

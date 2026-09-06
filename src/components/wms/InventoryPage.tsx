@@ -51,6 +51,7 @@ interface InventoryItem {
   idMarca: number | null
   costoUnitario: number
   precioVenta: number
+  unidadMedida: string
   stockMinimo: number
   totalStock: number
   valorTotal: number

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         rol,
         activo: true,
-        creadoPor: session.user.id,
+        creadoPor: Number(session.user.id),
       },
       select: {
         id: true,

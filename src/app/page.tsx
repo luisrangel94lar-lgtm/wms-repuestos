@@ -59,7 +59,7 @@ export default function Home() {
       },
     },
   }))
-  const { currentPage, isAuthenticated, setSession, setLicenseInfo, showLogin, setShowLogin } = useWmsStore()
+  const { currentPage, isAuthenticated, setSession, setLicenseInfo, showLogin, setShowLogin, setCurrentPage } = useWmsStore()
   const { theme } = useTheme()
   const mounted = useSyncExternalStore(stableSubscribe, () => true, () => false)
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
@@ -96,6 +96,13 @@ export default function Home() {
     }
     checkSession()
   }, [setSession, setLicenseInfo, setShowLogin])
+
+  useEffect(() => {
+    const requestedPage = new URLSearchParams(window.location.search).get('page') as WmsPage | null
+    if (requestedPage && requestedPage in pageComponents) {
+      setCurrentPage(requestedPage)
+    }
+  }, [setCurrentPage])
 
   // Show login page if not authenticated
   if (!isAuthenticated || showLogin) {

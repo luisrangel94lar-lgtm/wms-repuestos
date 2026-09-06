@@ -124,7 +124,7 @@ export async function DELETE(
     }
 
     // Cannot deactivate self
-    if (userId === session.user.id) {
+    if (userId === Number(session.user.id)) {
       return NextResponse.json(
         { error: 'No puede desactivar su propia cuenta' },
         { status: 400 }

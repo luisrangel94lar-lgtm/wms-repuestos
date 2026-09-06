@@ -1,7 +1,7 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { db } from '@/lib/db'
-import { verifyPassword } from '@/lib/auth-helpers'
+import { hashPassword, needsPasswordUpgrade, verifyPassword } from '@/lib/auth-helpers'
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -32,7 +32,12 @@ export const authOptions: NextAuthOptions = {
 
         await db.usuario.update({
           where: { id: user.id },
-          data: { ultimoAcceso: new Date() },
+          data: {
+            ultimoAcceso: new Date(),
+            ...(needsPasswordUpgrade(user.password)
+              ? { password: hashPassword(credentials.password as string) }
+              : {}),
+          },
         })
 
         return {

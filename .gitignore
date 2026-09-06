@@ -21,7 +21,6 @@ build/
 # Database
 db/*.db
 db/*.db-journal
-prisma/migrations/
 
 # IDE
 .vscode/

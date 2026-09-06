@@ -1387,7 +1387,7 @@ Work Log:
 - Added SessionProvider (next-auth/react) wrapper to page.tsx
 - Fixed useSyncExternalStore infinite loop bug (created shared settings-store.ts module)
 - Updated WmsSidebar.tsx with ADMIN section (Users + License nav items)
-- Seeded admin user (admin@almacen.com / admin123) and 30-day trial license
+- Seeded an initial administrator and 30-day trial license (legacy default password removed)
 - Fixed NEXTAUTH_URL in .env to prevent server crash
 - 0 lint errors
 
@@ -1395,7 +1395,7 @@ Stage Summary:
 - Full auth system: login/logout, JWT sessions, role-based access
 - Admin can create/manage users with 4 roles and page-level permissions
 - License system: 30-day trial, activation with license keys (prefix-based: T=trial, M=monthly, A=annual, V=lifetime)
-- Default credentials: admin@almacen.com / admin123
+- Initial credentials must now be supplied securely through environment variables
 - License key format examples: TRIAL-XXXX, M-XXXX, A-XXXX, V-XXXX
 - Port changed back to 3000 for development (user uses 3001 on their PC)
 - Files created: auth.ts, auth-helpers.ts, license.ts, LoginPage.tsx, UserManagementPage.tsx, LicensePage.tsx, seed-auth.ts + 9 API routes

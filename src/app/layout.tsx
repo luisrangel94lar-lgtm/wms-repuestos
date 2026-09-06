@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PwaRegister } from "@/components/PwaRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,6 +27,8 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "WMS Repuestos",
   },
+  applicationName: "WMS Repuestos",
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -53,6 +56,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <PwaRegister />
         </ThemeProvider>
       </body>
     </html>

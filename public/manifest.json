@@ -2,8 +2,11 @@
   "name": "WMS Repuestos HVAC",
   "short_name": "WMS Repuestos",
   "description": "Sistema de gestión de almacén para repuestos de refrigeración y climatización",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#ffffff",
   "theme_color": "#0d9488",
   "orientation": "any",
@@ -15,11 +18,16 @@
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    { "name": "Inventario", "short_name": "Inventario", "url": "/?page=inventory" },
+    { "name": "Ventas", "short_name": "Ventas", "url": "/?page=sales" },
+    { "name": "Productos", "short_name": "Productos", "url": "/?page=products" }
   ],
   "categories": ["business", "productivity"],
   "lang": "es",

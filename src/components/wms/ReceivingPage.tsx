@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -85,6 +85,8 @@ export function ReceivingPage() {
     resolver: zodResolver(receivingSchema) as any,
     defaultValues: { idProducto: 0, idUbicacion: 0, cantidad: 1, costoUnitario: 0, referencia: '', observacion: '' },
   })
+  const selectedProductId = useWatch({ control: form.control, name: 'idProducto' })
+  const selectedLocationId = useWatch({ control: form.control, name: 'idUbicacion' })
 
   useEffect(() => {
     if (receivingProductId && products.length > 0) {
@@ -222,7 +224,7 @@ export function ReceivingPage() {
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Producto *</Label>
                     <Select
-                      value={form.watch('idProducto') ? String(form.watch('idProducto')) : ''}
+                      value={selectedProductId ? String(selectedProductId) : ''}
                       onValueChange={(v) => form.setValue('idProducto', Number(v))}
                     >
                       <SelectTrigger><SelectValue placeholder="Seleccionar producto" /></SelectTrigger>
@@ -237,7 +239,7 @@ export function ReceivingPage() {
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Ubicación *</Label>
                     <Select
-                      value={form.watch('idUbicacion') ? String(form.watch('idUbicacion')) : ''}
+                      value={selectedLocationId ? String(selectedLocationId) : ''}
                       onValueChange={(v) => form.setValue('idUbicacion', Number(v))}
                     >
                       <SelectTrigger><SelectValue placeholder="Seleccionar ubicación" /></SelectTrigger>

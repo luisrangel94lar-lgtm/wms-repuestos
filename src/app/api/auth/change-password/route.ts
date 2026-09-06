@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch current user with password
     const user = await db.usuario.findUnique({
-      where: { id: session.user.id },
+      where: { id: Number(session.user.id) },
       select: { id: true, password: true },
     })
 

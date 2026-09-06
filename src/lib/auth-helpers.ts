@@ -1,22 +1,37 @@
 import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 
 const SALT_LENGTH = 16
+const BCRYPT_ROUNDS = 12
 
 export function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(SALT_LENGTH).toString('hex')
-  const hash = crypto.createHash('sha256').update(salt + password).digest('hex')
-  return `${salt}:${hash}`
+  return bcrypt.hashSync(password, BCRYPT_ROUNDS)
 }
 
 export function verifyPassword(password: string, storedHash: string): boolean {
   try {
+    if (storedHash.startsWith('$2')) {
+      return bcrypt.compareSync(password, storedHash)
+    }
+
     const [salt, hash] = storedHash.split(':')
     if (!salt || !hash) return false
-    const derived = crypto.createHash('sha256').update(salt + password).digest('hex')
+
+    // Backwards compatibility for existing installations. Previous seed scripts
+    // used scrypt while the login helper used SHA-256.
+    const derived = hash.length === 128
+      ? crypto.scryptSync(password, salt, 64).toString('hex')
+      : crypto.createHash('sha256').update(salt + password).digest('hex')
+
+    if (derived.length !== hash.length) return false
     return crypto.timingSafeEqual(Buffer.from(derived, 'hex'), Buffer.from(hash, 'hex'))
   } catch {
     return false
   }
+}
+
+export function needsPasswordUpgrade(storedHash: string): boolean {
+  return !storedHash.startsWith('$2')
 }
 
 export function getRolePermissions(rol: string): string[] {

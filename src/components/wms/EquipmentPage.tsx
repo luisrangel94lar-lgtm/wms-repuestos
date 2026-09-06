@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -92,6 +92,7 @@ export function EquipmentPage() {
   })
 
   const form = useForm<EquipoFormData>({ resolver: zodResolver(equipoSchema) as any, defaultValues: { idMarca: 0, modelo: '', tipoEquipo: '' } })
+  const selectedMarcaId = useWatch({ control: form.control, name: 'idMarca' })
 
   const createMutation = useMutation({
     mutationFn: (values: EquipoFormData) =>
@@ -278,11 +279,14 @@ export function EquipmentPage() {
       <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
         <DialogContent className="max-w-md">
           <DialogHeader className="dialog-header-accent"><DialogTitle>{editId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del equipo' : 'Formulario para crear un nuevo equipo'}</DialogDescription></DialogHeader>
-          <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
+          <form onSubmit={form.handleSubmit((values: any) => {
+            if (editId) updateMutation.mutate({ id: editId, values })
+            else createMutation.mutate(values)
+          })} className="space-y-4">
             <div className="form-section-header"><Tag className="h-3.5 w-3.5" /> Identificación</div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Marca *</Label>
-              <Select value={form.watch('idMarca') ? String(form.watch('idMarca')) : ''} onValueChange={(v) => form.setValue('idMarca', Number(v))}>
+              <Select value={selectedMarcaId ? String(selectedMarcaId) : ''} onValueChange={(v) => form.setValue('idMarca', Number(v))}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar marca" /></SelectTrigger>
                 <SelectContent>
                   {marcas.map((m: any) => (

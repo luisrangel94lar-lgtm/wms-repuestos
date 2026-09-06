@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -68,6 +68,7 @@ export function ClientsPage() {
   })
 
   const form = useForm<ClienteFormData>({ resolver: zodResolver(clienteSchema) as any, defaultValues: { nombre: '', telefono: '', email: '', tipoCliente: 'Tecnico' } })
+  const tipoCliente = useWatch({ control: form.control, name: 'tipoCliente' })
 
   const createMutation = useMutation({
     mutationFn: (values: ClienteFormData) =>
@@ -210,7 +211,10 @@ export function ClientsPage() {
       <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>
         <DialogContent className="max-w-md">
           <DialogHeader className="dialog-header-accent"><DialogTitle>{editId ? 'Editar Cliente' : 'Nuevo Cliente'}</DialogTitle><DialogDescription className="sr-only">{editId ? 'Formulario para editar los datos del cliente' : 'Formulario para crear un nuevo cliente'}</DialogDescription></DialogHeader>
-          <form onSubmit={form.handleSubmit((values: any) => { editId ? updateMutation.mutate({ id: editId, values }) : createMutation.mutate(values) })} className="space-y-4">
+          <form onSubmit={form.handleSubmit((values: any) => {
+            if (editId) updateMutation.mutate({ id: editId, values })
+            else createMutation.mutate(values)
+          })} className="space-y-4">
             <div className="form-section-header"><UserCircle className="h-3.5 w-3.5" /> Información Personal</div>
             <div className="space-y-2"><Label className="text-sm font-medium">Nombre *</Label><Input {...form.register('nombre')} />{form.formState.errors.nombre && <p className="text-xs text-destructive">{form.formState.errors.nombre.message}</p>}</div>
 
@@ -225,7 +229,7 @@ export function ClientsPage() {
             <div className="form-section-header"><BadgeCheck className="h-3.5 w-3.5" /> Clasificación</div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Tipo de Cliente</Label>
-              <Select value={form.watch('tipoCliente')} onValueChange={(v) => form.setValue('tipoCliente', v)}>
+              <Select value={tipoCliente} onValueChange={(v) => form.setValue('tipoCliente', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Tecnico">Técnico</SelectItem>

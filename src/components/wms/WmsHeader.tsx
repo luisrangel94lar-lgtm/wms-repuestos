@@ -253,7 +253,10 @@ export function WmsHeader() {
             )}
             value={localQuery}
             onChange={(e) => setLocalQuery(e.target.value)}
-            onFocus={() => { setSearchFocused(true); localQuery.length >= 2 && setShowResults(true) }}
+            onFocus={() => {
+              setSearchFocused(true)
+              if (localQuery.length >= 2) setShowResults(true)
+            }}
             onBlur={() => setSearchFocused(false)}
           />
           {localQuery.length > 0 && (

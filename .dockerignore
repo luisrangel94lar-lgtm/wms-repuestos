@@ -1,0 +1,11 @@
+.git
+.next
+node_modules
+.env*
+!.env.example
+db
+download
+tool-results
+upload
+workspace-*.tar
+*.log
