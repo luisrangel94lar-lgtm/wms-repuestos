@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.railway.up.wms_repuestos.twa",
+        "sha256_cert_fingerprints": ["B1:59:22:61:F6:FF:DA:D7:73:C2:56:06:B1:FF:BA:C4:D0:A5:E1:86:61:C2:E6:26:E6:B2:28:02:3B:96:72:43"]
+      }
+    }]
