@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { WifiOff } from 'lucide-react'
+import { COPYRIGHT_NOTICE } from '@/lib/ownership'
 
 export default function OfflinePage() {
   return (
@@ -15,6 +16,7 @@ export default function OfflinePage() {
         <Link className="inline-flex rounded-md bg-primary px-4 py-2 text-primary-foreground" href="/">
           Reintentar
         </Link>
+        <p className="pt-4 text-xs text-muted-foreground">{COPYRIGHT_NOTICE}</p>
       </section>
     </main>
   )

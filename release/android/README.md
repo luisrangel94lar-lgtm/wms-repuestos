@@ -1,5 +1,7 @@
 # Android release
 
+Copyright © 2026 Luis Angel Rangel Igirio. Todos los derechos reservados. Luis Angel Rangel Igirio es el creador y propietario exclusivo de WMS Repuestos y de sus paquetes Android.
+
 This directory contains the signed Android artifacts generated for the production PWA at `https://wms-repuestos.up.railway.app`.
 
 - `WMS-Repuestos.apk`: directly installable Android package.

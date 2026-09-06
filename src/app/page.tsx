@@ -28,6 +28,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect, useSyncExternalStore } from 'react'
 import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
+import { COPYRIGHT_NOTICE } from '@/lib/ownership'
 import { subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot, stableSubscribe } from '@/lib/settings-store'
 
 const pageComponents: Record<WmsPage, React.ComponentType> = {
@@ -127,10 +128,11 @@ export default function Home() {
             <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-page-transition">
               <PageComponent />
             </main>
-            <footer className="relative px-4 md:px-6 py-3 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm flex items-center justify-between mt-auto">
+            <footer className="relative px-4 md:px-6 py-3 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-3 mt-auto">
               {/* Subtle top border gradient: teal → transparent */}
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500/60 via-teal-500/30 to-transparent" />
               <span>{warehouseName}</span>
+              <span className="text-center">{COPYRIGHT_NOTICE}</span>
               <span className="flex items-center gap-2">
                 <span className="hidden sm:inline capitalize">{dateStr}</span>
                 <span className="flex items-center gap-1">

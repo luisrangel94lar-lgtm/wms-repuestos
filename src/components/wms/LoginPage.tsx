@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { COPYRIGHT_NOTICE, OWNERSHIP_NOTICE } from '@/lib/ownership'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -154,6 +155,9 @@ export function LoginPage() {
           <div className="mt-8 text-center">
             <p className="text-xs text-muted-foreground">
               WMS Repuestos v1.0 · Sistema de gestión de inventario
+            </p>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              {COPYRIGHT_NOTICE}<br />{OWNERSHIP_NOTICE}
             </p>
           </div>
         </CardContent>

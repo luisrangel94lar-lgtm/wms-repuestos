@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PwaRegister } from "@/components/PwaRegister";
+import { COPYRIGHT_HOLDER, COPYRIGHT_NOTICE } from "@/lib/ownership";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +29,13 @@ export const metadata: Metadata = {
     title: "WMS Repuestos",
   },
   applicationName: "WMS Repuestos",
+  authors: [{ name: COPYRIGHT_HOLDER }],
+  creator: COPYRIGHT_HOLDER,
+  publisher: COPYRIGHT_HOLDER,
+  other: {
+    copyright: COPYRIGHT_NOTICE,
+    owner: COPYRIGHT_HOLDER,
+  },
   formatDetection: { telephone: false },
 };
 

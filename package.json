@@ -1,6 +1,8 @@
 {
   "name": "wms-repuestos",
   "version": "0.2.1",
+  "author": "Luis Angel Rangel Igirio",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",

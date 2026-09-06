@@ -2,6 +2,10 @@
 
 Sistema web para administrar repuestos, inventario, ubicaciones, movimientos, ventas, clientes, equipos compatibles, empresas, almacenes, usuarios y licencias.
 
+**Copyright © 2026 Luis Angel Rangel Igirio. Todos los derechos reservados.**
+
+Luis Angel Rangel Igirio es el creador y propietario exclusivo de WMS Repuestos. Este proyecto es software propietario y no concede licencias de uso, copia, modificación, distribución o comercialización salvo autorización expresa y escrita del propietario.
+
 ## Arquitectura de producción
 
 - Next.js 16 + React 19

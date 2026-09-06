@@ -1,3 +1,5 @@
+import { COPYRIGHT_NOTICE } from '@/lib/ownership'
+
 interface ReceiptData {
   warehouseName: string
   warehouseAddress: string
@@ -233,6 +235,7 @@ export function generateReceiptHtml(data: ReceiptData): string {
     <div class="footer">
       <p>Generado: ${dateStr} ${timeStr}</p>
       <p>WMS Repuestos v1.0</p>
+      <p>${COPYRIGHT_NOTICE}</p>
       <p>*** Gracias por su compra ***</p>
     </div>
   </div>
