@@ -1,5 +1,5 @@
-const CACHE_VERSION = 'wms-repuestos-v1'
-const APP_SHELL = ['/offline', '/manifest.json', '/icon-192.png', '/icon-512.png']
+const CACHE_VERSION = 'wms-repuestos-v2'
+const APP_SHELL = ['/offline', '/manifest.json', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL)))
