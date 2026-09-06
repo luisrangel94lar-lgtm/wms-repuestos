@@ -51,12 +51,21 @@ export function CompaniesPage() {
 
   const { data: empresas = [], isLoading } = useQuery<Empresa[]>({
     queryKey: ['empresas'],
-    queryFn: () => fetch('/api/wms/empresas').then((r) => r.json()),
+    queryFn: async () => {
+      const response = await fetch('/api/wms/empresas')
+      if (!response.ok) throw new Error('No se pudieron cargar las empresas')
+      const data = await response.json()
+      return Array.isArray(data) ? data : []
+    },
   })
 
   const { data: stats } = useQuery<EmpresaStats>({
     queryKey: ['empresas-stats'],
-    queryFn: () => fetch('/api/wms/empresas?stats=true').then((r) => r.json()),
+    queryFn: async () => {
+      const response = await fetch('/api/wms/empresas?stats=true')
+      if (!response.ok) throw new Error('No se pudieron cargar las estadísticas')
+      return response.json()
+    },
   })
 
   const createMutation = useMutation({

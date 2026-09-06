@@ -205,11 +205,16 @@ function AlmacenSelector() {
   const { session, selectedAlmacenId, setSelectedAlmacenId } = useWmsStore()
   const { data: almacenes = [] } = useQuery({
     queryKey: ['almacenes-selector'],
-    queryFn: () => fetch('/api/wms/almacenes').then(r => r.json()),
+    queryFn: async () => {
+      const response = await fetch('/api/wms/almacenes')
+      if (!response.ok) return []
+      const data = await response.json()
+      return Array.isArray(data) ? data : []
+    },
     enabled: !!session,
   })
 
-  if (!almacenes || almacenes.length <= 1) return null
+  if (almacenes.length <= 1) return null
 
   return (
     <div className="mx-3 mb-2">
@@ -232,7 +237,12 @@ function SidebarFooter() {
 
   const { data: lastSale } = useQuery({
     queryKey: ['last-sale'],
-    queryFn: () => fetch('/api/wms/ventas?limit=1').then(r => r.json()).then((data: any[]) => data[0] || null),
+    queryFn: async () => {
+      const response = await fetch('/api/wms/ventas?limit=1')
+      if (!response.ok) return null
+      const data = await response.json()
+      return Array.isArray(data) ? data[0] ?? null : null
+    },
     refetchInterval: 60000,
   })
 

@@ -49,7 +49,12 @@ export function WarehousesPage() {
   // Fetch empresas for filter and dropdown
   const { data: empresas = [] } = useQuery<Empresa[]>({
     queryKey: ['empresas-list'],
-    queryFn: () => fetch('/api/wms/empresas').then((r) => r.json()),
+    queryFn: async () => {
+      const response = await fetch('/api/wms/empresas')
+      if (!response.ok) throw new Error('No se pudieron cargar las empresas')
+      const data = await response.json()
+      return Array.isArray(data) ? data : []
+    },
     enabled: isSuperAdmin,
   })
 
@@ -60,7 +65,11 @@ export function WarehousesPage() {
     queryKey: ['almacenes', filterEmpresaId],
     queryFn: () => {
       const params = filterEmpresaId ? `?empresaId=${filterEmpresaId}` : ''
-      return fetch(`/api/wms/almacenes${params}`).then((r) => r.json())
+      return fetch(`/api/wms/almacenes${params}`).then(async (response) => {
+        if (!response.ok) throw new Error('No se pudieron cargar los almacenes')
+        const data = await response.json()
+        return Array.isArray(data) ? data : []
+      })
     },
   })
 
