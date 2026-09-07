@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     // Role-based filtering
     if (user.rol !== 'super_admin') {
-      if (['gerente', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
+      if (['gerente', 'cajero', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
         where.almacenId = user.almacenId
       } else if (user.rol === 'admin' && user.empresaId) {
         const almacenes = await db.almacen.findMany({
@@ -48,15 +48,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
     const user = session.user as any
+    if (!['admin', 'super_admin', 'gerente'].includes(user.rol)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
 
     const body = await request.json()
+    const almacenId = user.almacenId ?? body.almacenId ?? null
+    if (!almacenId) return NextResponse.json({ error: 'Almacén requerido' }, { status: 400 })
+    const warehouse = await db.almacen.findFirst({
+      where: { id: Number(almacenId), ...(user.rol === 'super_admin' ? {} : { empresaId: user.empresaId }) },
+    })
+    if (!warehouse) return NextResponse.json({ error: 'Almacén fuera de la empresa' }, { status: 400 })
     const ubicacion = await db.ubicacion.create({
       data: {
         pasillo: body.pasillo,
         estante: body.estante,
         nivel: body.nivel,
         activo: body.activo ?? true,
-        almacenId: user.almacenId ?? body.almacenId ?? null,
+        almacenId,
       },
     })
     return NextResponse.json(ubicacion, { status: 201 })
@@ -74,7 +81,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
+    const user = session.user as any
+    if (!['admin', 'super_admin', 'gerente'].includes(user.rol)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     const { id, pasillo, estante, nivel, activo } = await request.json()
+    const existing = await db.ubicacion.findFirst({ where: { id, almacen: user.rol === 'super_admin' ? {} : { empresaId: user.empresaId } } })
+    if (!existing) return NextResponse.json({ error: 'Ubicación no encontrada' }, { status: 404 })
 
     const ubicacion = await db.ubicacion.update({
       where: { id },
@@ -97,11 +108,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
+    const user = session.user as any
+    if (!['admin', 'super_admin', 'gerente'].includes(user.rol)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     const id = parseInt(searchParams.get('id')!, 10)
 
     if (!id) {
       return NextResponse.json({ error: 'ID de ubicación es requerido' }, { status: 400 })
     }
+    const existing = await db.ubicacion.findFirst({ where: { id, almacen: user.rol === 'super_admin' ? {} : { empresaId: user.empresaId } } })
+    if (!existing) return NextResponse.json({ error: 'Ubicación no encontrada' }, { status: 404 })
 
     const stockEntries = await db.stock.findMany({
       where: { idUbicacion: id },
