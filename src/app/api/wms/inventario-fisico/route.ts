@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, resolveEmpresaId, tenantWhere } from '@/lib/tenant'
 
 export async function GET() {
   try {
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const productos = await db.producto.findMany({
-      where: { activo: true },
+      where: { activo: true, ...tenantWhere(user) },
       include: {
         stocks: {
           include: { ubicacion: true },
@@ -44,6 +49,11 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!['admin', 'super_admin', 'gerente'].includes(user.rol)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
+    const empresaId = resolveEmpresaId(user, body.empresaId)
+    if (!empresaId) return NextResponse.json({ error: 'Empresa requerida' }, { status: 400 })
     const items: { idProducto: number; idUbicacion: number; cantidadContada: number; notas?: string }[] = body.items
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -78,6 +88,7 @@ export async function POST(request: NextRequest) {
 
         const mov = await db.movimiento.create({
           data: {
+            empresaId,
             idProducto: item.idProducto,
             idUbicacion: item.idUbicacion,
             idTipo: ajusteTipo.id,

@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { canManageCatalog, getTenantUser, resolveEmpresaId } from '@/lib/tenant'
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!canManageCatalog(user)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
+    const empresaId = resolveEmpresaId(user, formData.get('empresaId'))
+    if (!empresaId) return NextResponse.json({ error: 'Empresa requerida' }, { status: 400 })
     const file = formData.get('file') as File | null
     if (!file) {
       return NextResponse.json({ error: 'No se proporcionó archivo' }, { status: 400 })
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if SKU already exists
-      const existing = await db.producto.findUnique({ where: { sku } })
+      const existing = await db.producto.findUnique({ where: { empresaId_sku: { empresaId, sku } } })
       if (existing) {
         skipped++
         continue
@@ -83,6 +91,7 @@ export async function POST(request: NextRequest) {
 
       await db.producto.create({
         data: {
+          empresaId,
           sku,
           nombre: row['nombre'] || 'Sin nombre',
           descripcion: row['descripcion'] || null,

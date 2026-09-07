@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(
   _request: NextRequest,
@@ -8,9 +11,11 @@ export async function GET(
   try {
     const { id } = await params
     const productoId = parseInt(id, 10)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    const producto = await db.producto.findUnique({
-      where: { id: productoId },
+    const producto = await db.producto.findFirst({
+      where: { id: productoId, ...tenantWhere(user) },
       include: { categoria: true, marca: true },
     })
     if (!producto) {
@@ -18,7 +23,7 @@ export async function GET(
     }
 
     const movimientos = await db.movimiento.findMany({
-      where: { idProducto: productoId },
+      where: { idProducto: productoId, ...tenantWhere(user) },
       include: { tipoMovimiento: true, ubicacion: true },
       orderBy: { fecha: 'asc' },
     })

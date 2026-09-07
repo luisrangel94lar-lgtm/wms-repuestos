@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const dias = parseInt(searchParams.get('dias') ?? '60', 10)
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - dias)
 
     const productos = await db.producto.findMany({
-      where: { activo: true },
+      where: { activo: true, ...tenantWhere(user, searchParams.get('empresaId')) },
       include: {
         stocks: true,
         movimientos: {

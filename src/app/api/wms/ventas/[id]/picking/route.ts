@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(
   _request: NextRequest,
@@ -7,8 +10,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const venta = await db.venta.findUnique({
-      where: { id: parseInt(id, 10) },
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const venta = await db.venta.findFirst({
+      where: { id: parseInt(id, 10), ...tenantWhere(user) },
       include: {
         cliente: true,
         detalles: { include: { producto: true } },

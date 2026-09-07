@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { canManageCatalog, resolveEmpresaId, tenantWhere, getTenantUser } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
+    const user = getTenantUser(session)!
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') ?? '1', 10)
     const pageSize = parseInt(searchParams.get('pageSize') ?? '20', 10)
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest) {
     const idMarca = searchParams.get('marca')
     const bajoStock = searchParams.get('bajoStock') === 'true'
 
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = tenantWhere(user, searchParams.get('empresaId'))
 
     if (search) {
       where.OR = [
@@ -29,9 +31,6 @@ export async function GET(request: NextRequest) {
     }
     if (idCategoria) where.idCategoria = parseInt(idCategoria, 10)
     if (idMarca) where.idMarca = parseInt(idMarca, 10)
-
-    // Products are global (not per-almacen), so no data filtering needed.
-    // Auth check above is sufficient.
 
     let items: any[]
     let total: number
@@ -82,10 +81,19 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
+    const user = getTenantUser(session)!
+    if (!canManageCatalog(user)) {
+      return NextResponse.json({ error: 'Solo un administrador puede crear productos' }, { status: 403 })
+    }
 
     const body = await request.json()
+    const empresaId = resolveEmpresaId(user, body.empresaId)
+    if (!empresaId) {
+      return NextResponse.json({ error: 'Selecciona la empresa propietaria del producto' }, { status: 400 })
+    }
     const producto = await db.producto.create({
       data: {
+        empresaId,
         sku: body.sku,
         nombre: body.nombre,
         descripcion: body.descripcion ?? null,

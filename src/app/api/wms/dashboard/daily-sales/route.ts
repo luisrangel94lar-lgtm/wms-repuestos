@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const days = parseInt(searchParams.get('days') ?? '7', 10)
 
     const startDate = new Date()
@@ -11,7 +16,7 @@ export async function GET(request: NextRequest) {
     startDate.setHours(0, 0, 0, 0)
 
     const sales = await db.venta.findMany({
-      where: { fecha: { gte: startDate } },
+      where: { fecha: { gte: startDate }, ...tenantWhere(user, searchParams.get('empresaId')) },
       include: { detalles: { include: { producto: { select: { id: true, nombre: true, precioVenta: true } } } } },
       orderBy: { fecha: 'asc' },
     })

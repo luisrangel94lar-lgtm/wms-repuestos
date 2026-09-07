@@ -23,9 +23,18 @@ export const authOptions: NextAuthOptions = {
 
         const user = await db.usuario.findUnique({
           where: { email: credentials.email as string },
+          include: {
+            empresa: { include: { licencias: { orderBy: { fechaCreacion: 'desc' }, take: 1 } } },
+          },
         })
 
         if (!user || !user.activo) return null
+        if (user.rol !== 'super_admin') {
+          if (!user.empresa || !user.empresa.activa) return null
+          const license = user.empresa.licencias[0]
+          const expired = license?.fechaVencimiento && license.fechaVencimiento < new Date()
+          if (!license || license.estado !== 'activa' || expired) return null
+        }
 
         const isValid = verifyPassword(credentials.password as string, user.password)
         if (!isValid) return null

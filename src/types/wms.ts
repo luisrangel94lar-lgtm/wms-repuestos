@@ -184,6 +184,7 @@ export interface Empresa {
     usuarios: number
     almacenes: number
   }
+  licencias?: Array<{ id: number; tipo: string; estado: string; fechaVencimiento: string | null; maxUsuarios: number }>
 }
 
 export interface Almacen {

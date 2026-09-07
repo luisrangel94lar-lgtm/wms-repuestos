@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const companyFilter = tenantWhere(user, searchParams.get('empresaId'))
     const days = parseInt(searchParams.get('days') || '7', 10)
 
     const now = new Date()
@@ -19,6 +25,7 @@ export async function GET(request: NextRequest) {
       where: {
         fecha: { gte: currentStart, lte: now },
         estado: 'COMPLETADA',
+        ...companyFilter,
       },
       select: { total: true },
     })
@@ -29,6 +36,7 @@ export async function GET(request: NextRequest) {
       where: {
         fecha: { gte: previousStart, lt: currentStart },
         estado: 'COMPLETADA',
+        ...companyFilter,
       },
       select: { total: true },
     })

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(
   _request: NextRequest,
@@ -7,8 +10,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const cliente = await db.cliente.findUnique({
-      where: { id: parseInt(id, 10) },
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const cliente = await db.cliente.findFirst({
+      where: { id: parseInt(id, 10), ...tenantWhere(user) },
       include: { ventas: { include: { detalles: { include: { producto: true } } }, orderBy: { fecha: 'desc' } } },
     })
     if (!cliente) {
@@ -27,6 +32,10 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const existing = await db.cliente.findFirst({ where: { id: parseInt(id, 10), ...tenantWhere(user) } })
+    if (!existing) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
     const body = await request.json()
     const cliente = await db.cliente.update({
       where: { id: parseInt(id, 10) },
@@ -51,6 +60,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const existing = await db.cliente.findFirst({ where: { id: parseInt(id, 10), ...tenantWhere(user) } })
+    if (!existing) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
     await db.cliente.delete({ where: { id: parseInt(id, 10) } })
     return NextResponse.json({ message: 'Cliente eliminado' })
   } catch (error) {

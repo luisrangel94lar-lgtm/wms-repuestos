@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const limit = parseInt(searchParams.get('limit') ?? '10', 10)
     const fechaDesde = searchParams.get('fechaDesde')
     const fechaHasta = searchParams.get('fechaHasta')
 
     // Build venta filter
-    const ventaWhere: Record<string, unknown> = { estado: 'COMPLETADA' }
+    const ventaWhere: Record<string, unknown> = { estado: 'COMPLETADA', ...tenantWhere(user, searchParams.get('empresaId')) }
     if (fechaDesde || fechaHasta) {
       ventaWhere.fecha = {}
       if (fechaDesde) (ventaWhere.fecha as Record<string, unknown>).gte = new Date(fechaDesde)

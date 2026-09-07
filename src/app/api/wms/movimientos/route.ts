@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getTenantUser, resolveEmpresaId, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
-    const user = session.user as any
+    const user = getTenantUser(session)!
 
     const { searchParams } = new URL(request.url)
     const idProducto = searchParams.get('idProducto')
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const fechaDesde = searchParams.get('fechaDesde')
     const fechaHasta = searchParams.get('fechaHasta')
 
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = tenantWhere(user, searchParams.get('empresaId'))
     if (idProducto) where.idProducto = parseInt(idProducto, 10)
     if (idTipo) where.idTipo = parseInt(idTipo, 10)
     if (fechaDesde || fechaHasta) {
@@ -28,14 +29,8 @@ export async function GET(request: NextRequest) {
 
     // Role-based filtering
     if (user.rol !== 'super_admin') {
-      if (['gerente', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
+      if (['gerente', 'cajero', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
         where.almacenId = user.almacenId
-      } else if (user.rol === 'admin' && user.empresaId) {
-        const almacenes = await db.almacen.findMany({
-          where: { empresaId: user.empresaId },
-          select: { id: true },
-        })
-        where.almacenId = { in: almacenes.map((a) => a.id) }
       }
     }
 
@@ -57,10 +52,24 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
-    const user = session.user as any
+    const user = getTenantUser(session)!
 
     const body = await request.json()
+    const empresaId = resolveEmpresaId(user, body.empresaId)
+    if (!empresaId) return NextResponse.json({ error: 'Empresa requerida' }, { status: 400 })
+    if (!['admin', 'super_admin', 'gerente', 'tecnico'].includes(user.rol)) {
+      return NextResponse.json({ error: 'El rol cajero solo puede generar salidas mediante ventas' }, { status: 403 })
+    }
     const movAlmacenId = user.almacenId ?? body.almacenId ?? null
+
+    const entries = Array.isArray(body.batch) ? body.batch : [body]
+    const productIds: number[] = Array.from(new Set<number>(entries.map((item: { idProducto: number }) => Number(item.idProducto))))
+    const locationIds: number[] = Array.from(new Set<number>(entries.map((item: { idUbicacion?: number }) => Number(item.idUbicacion)).filter((id: number) => id > 0)))
+    const ownedProducts = await db.producto.count({ where: { id: { in: productIds }, empresaId } })
+    const ownedLocations = await db.ubicacion.count({ where: { id: { in: locationIds }, almacen: { empresaId } } })
+    if (ownedProducts !== productIds.length || ownedLocations !== locationIds.length) {
+      return NextResponse.json({ error: 'Hay productos o ubicaciones que no pertenecen a la empresa' }, { status: 400 })
+    }
 
     // Batch mode
     if (Array.isArray(body.batch)) {
@@ -87,6 +96,7 @@ export async function POST(request: NextRequest) {
 
           const mov = await tx.movimiento.create({
             data: {
+              empresaId,
               idProducto: item.idProducto,
               idUbicacion: item.idUbicacion ?? null,
               idTipo: item.idTipo,
@@ -144,6 +154,7 @@ export async function POST(request: NextRequest) {
 
     const mov = await db.movimiento.create({
       data: {
+        empresaId,
         idProducto,
         idUbicacion: idUbicacion ?? null,
         idTipo,

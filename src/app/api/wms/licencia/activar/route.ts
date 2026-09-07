@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { clave } = await req.json()
+    const currentUser = session.user as any
 
     if (!clave || typeof clave !== 'string' || clave.trim().length < 8) {
       return NextResponse.json({ error: 'Clave de licencia inválida' }, { status: 400 })
@@ -27,6 +28,9 @@ export async function POST(req: NextRequest) {
     })
 
     if (existing) {
+      if (currentUser.rol !== 'super_admin' && existing.empresaId !== currentUser.empresaId) {
+        return NextResponse.json({ error: 'Esta licencia pertenece a otra empresa' }, { status: 403 })
+      }
       if (existing.estado === 'activa') {
         return NextResponse.json({ error: 'Esta licencia ya está activa' }, { status: 400 })
       }

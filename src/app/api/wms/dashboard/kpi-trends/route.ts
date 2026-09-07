@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET() {
   try {
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const companyFilter = tenantWhere(user)
     const now = new Date()
     const sevenDaysAgo = new Date(now)
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
@@ -16,23 +22,23 @@ export async function GET() {
 
     // Sales trend: last 7 days vs previous 7 days
     const currentSales = await db.venta.findMany({
-      where: { fecha: { gte: sevenDaysAgo, lte: now }, estado: 'COMPLETADA' },
+      where: { fecha: { gte: sevenDaysAgo, lte: now }, estado: 'COMPLETADA', ...companyFilter },
       select: { total: true },
     })
     const currentSalesTotal = currentSales.reduce((sum, s) => sum + (s.total ?? 0), 0)
 
     const previousSales = await db.venta.findMany({
-      where: { fecha: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, estado: 'COMPLETADA' },
+      where: { fecha: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, estado: 'COMPLETADA', ...companyFilter },
       select: { total: true },
     })
     const previousSalesTotal = previousSales.reduce((sum, s) => sum + (s.total ?? 0), 0)
 
     // Movements trend: count in each period
     const currentMovements = await db.movimiento.count({
-      where: { fecha: { gte: sevenDaysAgo, lte: now } },
+      where: { fecha: { gte: sevenDaysAgo, lte: now }, ...companyFilter },
     })
     const previousMovements = await db.movimiento.count({
-      where: { fecha: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+      where: { fecha: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, ...companyFilter },
     })
 
     // Stock value trend: approximate by comparing ENTRADA movement value
@@ -40,7 +46,7 @@ export async function GET() {
     const tipoEntrada = await db.tipoMovimiento.findFirst({ where: { nombre: 'ENTRADA' } })
     const currentEntries = tipoEntrada
       ? await db.movimiento.findMany({
-          where: { fecha: { gte: sevenDaysAgo, lte: now }, idTipo: tipoEntrada.id },
+          where: { fecha: { gte: sevenDaysAgo, lte: now }, idTipo: tipoEntrada.id, ...companyFilter },
           select: { cantidad: true, costoUnitario: true },
         })
       : []
@@ -51,7 +57,7 @@ export async function GET() {
 
     const previousEntries = tipoEntrada
       ? await db.movimiento.findMany({
-          where: { fecha: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, idTipo: tipoEntrada.id },
+          where: { fecha: { gte: fourteenDaysAgo, lt: sevenDaysAgo }, idTipo: tipoEntrada.id, ...companyFilter },
           select: { cantidad: true, costoUnitario: true },
         })
       : []

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET() {
   try {
@@ -10,10 +11,9 @@ export async function GET() {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    // Products are global (stock is global), just check session exists.
-    // No data filtering needed for alerts.
+    const user = getTenantUser(session)!
     const productos = await db.producto.findMany({
-      where: { activo: true },
+      where: { activo: true, ...tenantWhere(user) },
       include: {
         stocks: true,
         categoria: true,

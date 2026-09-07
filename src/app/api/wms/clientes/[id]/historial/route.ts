@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(
   request: NextRequest,
@@ -8,12 +11,14 @@ export async function GET(
   try {
     const { id } = await params
     const clienteId = parseInt(id, 10)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     if (isNaN(clienteId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
-    const cliente = await db.cliente.findUnique({
-      where: { id: clienteId },
+    const cliente = await db.cliente.findFirst({
+      where: { id: clienteId, ...tenantWhere(user) },
       select: { id: true, nombre: true, telefono: true, email: true },
     })
 
@@ -22,7 +27,7 @@ export async function GET(
     }
 
     const ventas = await db.venta.findMany({
-      where: { idCliente: clienteId },
+      where: { idCliente: clienteId, ...tenantWhere(user) },
       include: {
         detalles: {
           include: {

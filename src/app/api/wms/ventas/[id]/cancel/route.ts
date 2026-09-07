@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function POST(
   _request: NextRequest,
@@ -8,9 +11,11 @@ export async function POST(
   try {
     const { id } = await params
     const ventaId = parseInt(id, 10)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    const venta = await db.venta.findUnique({
-      where: { id: ventaId },
+    const venta = await db.venta.findFirst({
+      where: { id: ventaId, ...tenantWhere(user) },
       include: { detalles: true },
     })
     if (!venta) {
@@ -36,6 +41,7 @@ export async function POST(
         // Create DEVOLUCION movement
         await tx.movimiento.create({
           data: {
+            empresaId: venta.empresaId,
             idProducto: det.idProducto,
             idTipo: tipoDevolucion.id,
             cantidad: det.cantidad,

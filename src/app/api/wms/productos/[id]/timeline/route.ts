@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(
   request: NextRequest,
@@ -8,13 +11,17 @@ export async function GET(
   try {
     const { id } = await params
     const productoId = parseInt(id, 10)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const product = await db.producto.findFirst({ where: { id: productoId, ...tenantWhere(user) } })
+    if (!product) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
     if (isNaN(productoId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
     // Get all movements for this product, ordered by date ascending
     const movimientos = await db.movimiento.findMany({
-      where: { idProducto: productoId },
+      where: { idProducto: productoId, ...tenantWhere(user) },
       include: { tipoMovimiento: { select: { nombre: true } } },
       orderBy: { fecha: 'asc' },
     })

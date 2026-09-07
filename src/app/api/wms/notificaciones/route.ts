@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 interface Notification {
   id: string
@@ -13,13 +16,16 @@ interface Notification {
 
 export async function GET() {
   try {
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const companyFilter = tenantWhere(user)
     const notifications: Notification[] = []
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     // Low stock alerts: products where total stock < stockMinimo
     const lowStockProducts = await db.producto.findMany({
-      where: { activo: true, stockMinimo: { gt: 0 } },
+      where: { activo: true, stockMinimo: { gt: 0 }, ...companyFilter },
       include: {
         stocks: { select: { cantidad: true } },
         categoria: { select: { nombre: true } },
@@ -45,7 +51,7 @@ export async function GET() {
     const recentSales = await db.venta.findMany({
       take: 5,
       orderBy: { fecha: 'desc' },
-      where: { estado: 'COMPLETADA' },
+      where: { estado: 'COMPLETADA', ...companyFilter },
       include: {
         cliente: { select: { nombre: true } },
         _count: { select: { detalles: true } },
@@ -67,7 +73,7 @@ export async function GET() {
     const recentReceiving = await db.movimiento.findMany({
       take: 5,
       orderBy: { fecha: 'desc' },
-      where: { idTipo: 1 },
+      where: { idTipo: 1, ...companyFilter },
       include: {
         producto: { select: { nombre: true, sku: true } },
       },

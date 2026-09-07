@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getTenantUser, resolveEmpresaId, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
-    const user = session.user as any
+    const user = getTenantUser(session)!
 
     const { searchParams } = new URL(request.url)
     const fechaDesde = searchParams.get('fechaDesde')
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const idCliente = searchParams.get('idCliente')
     const estado = searchParams.get('estado')
 
-    const where: Record<string, unknown> = {}
+    const where: Record<string, unknown> = tenantWhere(user, searchParams.get('empresaId'))
     if (fechaDesde || fechaHasta) {
       where.fecha = {} as Record<string, unknown>
       if (fechaDesde) (where.fecha as Record<string, unknown>).gte = new Date(fechaDesde)
@@ -26,16 +27,9 @@ export async function GET(request: NextRequest) {
     if (idCliente) where.idCliente = parseInt(idCliente, 10)
     if (estado) where.estado = estado
 
-    // Role-based filtering
     if (user.rol !== 'super_admin') {
-      if (['gerente', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
+      if (['gerente', 'cajero', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
         where.almacenId = user.almacenId
-      } else if (user.rol === 'admin' && user.empresaId) {
-        const almacenes = await db.almacen.findMany({
-          where: { empresaId: user.empresaId },
-          select: { id: true },
-        })
-        where.almacenId = { in: almacenes.map((a) => a.id) }
       }
     }
 
@@ -60,13 +54,23 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
-    const user = session.user as any
+    const user = getTenantUser(session)!
 
     const body = await request.json()
     const { idCliente, detalles } = body
+    const empresaId = resolveEmpresaId(user, body.empresaId)
 
-    if (!idCliente || !detalles || !Array.isArray(detalles) || detalles.length === 0) {
+    if (!empresaId || !idCliente || !detalles || !Array.isArray(detalles) || detalles.length === 0) {
       return NextResponse.json({ error: 'idCliente y detalles son requeridos' }, { status: 400 })
+    }
+
+    const cliente = await db.cliente.findFirst({ where: { id: Number(idCliente), empresaId } })
+    if (!cliente) return NextResponse.json({ error: 'El cliente no pertenece a la empresa' }, { status: 400 })
+
+    const productIds = detalles.map((d: { idProducto: number }) => Number(d.idProducto))
+    const ownedProducts = await db.producto.count({ where: { id: { in: productIds }, empresaId, activo: true } })
+    if (ownedProducts !== new Set(productIds).size) {
+      return NextResponse.json({ error: 'Hay productos que no pertenecen a la empresa' }, { status: 400 })
     }
 
     // Generate folio
@@ -75,12 +79,8 @@ export async function POST(request: NextRequest) {
       String(now.getMonth() + 1).padStart(2, '0') +
       String(now.getDate()).padStart(2, '0')
 
-    const maxId = await db.venta.findFirst({
-      select: { id: true },
-      orderBy: { id: 'desc' },
-    })
-    const seq = (maxId?.id ?? 0) + 1
-    const folio = `V-${datePart}-${seq}`
+    const seq = (await db.venta.count({ where: { empresaId } })) + 1
+    const folio = `V-${datePart}-${String(seq).padStart(5, '0')}`
 
     // Calculate totals
     let subtotal = 0
@@ -91,11 +91,16 @@ export async function POST(request: NextRequest) {
 
     // Determine almacenId from session or body
     const ventaAlmacenId = user.almacenId ?? body.almacenId ?? null
+    if (ventaAlmacenId) {
+      const almacen = await db.almacen.findFirst({ where: { id: Number(ventaAlmacenId), empresaId, activo: true } })
+      if (!almacen) return NextResponse.json({ error: 'El almacén no pertenece a la empresa' }, { status: 400 })
+    }
 
     // Create the venta with details inside a transaction
     const venta = await db.$transaction(async (tx) => {
       const created = await tx.venta.create({
         data: {
+          empresaId,
           idCliente,
           folio,
           subtotal,
@@ -122,7 +127,10 @@ export async function POST(request: NextRequest) {
 
         // Decrease stock via SALIDA movement
         const stockEntry = await tx.stock.findFirst({
-          where: { idProducto: d.idProducto },
+          where: {
+            idProducto: d.idProducto,
+            ubicacion: ventaAlmacenId ? { almacenId: Number(ventaAlmacenId) } : undefined,
+          },
         })
 
         if (stockEntry) {
@@ -138,6 +146,7 @@ export async function POST(request: NextRequest) {
           if (tipoSalida) {
             await tx.movimiento.create({
               data: {
+                empresaId,
                 idProducto: d.idProducto,
                 idUbicacion: stockEntry.idUbicacion,
                 idTipo: tipoSalida.id,

@@ -51,6 +51,8 @@ export function getRolePermissions(rol: string): string[] {
       return allPages.filter((p) => p !== 'userManagement' && p !== 'license')
     case 'vendedor':
       return ['dashboard', 'products', 'inventory', 'sales', 'clients', 'reports', 'alerts']
+    case 'cajero':
+      return ['dashboard', 'products', 'inventory', 'sales', 'clients', 'alerts']
     case 'tecnico':
       return ['dashboard', 'products', 'equipment', 'inventory', 'alerts']
     default:
@@ -66,7 +68,7 @@ export function isAdmin(rol: string): boolean {
   return rol === 'admin' || rol === 'super_admin'
 }
 
-export const VALID_ROLES = ['super_admin', 'admin', 'gerente', 'vendedor', 'tecnico'] as const
+export const VALID_ROLES = ['super_admin', 'admin', 'gerente', 'cajero', 'vendedor', 'tecnico'] as const
 export type UserRole = (typeof VALID_ROLES)[number]
 
 export function isValidRole(rol: string): rol is UserRole {

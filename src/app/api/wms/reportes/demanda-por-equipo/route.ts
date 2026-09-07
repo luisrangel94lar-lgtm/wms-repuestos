@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const fechaDesde = searchParams.get('fechaDesde')
     const fechaHasta = searchParams.get('fechaHasta')
 
-    const ventaWhere: Record<string, unknown> = { estado: 'COMPLETADA' }
+    const ventaWhere: Record<string, unknown> = { estado: 'COMPLETADA', ...tenantWhere(user, searchParams.get('empresaId')) }
     if (fechaDesde || fechaHasta) {
       ventaWhere.fecha = {}
       if (fechaDesde) (ventaWhere.fecha as Record<string, unknown>).gte = new Date(fechaDesde)
@@ -22,6 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Get all product-equipment compatibilities
     const compatibilidades = await db.productoEquipo.findMany({
+      where: { producto: tenantWhere(user, searchParams.get('empresaId')) },
       include: { equipo: { include: { marca: true } }, producto: true },
     })
 

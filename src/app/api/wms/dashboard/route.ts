@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET() {
   try {
@@ -9,14 +10,15 @@ export async function GET() {
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
-    const user = session.user as any
+    const user = getTenantUser(session)!
+    const companyFilter = tenantWhere(user)
 
     // Build filtered where clauses based on role
     // super_admin: no filter (sees everything globally)
     // admin: filter by their empresaId (through almacen)
     // gerente/vendedor/tecnico: filter by their almacenId
     const almacenFilter: Record<string, unknown> = {}
-    if (['gerente', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
+    if (['gerente', 'cajero', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
       almacenFilter.id = user.almacenId
     } else if (user.rol === 'admin' && user.empresaId) {
       almacenFilter.empresaId = user.empresaId
@@ -44,7 +46,7 @@ export async function GET() {
 
     // Products below minimum stock (products are global, no filtering)
     const productosBajoStockRaw = await db.producto.findMany({
-      where: { activo: true },
+      where: { activo: true, ...companyFilter },
       include: { stocks: true, categoria: true, marca: true },
     })
     const productosBajoStock = productosBajoStockRaw
@@ -55,7 +57,7 @@ export async function GET() {
       .filter((p) => p.totalStock < p.stockMinimo)
 
     // Sales counts (filtered by role)
-    const ventasWhere: Record<string, unknown> = { fecha: { gte: monthStart } }
+    const ventasWhere: Record<string, unknown> = { fecha: { gte: monthStart }, ...companyFilter }
     if (Object.keys(almacenFilter).length > 0) {
       ventasWhere.almacen = almacenFilter
     }
@@ -64,15 +66,15 @@ export async function GET() {
     const ventasSemana = ventas.filter((v) => v.fecha >= weekStart)
 
     // Movements today (filtered by role)
-    const movWhere: Record<string, unknown> = { fecha: { gte: today } }
+    const movWhere: Record<string, unknown> = { fecha: { gte: today }, ...companyFilter }
     if (Object.keys(almacenFilter).length > 0) {
       movWhere.almacen = almacenFilter
     }
     const movimientosHoy = await db.movimiento.count({ where: movWhere })
 
     // Totals (products and clients are global)
-    const totalProductos = await db.producto.count()
-    const totalClientes = await db.cliente.count()
+    const totalProductos = await db.producto.count({ where: companyFilter })
+    const totalClientes = await db.cliente.count({ where: companyFilter })
 
     return NextResponse.json({
       valorTotalStock,

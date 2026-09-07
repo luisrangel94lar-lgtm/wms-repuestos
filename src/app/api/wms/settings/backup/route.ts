@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET() {
   try {
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const companyFilter = tenantWhere(user)
     const [products, equipment, locations, clients, stockEntries, marcas, categorias] =
       await Promise.all([
         db.producto.findMany({
+          where: companyFilter,
           include: { categoria: true, marca: true },
           orderBy: { id: 'asc' },
         }),
@@ -14,12 +21,15 @@ export async function GET() {
           orderBy: { id: 'asc' },
         }),
         db.ubicacion.findMany({
+          where: { almacen: companyFilter },
           orderBy: { id: 'asc' },
         }),
         db.cliente.findMany({
+          where: companyFilter,
           orderBy: { id: 'asc' },
         }),
         db.stock.findMany({
+          where: { producto: companyFilter },
           orderBy: [{ idProducto: 'asc' }, { idUbicacion: 'asc' }],
         }),
         db.marca.findMany({

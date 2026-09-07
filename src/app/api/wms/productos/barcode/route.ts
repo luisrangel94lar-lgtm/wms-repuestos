@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const barcode = searchParams.get('barcode')?.trim()
 
     if (!barcode) {
@@ -11,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     const producto = await db.producto.findFirst({
-      where: { codigoBarras: barcode, activo: true },
+      where: { codigoBarras: barcode, activo: true, ...tenantWhere(user, searchParams.get('empresaId')) },
       include: {
         categoria: { select: { id: true, nombre: true } },
         marca: { select: { id: true, nombre: true } },

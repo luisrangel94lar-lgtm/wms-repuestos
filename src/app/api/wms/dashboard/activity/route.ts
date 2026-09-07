@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET() {
   try {
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const activities = await db.movimiento.findMany({
+      where: tenantWhere(user),
       take: 20,
       orderBy: { fecha: 'desc' },
       include: {

@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Building2, Plus, Edit, Trash2, Users, Warehouse } from 'lucide-react'
+import { Building2, Plus, Edit, Trash2, Users, Warehouse, ShieldCheck, ShieldX } from 'lucide-react'
 import type { Empresa, EmpresaStats } from '@/types/wms'
 
 interface EmpresaFormData {
@@ -28,15 +28,22 @@ interface EmpresaFormData {
   direccion: string
   telefono: string
   email: string
+  plan: string
+  adminNombre: string
+  adminEmail: string
+  adminPassword: string
 }
 
-const defaultForm: EmpresaFormData = { nombre: '', nit: '', direccion: '', telefono: '', email: '' }
+const defaultForm: EmpresaFormData = {
+  nombre: '', nit: '', direccion: '', telefono: '', email: '', plan: 'mensual',
+  adminNombre: '', adminEmail: '', adminPassword: '',
+}
 
 function PlanBadge({ plan }: { plan: string | null | undefined }) {
   const config: Record<string, { label: string; className: string }> = {
-    Mensual: { label: 'Mensual', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
-    Anual: { label: 'Anual', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
-    Vitalicio: { label: 'Vitalicio', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+    mensual: { label: 'Mensual', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+    anual: { label: 'Anual', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
+    vitalicio: { label: 'Vitalicio', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
   }
   const c = config[plan ?? ''] ?? { label: plan ?? 'N/A', className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' }
   return <Badge variant="outline" className={c.className}>{c.label}</Badge>
@@ -120,6 +127,21 @@ export function CompaniesPage() {
     onError: (err: any) => toast.error(err.error ?? 'Error al desactivar empresa'),
   })
 
+  const licenseMutation = useMutation({
+    mutationFn: ({ id, estado }: { id: number; estado: 'activa' | 'revocada' }) =>
+      fetch('/api/wms/licencia', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, estado }),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((e) => Promise.reject(e))
+        return r.json()
+      }),
+    onSuccess: () => {
+      toast.success('Licencia actualizada')
+      queryClient.invalidateQueries({ queryKey: ['empresas'] })
+    },
+    onError: (err: any) => toast.error(err.error ?? 'Error al actualizar licencia'),
+  })
+
   function openEdit(empresa: Empresa) {
     setForm({
       nombre: empresa.nombre,
@@ -127,11 +149,13 @@ export function CompaniesPage() {
       direccion: empresa.direccion ?? '',
       telefono: empresa.telefono ?? '',
       email: empresa.email ?? '',
+      plan: empresa.plan ?? 'mensual',
+      adminNombre: '', adminEmail: '', adminPassword: '',
     })
     setEditId(empresa.id)
   }
 
-  const isMutating = createMutation.isPending || updateMutation.isPending || deactivateMutation.isPending
+  const isMutating = createMutation.isPending || updateMutation.isPending || deactivateMutation.isPending || licenseMutation.isPending
 
   return (
     <div className="space-y-6">
@@ -249,7 +273,14 @@ export function CompaniesPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground font-mono">{empresa.nit ?? '—'}</TableCell>
-                      <TableCell><PlanBadge plan={empresa.plan} /></TableCell>
+                      <TableCell>
+                        <div className="flex flex-col items-start gap-1">
+                          <PlanBadge plan={empresa.plan} />
+                          <Badge variant="outline" className={empresa.licencias?.[0]?.estado === 'activa' ? 'text-emerald-600 border-emerald-300' : 'text-red-600 border-red-300'}>
+                            Licencia {empresa.licencias?.[0]?.estado ?? 'sin licencia'}
+                          </Badge>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={empresa.activa ? 'default' : 'destructive'}
                           className={empresa.activa
@@ -272,6 +303,18 @@ export function CompaniesPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {empresa.licencias?.[0] && (
+                            <Button
+                              variant="ghost" size="icon" className="h-8 w-8"
+                              title={empresa.licencias[0].estado === 'activa' ? 'Revocar licencia' : 'Activar licencia'}
+                              onClick={() => licenseMutation.mutate({
+                                id: empresa.licencias![0].id,
+                                estado: empresa.licencias![0].estado === 'activa' ? 'revocada' : 'activa',
+                              })}
+                            >
+                              {empresa.licencias[0].estado === 'activa' ? <ShieldX className="h-3.5 w-3.5 text-red-500" /> : <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />}
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(empresa)}>
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
@@ -293,7 +336,7 @@ export function CompaniesPage() {
 
       {/* Create Dialog */}
       <Dialog open={showCreate} onOpenChange={(open) => { if (!open) setShowCreate(false) }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nueva Empresa</DialogTitle>
             <DialogDescription>Registra una nueva empresa en el sistema WMS</DialogDescription>
@@ -321,10 +364,36 @@ export function CompaniesPage() {
                 <Input id="create-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email" />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-plan">Plan inicial</Label>
+              <select id="create-plan" value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="mensual">Mensual</option>
+                <option value="anual">Anual</option>
+                <option value="vitalicio">Vitalicio</option>
+              </select>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold">Administrador propietario</p>
+                <p className="text-xs text-muted-foreground">Se creará junto con la empresa y podrá administrar su catálogo y personal.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-admin-nombre">Nombre completo *</Label>
+                <Input id="create-admin-nombre" value={form.adminNombre} onChange={(e) => setForm({ ...form, adminNombre: e.target.value })} placeholder="Nombre del administrador" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-admin-email">Email de acceso *</Label>
+                <Input id="create-admin-email" type="email" value={form.adminEmail} onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} placeholder="admin@empresa.com" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-admin-password">Contraseña temporal *</Label>
+                <Input id="create-admin-password" type="password" minLength={8} value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} placeholder="Mínimo 8 caracteres" />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={() => createMutation.mutate(form)} disabled={!form.nombre.trim() || isMutating}>
+            <Button onClick={() => createMutation.mutate(form)} disabled={!form.nombre.trim() || !form.adminNombre.trim() || !form.adminEmail.trim() || form.adminPassword.length < 8 || isMutating}>
               {createMutation.isPending ? 'Creando...' : 'Crear Empresa'}
             </Button>
           </DialogFooter>

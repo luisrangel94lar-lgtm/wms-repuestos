@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const equipoId = searchParams.get('idEquipo')
+  const user = getTenantUser(await getServerSession(authOptions))
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   if (!equipoId) {
     return NextResponse.json({ error: 'idEquipo requerido' }, { status: 400 })
@@ -11,7 +16,7 @@ export async function GET(request: Request) {
 
   try {
     const compatibilities = await db.productoEquipo.findMany({
-      where: { idEquipo: Number(equipoId) },
+      where: { idEquipo: Number(equipoId), producto: tenantWhere(user, searchParams.get('empresaId')) },
       include: {
         producto: {
           include: {

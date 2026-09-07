@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, resolveEmpresaId } from '@/lib/tenant'
 
 interface BackupData {
   version: string
@@ -48,6 +51,12 @@ interface BackupData {
 export async function POST(request: NextRequest) {
   try {
     const backup: BackupData = await request.json()
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!['admin', 'super_admin'].includes(user.rol)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
+    const empresaId = resolveEmpresaId(user, (backup as BackupData & { empresaId?: number }).empresaId)
+    if (!empresaId) return NextResponse.json({ error: 'Empresa requerida' }, { status: 400 })
+    const primaryWarehouse = await db.almacen.findFirst({ where: { empresaId, activo: true }, orderBy: { id: 'asc' } })
 
     if (!backup.version || !backup.data) {
       return NextResponse.json({ error: 'Formato de respaldo inválido' }, { status: 400 })
@@ -59,7 +68,7 @@ export async function POST(request: NextRequest) {
     if (backup.data.locations) {
       for (const loc of backup.data.locations) {
         const exists = await db.ubicacion.findFirst({
-          where: { pasillo: loc.pasillo, estante: loc.estante, nivel: loc.nivel },
+          where: { pasillo: loc.pasillo, estante: loc.estante, nivel: loc.nivel, almacen: { empresaId } },
         })
         if (!exists) {
           await db.ubicacion.create({
@@ -68,6 +77,7 @@ export async function POST(request: NextRequest) {
               estante: loc.estante,
               nivel: loc.nivel,
               activo: loc.activo ?? true,
+              almacenId: primaryWarehouse?.id ?? null,
             },
           })
           imported.locations++
@@ -79,11 +89,12 @@ export async function POST(request: NextRequest) {
     if (backup.data.clients) {
       for (const c of backup.data.clients) {
         const exists = await db.cliente.findFirst({
-          where: { nombre: c.nombre, telefono: c.telefono ?? undefined },
+          where: { nombre: c.nombre, telefono: c.telefono ?? undefined, empresaId },
         })
         if (!exists) {
           await db.cliente.create({
             data: {
+              empresaId,
               nombre: c.nombre,
               telefono: c.telefono ?? null,
               email: c.email ?? null,
@@ -98,7 +109,7 @@ export async function POST(request: NextRequest) {
     // Import products
     if (backup.data.products) {
       for (const p of backup.data.products) {
-        const exists = await db.producto.findUnique({ where: { sku: p.sku } })
+        const exists = await db.producto.findUnique({ where: { empresaId_sku: { empresaId, sku: p.sku } } })
         if (exists) continue
 
         let idCategoria: number | null = null
@@ -115,6 +126,7 @@ export async function POST(request: NextRequest) {
 
         await db.producto.create({
           data: {
+            empresaId,
             sku: p.sku,
             nombre: p.nombre,
             descripcion: p.descripcion ?? null,
@@ -159,7 +171,7 @@ export async function POST(request: NextRequest) {
     if (backup.data.stock) {
       for (const s of backup.data.stock) {
         if (!s.productoSku) continue
-        const product = await db.producto.findUnique({ where: { sku: s.productoSku } })
+        const product = await db.producto.findUnique({ where: { empresaId_sku: { empresaId, sku: s.productoSku } } })
         if (!product) continue
 
         const existingStock = await db.stock.findFirst({

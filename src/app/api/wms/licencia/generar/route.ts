@@ -16,11 +16,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Solo el superadministrador puede generar licencias' }, { status: 403 })
     }
 
-    const { tipo, diasPrueba, notas, datosEmpresa } = await req.json()
+    const { tipo, diasPrueba, notas, datosEmpresa, empresaId } = await req.json()
 
     const validTypes = ['trial', 'mensual', 'anual', 'vitalicio']
     if (!tipo || !validTypes.includes(tipo)) {
       return NextResponse.json({ error: 'Tipo de licencia inválido. Use: trial, mensual, anual, vitalicio' }, { status: 400 })
+    }
+    if (!empresaId || !(await db.empresa.findUnique({ where: { id: Number(empresaId) } }))) {
+      return NextResponse.json({ error: 'Empresa inválida' }, { status: 400 })
     }
 
     // Generate a license key based on type prefix + random
@@ -51,6 +54,7 @@ export async function POST(req: NextRequest) {
         diasPrueba: tipo === 'trial' ? days : 0,
         notas: notas || null,
         datosEmpresa: datosEmpresa ? JSON.stringify(datosEmpresa) : null,
+        empresaId: Number(empresaId),
       },
     })
 

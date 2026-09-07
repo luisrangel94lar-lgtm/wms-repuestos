@@ -46,7 +46,8 @@ model Equipo {
 
 model Producto {
   id             Int              @id @default(autoincrement())
-  sku            String           @unique
+  empresaId      Int
+  sku            String
   nombre         String
   descripcion    String?
   idCategoria    Int?
@@ -66,7 +67,10 @@ model Producto {
   stocks         Stock[]
   movimientos    Movimiento[]
   ventaDetalles  VentaDetalle[]
+  empresa        Empresa          @relation(fields: [empresaId], references: [id])
 
+  @@unique([empresaId, sku])
+  @@index([empresaId])
   @@index([stockMinimo], map: "idx_productos_stock_minimo")
   @@index([sku])
   @@index([nombre])
@@ -128,6 +132,7 @@ model TipoMovimiento {
 
 model Movimiento {
   id             Int            @id @default(autoincrement())
+  empresaId      Int
   idProducto     Int
   idUbicacion    Int?
   idTipo         Int
@@ -142,7 +147,9 @@ model Movimiento {
   producto       Producto       @relation(fields: [idProducto], references: [id])
   ubicacion      Ubicacion?     @relation(fields: [idUbicacion], references: [id])
   tipoMovimiento TipoMovimiento @relation(fields: [idTipo], references: [id])
+  empresa        Empresa        @relation(fields: [empresaId], references: [id])
 
+  @@index([empresaId])
   @@index([fecha], map: "idx_movimientos_fecha")
   @@index([idProducto], map: "idx_movimientos_producto")
   @@index([almacenId, fecha])
@@ -155,13 +162,16 @@ model Movimiento {
 
 model Cliente {
   id            Int      @id @default(autoincrement())
+  empresaId     Int
   nombre        String
   telefono      String?
   email         String?
   tipoCliente   String   @default("Tecnico")
   fechaRegistro DateTime @default(now())
   ventas        Venta[]
+  empresa       Empresa  @relation(fields: [empresaId], references: [id])
 
+  @@index([empresaId])
   @@index([nombre])
   @@index([email])
   @@map("clientes")
@@ -169,8 +179,9 @@ model Cliente {
 
 model Venta {
   id        Int            @id @default(autoincrement())
+  empresaId Int
   idCliente Int
-  folio     String         @unique
+  folio     String
   fecha     DateTime       @default(now())
   subtotal  Float?
   total     Float?
@@ -179,7 +190,10 @@ model Venta {
   almacen   Almacen?       @relation(fields: [almacenId], references: [id])
   cliente   Cliente        @relation(fields: [idCliente], references: [id])
   detalles  VentaDetalle[]
+  empresa   Empresa        @relation(fields: [empresaId], references: [id])
 
+  @@unique([empresaId, folio])
+  @@index([empresaId])
   @@index([fecha], map: "idx_ventas_fecha")
   @@index([almacenId, fecha])
   @@map("ventas")
@@ -228,19 +242,23 @@ model Usuario {
 // ============================================
 
 model Empresa {
-  id            Int        @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   nombre        String
-  nit           String?    @unique
+  nit           String?      @unique
   direccion     String?
   telefono      String?
   email         String?
   logo          String?
-  activa        Boolean    @default(true)
-  plan          String     @default("mensual") // mensual, anual, vitalicio
-  fechaCreacion DateTime   @default(now())
+  activa        Boolean      @default(true)
+  plan          String       @default("mensual") // mensual, anual, vitalicio
+  fechaCreacion DateTime     @default(now())
   usuarios      Usuario[]
   almacenes     Almacen[]
   licencias     Licencia[]
+  productos     Producto[]
+  clientes      Cliente[]
+  ventas        Venta[]
+  movimientos   Movimiento[]
 
   @@map("empresas")
 }

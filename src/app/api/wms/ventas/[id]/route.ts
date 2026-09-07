@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { getTenantUser, tenantWhere } from '@/lib/tenant'
 
 export async function GET(
   _request: NextRequest,
@@ -7,8 +10,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const venta = await db.venta.findUnique({
-      where: { id: parseInt(id, 10) },
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const venta = await db.venta.findFirst({
+      where: { id: parseInt(id, 10), ...tenantWhere(user) },
       include: {
         cliente: true,
         detalles: { include: { producto: true } },
@@ -27,12 +32,14 @@ export async function GET(
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+    const user = getTenantUser(await getServerSession(authOptions))
+    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const body = await request.json()
     
     if (body.estado === 'CANCELADA') {
       // Find the sale with details
-      const venta = await db.venta.findUnique({
-        where: { id: parseInt(id, 10) },
+      const venta = await db.venta.findFirst({
+        where: { id: parseInt(id, 10), ...tenantWhere(user) },
         include: { detalles: true },
       })
       if (!venta) return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 })
@@ -42,6 +49,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         for (const det of venta.detalles) {
           await tx.movimiento.create({
             data: {
+              empresaId: venta.empresaId,
               idProducto: det.idProducto,
               idTipo: 5, // DEVOLUCION
               cantidad: det.cantidad,

@@ -3,6 +3,8 @@ import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { COMPANY_USER_ROLES, getTenantUser, resolveEmpresaId } from '@/lib/tenant'
+import { isValidRole } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,7 +13,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = getTenantUser(session)!
     if (!['admin', 'super_admin'].includes(user.rol)) {
       return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     }
@@ -60,16 +62,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = getTenantUser(session)!
     if (!['admin', 'super_admin'].includes(user.rol)) {
       return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     }
 
     const body = await req.json()
-    const { nombre, email, password, rol, activo } = body
+    const { nombre, email, password, rol = 'cajero', activo } = body
 
     if (!nombre || !email || !password) {
       return NextResponse.json({ error: 'Nombre, email y contraseña son obligatorios' }, { status: 400 })
+    }
+    if (!isValidRole(rol)) return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
+    if (user.rol === 'admin' && !COMPANY_USER_ROLES.includes(rol as typeof COMPANY_USER_ROLES[number])) {
+      return NextResponse.json({ error: 'El administrador de empresa solo puede crear personal operativo' }, { status: 403 })
+    }
+
+    const empresaId = resolveEmpresaId(user, body.empresaId)
+    if (!empresaId) return NextResponse.json({ error: 'Empresa requerida' }, { status: 400 })
+
+    if (body.almacenId) {
+      const almacen = await db.almacen.findFirst({ where: { id: Number(body.almacenId), empresaId } })
+      if (!almacen) return NextResponse.json({ error: 'El almacén no pertenece a la empresa' }, { status: 400 })
     }
 
     // Check if email exists
@@ -80,11 +94,11 @@ export async function POST(req: NextRequest) {
 
     // Check license user limit
     const licencia = await db.licencia.findFirst({
-      where: { estado: 'activa' },
+      where: { estado: 'activa', empresaId },
       orderBy: { fechaCreacion: 'desc' },
     })
     if (licencia) {
-      const userCount = await db.usuario.count()
+      const userCount = await db.usuario.count({ where: { empresaId, activo: true } })
       if (userCount >= licencia.maxUsuarios) {
         return NextResponse.json({ error: `Límite de usuarios alcanzado (${licencia.maxUsuarios})` }, { status: 400 })
       }
@@ -97,10 +111,10 @@ export async function POST(req: NextRequest) {
         nombre,
         email,
         password: hashedPassword,
-        rol: rol || 'tecnico',
+        rol,
         activo: activo !== false,
         creadoPor: user.id,
-        empresaId: user.empresaId ?? body.empresaId ?? null,
+        empresaId,
         almacenId: body.almacenId ?? null,
       },
       select: {

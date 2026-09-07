@@ -54,9 +54,12 @@ interface UserRow {
   fechaCreacion: string
 }
 
+interface CompanyOption { id: number; nombre: string }
+
 const ROL_LABELS: Record<string, string> = {
   admin: 'Administrador',
   gerente: 'Gerente',
+  cajero: 'Cajero',
   vendedor: 'Vendedor',
   tecnico: 'Técnico',
 }
@@ -64,6 +67,7 @@ const ROL_LABELS: Record<string, string> = {
 const ROL_COLORS: Record<string, string> = {
   admin: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   gerente: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  cajero: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
   vendedor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   tecnico: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 }
@@ -74,14 +78,16 @@ interface UserFormData {
   password: string
   rol: string
   activo: boolean
+  empresaId: number | null
 }
 
 const EMPTY_FORM: UserFormData = {
   nombre: '',
   email: '',
   password: '',
-  rol: 'tecnico',
+  rol: 'cajero',
   activo: true,
+  empresaId: null,
 }
 
 export function UserManagementPage() {
@@ -92,6 +98,17 @@ export function UserManagementPage() {
   const [editingUser, setEditingUser] = useState<UserRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null)
   const [form, setForm] = useState<UserFormData>(EMPTY_FORM)
+  const isSuperAdmin = session?.user?.rol === 'super_admin'
+
+  const { data: companies = [] } = useQuery<CompanyOption[]>({
+    queryKey: ['empresas', 'user-form'],
+    queryFn: async () => {
+      const response = await fetch('/api/wms/empresas')
+      if (!response.ok) return []
+      return response.json()
+    },
+    enabled: isSuperAdmin,
+  })
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
@@ -107,6 +124,7 @@ export function UserManagementPage() {
         email: data.email,
         rol: data.rol,
         activo: data.activo,
+        empresaId: data.empresaId,
       }
       if (!data.id && data.password) body.password = data.password
       if (data.id && data.password) body.password = data.password
@@ -178,6 +196,7 @@ export function UserManagementPage() {
       password: '',
       rol: user.rol,
       activo: user.activo,
+      empresaId: null,
     })
     setDialogOpen(true)
   }
@@ -328,6 +347,17 @@ export function UserManagementPage() {
                 placeholder="Nombre completo"
               />
             </div>
+            {isSuperAdmin && !editingUser && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Empresa *</Label>
+                <Select value={form.empresaId?.toString() ?? ''} onValueChange={(v) => setForm(f => ({ ...f, empresaId: Number(v) }))}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar empresa" /></SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company) => <SelectItem key={company.id} value={company.id.toString()}>{company.nombre}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label className="text-xs">Email</Label>
               <Input
@@ -354,8 +384,8 @@ export function UserManagementPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="gerente">Gerente</SelectItem>
+                  <SelectItem value="cajero">Cajero</SelectItem>
                   <SelectItem value="vendedor">Vendedor</SelectItem>
                   <SelectItem value="tecnico">Técnico</SelectItem>
                 </SelectContent>
