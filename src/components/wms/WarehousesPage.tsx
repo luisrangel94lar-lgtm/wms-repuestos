@@ -159,12 +159,12 @@ export function WarehousesPage() {
         <div className="flex items-center gap-3">
           <Building2 className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium text-muted-foreground">Filtrar por empresa:</span>
-          <Select value={filterEmpresaId} onValueChange={(v) => setSelectedEmpresaId(v ? Number(v) : null)}>
+          <Select value={filterEmpresaId || '_all'} onValueChange={(v) => setSelectedEmpresaId(v === '_all' ? null : Number(v))}>
             <SelectTrigger className="w-64 h-9">
               <SelectValue placeholder="Todas las empresas" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas las empresas</SelectItem>
+              <SelectItem value="_all">Todas las empresas</SelectItem>
               {empresas.map((e) => (
                 <SelectItem key={e.id} value={e.id.toString()}>{e.nombre}</SelectItem>
               ))}

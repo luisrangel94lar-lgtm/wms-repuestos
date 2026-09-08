@@ -55,6 +55,7 @@ export function CompaniesPage() {
   const [editId, setEditId] = useState<number | null>(null)
   const [deactivateId, setDeactivateId] = useState<number | null>(null)
   const [form, setForm] = useState<EmpresaFormData>(defaultForm)
+  const [createError, setCreateError] = useState('')
 
   const { data: empresas = [], isLoading } = useQuery<Empresa[]>({
     queryKey: ['empresas'],
@@ -90,8 +91,13 @@ export function CompaniesPage() {
       queryClient.invalidateQueries({ queryKey: ['empresas'] })
       setShowCreate(false)
       setForm(defaultForm)
+      setCreateError('')
     },
-    onError: (err: any) => toast.error(err.error ?? 'Error al crear empresa'),
+    onError: (err: any) => {
+      const message = err.error ?? 'Error al crear empresa'
+      setCreateError(message)
+      toast.error(message)
+    },
   })
 
   const updateMutation = useMutation({
@@ -157,6 +163,24 @@ export function CompaniesPage() {
 
   const isMutating = createMutation.isPending || updateMutation.isPending || deactivateMutation.isPending || licenseMutation.isPending
 
+  function submitCreate() {
+    const missing: string[] = []
+    if (!form.nombre.trim()) missing.push('nombre de la empresa')
+    if (!form.adminNombre.trim()) missing.push('nombre del propietario')
+    if (!/^\S+@\S+\.\S+$/.test(form.adminEmail.trim())) missing.push('email de acceso válido')
+    if (form.adminPassword.length < 8) missing.push('contraseña de mínimo 8 caracteres')
+
+    if (missing.length > 0) {
+      const message = `Completa: ${missing.join(', ')}.`
+      setCreateError(message)
+      toast.error(message)
+      return
+    }
+
+    setCreateError('')
+    createMutation.mutate(form)
+  }
+
   const licenseStatusLabel = (estado?: string) => {
     if (estado === 'activa') return 'Activa'
     if (estado === 'revocada') return 'Inactiva'
@@ -172,7 +196,7 @@ export function CompaniesPage() {
           <h2 className="text-2xl font-bold tracking-tight">Gestión de Empresas</h2>
           <p className="text-sm text-muted-foreground">Administra empresas, propietarios y el estado de sus licencias.</p>
         </div>
-        <Button onClick={() => { setForm(defaultForm); setShowCreate(true) }} className="gap-2">
+        <Button onClick={() => { setForm(defaultForm); setCreateError(''); setShowCreate(true) }} className="gap-2">
           <Plus className="h-4 w-4" />
           Nueva Empresa
         </Button>
@@ -401,10 +425,18 @@ export function CompaniesPage() {
                 <Input id="create-admin-password" type="password" minLength={8} value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} placeholder="Mínimo 8 caracteres" />
               </div>
             </div>
+            {createError && (
+              <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+                {createError}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Para crear la empresa debes completar su nombre y los tres datos del administrador propietario marcados con *.
+            </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={() => createMutation.mutate(form)} disabled={!form.nombre.trim() || !form.adminNombre.trim() || !form.adminEmail.trim() || form.adminPassword.length < 8 || isMutating}>
+            <Button variant="outline" onClick={() => { setShowCreate(false); setCreateError('') }}>Cancelar</Button>
+            <Button onClick={submitCreate} disabled={isMutating}>
               {createMutation.isPending ? 'Creando...' : 'Crear Empresa'}
             </Button>
           </DialogFooter>
