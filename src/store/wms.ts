@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { signOut } from 'next-auth/react'
 import type { WmsPage } from '@/types/wms'
 
 export interface SessionUser {
@@ -46,7 +47,7 @@ interface WmsState {
   setShowLogin: (show: boolean) => void
   setSelectedEmpresaId: (id: number | null) => void
   setSelectedAlmacenId: (id: number | null) => void
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 export const useWmsStore = create<WmsState>((set) => ({
@@ -71,8 +72,20 @@ export const useWmsStore = create<WmsState>((set) => ({
   setShowLogin: (show) => set({ showLogin: show }),
   setSelectedEmpresaId: (id) => set({ selectedEmpresaId: id }),
   setSelectedAlmacenId: (id) => set({ selectedAlmacenId: id }),
-  logout: () => {
-    fetch('/api/auth/signout', { method: 'POST' }).catch(() => {})
-    set({ session: null, isAuthenticated: false, showLogin: true })
+  logout: async () => {
+    set({
+      session: null,
+      licenseInfo: null,
+      isAuthenticated: false,
+      showLogin: true,
+      currentPage: 'dashboard',
+      selectedEmpresaId: null,
+      selectedAlmacenId: null,
+    })
+    try {
+      await signOut({ redirect: false })
+    } finally {
+      window.location.replace('/')
+    }
   },
 }))
