@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -12,11 +12,15 @@ export async function GET() {
     const user = session.user as any
 
     const where: Record<string, unknown> = {}
-    if (user.rol === 'admin' && user.empresaId) {
-      where.empresaId = user.empresaId
+    const requestedEmpresaId = Number(new URL(request.url).searchParams.get('empresaId'))
+    if (user.rol === 'super_admin' && Number.isInteger(requestedEmpresaId) && requestedEmpresaId > 0) {
+      where.empresaId = requestedEmpresaId
     }
-    if (['gerente', 'vendedor', 'tecnico'].includes(user.rol) && user.almacenId) {
-      where.id = user.almacenId
+    if (user.rol === 'admin') {
+      where.empresaId = user.empresaId ?? -1
+    }
+    if (['gerente', 'cajero', 'vendedor', 'tecnico'].includes(user.rol)) {
+      where.id = user.almacenId ?? -1
     }
 
     const almacenes = await db.almacen.findMany({
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Admin can only create almacenes in their own empresa
-    if (user.rol === 'admin' && user.empresaId && empresaId !== user.empresaId) {
+    if (user.rol === 'admin' && Number(empresaId) !== Number(user.empresaId)) {
       return NextResponse.json({ error: 'Sin permisos para esta empresa' }, { status: 403 })
     }
 
@@ -69,7 +73,7 @@ export async function POST(request: NextRequest) {
         direccion: direccion ?? null,
         telefono: telefono ?? null,
         encargado: encargado ?? null,
-        empresaId,
+        empresaId: Number(empresaId),
       },
     })
 

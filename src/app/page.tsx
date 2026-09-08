@@ -30,6 +30,7 @@ import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
 import { COPYRIGHT_NOTICE } from '@/lib/ownership'
 import { subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot, stableSubscribe } from '@/lib/settings-store'
+import { hasPageAccess } from '@/lib/auth-helpers'
 
 const pageComponents: Record<WmsPage, React.ComponentType> = {
   dashboard: DashboardPage,
@@ -60,7 +61,7 @@ export default function Home() {
       },
     },
   }))
-  const { currentPage, isAuthenticated, setSession, setLicenseInfo, showLogin, setShowLogin, setCurrentPage } = useWmsStore()
+  const { currentPage, isAuthenticated, session, setSession, setLicenseInfo, showLogin, setShowLogin, setCurrentPage } = useWmsStore()
   const { theme } = useTheme()
   const mounted = useSyncExternalStore(stableSubscribe, () => true, () => false)
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
@@ -104,6 +105,12 @@ export default function Home() {
       setCurrentPage(requestedPage)
     }
   }, [setCurrentPage])
+
+  useEffect(() => {
+    if (session?.user && !hasPageAccess(session.user.rol, currentPage)) {
+      setCurrentPage('dashboard')
+    }
+  }, [currentPage, session, setCurrentPage])
 
   // Show login page if not authenticated
   if (!isAuthenticated || showLogin) {

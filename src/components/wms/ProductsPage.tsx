@@ -52,6 +52,7 @@ import { formatCurrency } from './lib/format'
 import { cn } from '@/lib/utils'
 import { BarcodeScanner } from './BarcodeScanner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { downloadCsvTemplate } from '@/lib/download-csv'
 import {
   Tooltip as RechartsTooltip,
   AreaChart,
@@ -167,7 +168,8 @@ function MarginCalculator({ costoUnitario, precioVenta }: { costoUnitario: numbe
 
 export function ProductsPage() {
   const queryClient = useQueryClient()
-  const { setCurrentPage, setReceivingProductId } = useWmsStore()
+  const { setCurrentPage, setReceivingProductId, session } = useWmsStore()
+  const canManageCatalog = session?.user?.rol === 'admin'
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -417,19 +419,23 @@ export function ProductsPage() {
           </Select>
         </div>
         <div className="flex gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button onClick={() => { form.reset(); setShowCreate(true) }}>
-                <Plus className="h-4 w-4 mr-1" />
-                Nuevo Producto
+          {canManageCatalog && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={() => { form.reset(); setShowCreate(true) }}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nuevo Producto
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Crear un nuevo producto en el catálogo</TooltipContent>
+              </Tooltip>
+              <Button variant="outline" onClick={() => setShowImport(true)}>
+                <Upload className="h-4 w-4 mr-1" />
+                Importar CSV
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>Crear un nuevo producto en el catálogo</TooltipContent>
-          </Tooltip>
-          <Button variant="outline" onClick={() => setShowImport(true)}>
-            <Upload className="h-4 w-4 mr-1" />
-            Importar CSV
-          </Button>
+            </>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" onClick={() => setShowBarcode(true)}>
@@ -512,12 +518,16 @@ export function ProductsPage() {
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewId(p.id)}>
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(p.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          {canManageCatalog && (
+                            <>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(p.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -965,10 +975,21 @@ export function ProductsPage() {
                 onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
               />
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => downloadCsvTemplate('plantilla-productos.csv', [
+                ['sku', 'nombre', 'descripcion', 'categoria', 'marca', 'codigoBarras', 'unidadMedida', 'costoUnitario', 'precioVenta', 'stockMinimo', 'stockMaximo', 'activo'],
+                ['REP-001', 'Compresor 1/4 HP', 'Compresor para refrigeración', 'Compresores', 'Embraco', '770000000001', 'unidad', '250000', '350000', '2', '20', 'true'],
+              ])}
+            >
+              <Download className="h-4 w-4 mr-2" /> Descargar plantilla de productos
+            </Button>
             <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
               <p className="text-xs font-medium">Formato esperado (columnas del CSV):</p>
               <div className="flex flex-wrap gap-1">
-                {['sku', 'nombre', 'descripcion', 'categoria', 'marca', 'unidadMedida', 'costoUnitario', 'precioVenta', 'stockMinimo', 'activo'].map((col) => (
+                {['sku', 'nombre', 'descripcion', 'categoria', 'marca', 'codigoBarras', 'unidadMedida', 'costoUnitario', 'precioVenta', 'stockMinimo', 'stockMaximo', 'activo'].map((col) => (
                   <code key={col} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{col}</code>
                 ))}
               </div>

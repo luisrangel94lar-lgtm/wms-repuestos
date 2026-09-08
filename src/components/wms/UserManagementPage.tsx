@@ -52,13 +52,18 @@ interface UserRow {
   activo: boolean
   ultimoAcceso: string | null
   fechaCreacion: string
+  empresaId: number | null
+  almacenId: number | null
+  almacen?: { id: number; nombre: string } | null
 }
 
 interface CompanyOption { id: number; nombre: string }
+interface WarehouseOption { id: number; nombre: string; empresaId: number }
 
 const ROL_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  gerente: 'Gerente',
+  super_admin: 'Superadministrador',
+  admin: 'Dueño de empresa',
+  gerente: 'Gerente de almacén',
   cajero: 'Cajero',
   vendedor: 'Vendedor',
   tecnico: 'Técnico',
@@ -79,6 +84,7 @@ interface UserFormData {
   rol: string
   activo: boolean
   empresaId: number | null
+  almacenId: number | null
 }
 
 const EMPTY_FORM: UserFormData = {
@@ -88,6 +94,7 @@ const EMPTY_FORM: UserFormData = {
   rol: 'cajero',
   activo: true,
   empresaId: null,
+  almacenId: null,
 }
 
 export function UserManagementPage() {
@@ -110,6 +117,18 @@ export function UserManagementPage() {
     enabled: isSuperAdmin,
   })
 
+  const selectedCompanyId = isSuperAdmin ? form.empresaId : session?.user?.empresaId
+  const { data: warehouses = [] } = useQuery<WarehouseOption[]>({
+    queryKey: ['almacenes', 'user-form', selectedCompanyId],
+    queryFn: async () => {
+      const params = selectedCompanyId ? `?empresaId=${selectedCompanyId}` : ''
+      const response = await fetch(`/api/wms/almacenes${params}`)
+      if (!response.ok) return []
+      return response.json()
+    },
+    enabled: Boolean(selectedCompanyId),
+  })
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => fetch('/api/wms/usuarios').then(r => r.json()),
@@ -125,6 +144,7 @@ export function UserManagementPage() {
         rol: data.rol,
         activo: data.activo,
         empresaId: data.empresaId,
+        almacenId: data.almacenId,
       }
       if (!data.id && data.password) body.password = data.password
       if (data.id && data.password) body.password = data.password
@@ -184,7 +204,7 @@ export function UserManagementPage() {
 
   function openCreateDialog() {
     setEditingUser(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, empresaId: session?.user?.empresaId ?? null })
     setDialogOpen(true)
   }
 
@@ -196,7 +216,8 @@ export function UserManagementPage() {
       password: '',
       rol: user.rol,
       activo: user.activo,
-      empresaId: null,
+      empresaId: user.empresaId,
+      almacenId: user.almacenId,
     })
     setDialogOpen(true)
   }
@@ -216,10 +237,14 @@ export function UserManagementPage() {
       toast.error('La contraseña es obligatoria para nuevos usuarios')
       return
     }
+    if (!form.almacenId) {
+      toast.error('Seleccione el almacén donde trabajará el usuario')
+      return
+    }
     saveMutation.mutate({ ...form, id: editingUser?.id })
   }
 
-  const maxUsers = licenseInfo?.active ? 99 : 3
+  const maxUsers = licenseInfo?.maxUsuarios ?? 3
   const isOwnAccount = (userId: number) => session?.user?.id === userId
 
   return (
@@ -260,6 +285,7 @@ export function UserManagementPage() {
                     <TableHead className="text-xs">Nombre</TableHead>
                     <TableHead className="text-xs">Email</TableHead>
                     <TableHead className="text-xs">Rol</TableHead>
+                    <TableHead className="text-xs hidden lg:table-cell">Almacén</TableHead>
                     <TableHead className="text-xs">Estado</TableHead>
                     <TableHead className="text-xs hidden md:table-cell">Último Acceso</TableHead>
                     <TableHead className="text-xs text-right">Acciones</TableHead>
@@ -276,6 +302,7 @@ export function UserManagementPage() {
                           {ROL_LABELS[user.rol] || user.rol}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-xs text-muted-foreground hidden lg:table-cell">{user.almacen?.nombre ?? 'Sin asignar'}</TableCell>
                       <TableCell>
                         <Switch
                           checked={user.activo}
@@ -297,7 +324,7 @@ export function UserManagementPage() {
                           : 'Nunca'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        {user.rol !== 'super_admin' && <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -321,7 +348,7 @@ export function UserManagementPage() {
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        </div>
+                        </div>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -334,7 +361,7 @@ export function UserManagementPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingUser ? 'Editar Usuario' : 'Crear Usuario'}</DialogTitle>
           </DialogHeader>
@@ -350,7 +377,7 @@ export function UserManagementPage() {
             {isSuperAdmin && !editingUser && (
               <div className="space-y-1.5">
                 <Label className="text-xs">Empresa *</Label>
-                <Select value={form.empresaId?.toString() ?? ''} onValueChange={(v) => setForm(f => ({ ...f, empresaId: Number(v) }))}>
+                <Select value={form.empresaId?.toString() ?? ''} onValueChange={(v) => setForm(f => ({ ...f, empresaId: Number(v), almacenId: null }))}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar empresa" /></SelectTrigger>
                   <SelectContent>
                     {companies.map((company) => <SelectItem key={company.id} value={company.id.toString()}>{company.nombre}</SelectItem>)}
@@ -358,6 +385,16 @@ export function UserManagementPage() {
                 </Select>
               </div>
             )}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Almacén asignado *</Label>
+              <Select value={form.almacenId?.toString() ?? ''} onValueChange={(v) => setForm(f => ({ ...f, almacenId: Number(v) }))}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar almacén" /></SelectTrigger>
+                <SelectContent>
+                  {warehouses.map((warehouse) => <SelectItem key={warehouse.id} value={warehouse.id.toString()}>{warehouse.nombre}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">El usuario solo operará el inventario y las ventas de este almacén.</p>
+            </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Email</Label>
               <Input
@@ -379,12 +416,13 @@ export function UserManagementPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Rol</Label>
-              <Select value={form.rol} onValueChange={(v) => setForm(f => ({ ...f, rol: v }))}>
+              <Select value={form.rol} onValueChange={(v) => setForm(f => ({ ...f, rol: v }))} disabled={editingUser?.rol === 'admin'}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gerente">Gerente</SelectItem>
+                  {editingUser?.rol === 'admin' && <SelectItem value="admin">Dueño de empresa</SelectItem>}
+                  <SelectItem value="gerente">Gerente de almacén</SelectItem>
                   <SelectItem value="cajero">Cajero</SelectItem>
                   <SelectItem value="vendedor">Vendedor</SelectItem>
                   <SelectItem value="tecnico">Técnico</SelectItem>

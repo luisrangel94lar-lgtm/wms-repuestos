@@ -46,9 +46,13 @@ export function getRolePermissions(rol: string): string[] {
     case 'super_admin':
       return allPages
     case 'admin':
-      return allPages
+      return allPages.filter((p) => p !== 'empresas')
     case 'gerente':
-      return allPages.filter((p) => p !== 'userManagement' && p !== 'license')
+      return [
+        'dashboard', 'products', 'equipment', 'locations', 'inventory',
+        'receiving', 'sales', 'clients', 'movements', 'reports', 'alerts',
+        'physicalInventory', 'settings',
+      ]
     case 'vendedor':
       return ['dashboard', 'products', 'inventory', 'sales', 'clients', 'reports', 'alerts']
     case 'cajero':

@@ -60,7 +60,7 @@ export async function PUT(
     const { id } = await params
     const targetId = parseInt(id)
     const body = await req.json()
-    const { nombre, email, password, rol, activo } = body
+    const { nombre, email, password, rol, activo, almacenId } = body
 
     const target = await db.usuario.findFirst({
       where: { id: targetId, ...(currentUser.rol === 'admin' ? { empresaId: currentUser.empresaId } : {}) },
@@ -75,12 +75,17 @@ export async function PUT(
     if (targetId === currentUser.id && rol !== undefined && rol !== target.rol) {
       return NextResponse.json({ error: 'No puede cambiar su propio rol' }, { status: 400 })
     }
+    if (almacenId !== undefined) {
+      const warehouse = await db.almacen.findFirst({ where: { id: Number(almacenId), empresaId: target.empresaId ?? -1, activo: true } })
+      if (!warehouse) return NextResponse.json({ error: 'El almacén no pertenece a la empresa del usuario' }, { status: 400 })
+    }
 
     const updateData: Record<string, unknown> = {}
     if (nombre !== undefined) updateData.nombre = nombre
     if (email !== undefined) updateData.email = email
     if (rol !== undefined) updateData.rol = rol
     if (activo !== undefined) updateData.activo = activo
+    if (almacenId !== undefined) updateData.almacenId = Number(almacenId)
     if (password) updateData.password = await bcrypt.hash(password, 10)
 
     // Check email uniqueness if changing

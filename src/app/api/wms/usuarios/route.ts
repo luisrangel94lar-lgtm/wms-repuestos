@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
         fechaCreacion: true,
         empresaId: true,
         almacenId: true,
+        almacen: { select: { id: true, nombre: true } },
       },
       orderBy: { fechaCreacion: 'asc' },
     })
@@ -81,10 +82,9 @@ export async function POST(req: NextRequest) {
     const empresaId = resolveEmpresaId(user, body.empresaId)
     if (!empresaId) return NextResponse.json({ error: 'Empresa requerida' }, { status: 400 })
 
-    if (body.almacenId) {
-      const almacen = await db.almacen.findFirst({ where: { id: Number(body.almacenId), empresaId } })
-      if (!almacen) return NextResponse.json({ error: 'El almacén no pertenece a la empresa' }, { status: 400 })
-    }
+    if (!body.almacenId) return NextResponse.json({ error: 'Debe asignar un almacén al usuario' }, { status: 400 })
+    const almacen = await db.almacen.findFirst({ where: { id: Number(body.almacenId), empresaId, activo: true } })
+    if (!almacen) return NextResponse.json({ error: 'El almacén no pertenece a la empresa' }, { status: 400 })
 
     // Check if email exists
     const existing = await db.usuario.findUnique({ where: { email } })
@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
         fechaCreacion: true,
         empresaId: true,
         almacenId: true,
+        almacen: { select: { id: true, nombre: true } },
       },
     })
 

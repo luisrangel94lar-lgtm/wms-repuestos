@@ -21,6 +21,7 @@ export interface LicenseInfo {
   daysLeft: number
   expired: boolean
   fechaVencimiento: string | null
+  maxUsuarios: number
 }
 
 interface WmsState {

@@ -34,6 +34,7 @@ export async function PUT(
     const { id } = await params
     const user = getTenantUser(await getServerSession(authOptions))
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!['admin', 'super_admin'].includes(user.rol)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     const existing = await db.cliente.findFirst({ where: { id: parseInt(id, 10), ...tenantWhere(user) } })
     if (!existing) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
     const body = await request.json()
@@ -62,6 +63,7 @@ export async function DELETE(
     const { id } = await params
     const user = getTenantUser(await getServerSession(authOptions))
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!['admin', 'super_admin'].includes(user.rol)) return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
     const existing = await db.cliente.findFirst({ where: { id: parseInt(id, 10), ...tenantWhere(user) } })
     if (!existing) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
     await db.cliente.delete({ where: { id: parseInt(id, 10) } })

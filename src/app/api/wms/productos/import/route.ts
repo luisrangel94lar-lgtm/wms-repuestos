@@ -23,11 +23,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'CSV vacío o sin datos' }, { status: 400 })
     }
 
-    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase())
-    const expectedHeaders = [
-      'sku', 'nombre', 'descripcion', 'categoria', 'marca',
-      'unidadmedida', 'costounitario', 'precioventa', 'stockminimo', 'activo',
-    ]
+    const headers = parseCsvLine(lines[0]).map((h, index) => (index === 0 ? h.replace(/^\uFEFF/, '') : h).trim().toLowerCase())
+    const expectedHeaders = ['sku', 'nombre']
     for (const expected of expectedHeaders) {
       if (!headers.includes(expected)) {
         return NextResponse.json(
@@ -97,10 +94,12 @@ export async function POST(request: NextRequest) {
           descripcion: row['descripcion'] || null,
           idCategoria,
           idMarca,
+          codigoBarras: row['codigobarras'] || null,
           unidadMedida: row['unidadmedida'] || 'unidad',
           costoUnitario,
           precioVenta,
           stockMinimo,
+          stockMaximo: row['stockmaximo'] ? parseInt(row['stockmaximo'], 10) || null : null,
           activo,
         },
       })

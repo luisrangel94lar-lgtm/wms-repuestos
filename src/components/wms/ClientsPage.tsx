@@ -24,8 +24,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, Pencil, Trash2, Eye, History, ChevronDown, ChevronRight, Users, Wallet, TrendingUp, UserCircle, Contact, BadgeCheck } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Eye, History, ChevronDown, ChevronRight, Users, Wallet, TrendingUp, UserCircle, Contact, BadgeCheck, Upload, Download, FileSpreadsheet } from 'lucide-react'
 import { formatCurrency, formatDate } from './lib/format'
+import { downloadCsvTemplate } from '@/lib/download-csv'
+import { useWmsStore } from '@/store/wms'
 
 const clienteSchema = z.object({
   nombre: z.string().min(1, 'Nombre requerido'),
@@ -38,6 +40,8 @@ type ClienteFormData = z.infer<typeof clienteSchema>
 
 export function ClientsPage() {
   const queryClient = useQueryClient()
+  const { session } = useWmsStore()
+  const canBulkManage = session?.user?.rol === 'admin'
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -46,6 +50,9 @@ export function ClientsPage() {
   const [viewId, setViewId] = useState<number | null>(null)
   const [historyId, setHistoryId] = useState<number | null>(null)
   const [expandedSales, setExpandedSales] = useState<Set<number>>(new Set())
+  const [showImport, setShowImport] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const { data: clientes = [], isLoading } = useQuery({
     queryKey: ['clientes', search],
@@ -150,7 +157,10 @@ export function ClientsPage() {
           </div>
           <Button variant="outline" onClick={handleSearch}><Search className="h-4 w-4" /></Button>
         </div>
-        <Button onClick={() => { form.reset(); setShowCreate(true) }}><Plus className="h-4 w-4 mr-1" /> Nuevo Cliente</Button>
+        <div className="flex gap-2">
+          {canBulkManage && <Button variant="outline" onClick={() => setShowImport(true)}><Upload className="h-4 w-4 mr-1" /> Importar CSV</Button>}
+          <Button onClick={() => { form.reset(); setShowCreate(true) }}><Plus className="h-4 w-4 mr-1" /> Nuevo Cliente</Button>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -195,8 +205,12 @@ export function ClientsPage() {
                       <div className="flex justify-end gap-1">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setHistoryId(c.id); setExpandedSales(new Set()) }} title="Historial"><History className="h-3.5 w-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewId(c.id)}><Eye className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        {canBulkManage && (
+                          <>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -206,6 +220,64 @@ export function ClientsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showImport} onOpenChange={(open) => { if (!open) { setShowImport(false); setImportFile(null) } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader className="dialog-header-accent">
+            <DialogTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Importar clientes</DialogTitle>
+            <DialogDescription>Carga varios clientes usando la plantilla CSV.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => downloadCsvTemplate('plantilla-clientes.csv', [
+                ['nombre', 'telefono', 'email', 'tipoCliente'],
+                ['Cliente de ejemplo', '3001234567', 'cliente@ejemplo.com', 'Tecnico'],
+              ])}
+            >
+              <Download className="h-4 w-4 mr-2" /> Descargar plantilla de clientes
+            </Button>
+            <div className="space-y-2">
+              <Label>Archivo CSV diligenciado</Label>
+              <Input type="file" accept=".csv,text/csv" onChange={(event) => setImportFile(event.target.files?.[0] ?? null)} />
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+              <p><strong>tipoCliente:</strong> Tecnico, Empresa o Particular.</p>
+              <p>Los clientes repetidos por email —o por nombre y teléfono— se omitirán.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowImport(false); setImportFile(null) }}>Cancelar</Button>
+            <Button
+              disabled={!importFile || importing}
+              onClick={async () => {
+                if (!importFile) return
+                setImporting(true)
+                try {
+                  const data = new FormData()
+                  data.append('file', importFile)
+                  const response = await fetch('/api/wms/clientes/import', { method: 'POST', body: data })
+                  const result = await response.json()
+                  if (!response.ok) throw new Error(result.error || 'Error al importar clientes')
+                  toast.success(`${result.imported} clientes importados, ${result.skipped} omitidos`)
+                  if (result.errors?.length) toast.warning(`${result.errors.length} filas con errores`)
+                  queryClient.invalidateQueries({ queryKey: ['clientes'] })
+                  setShowImport(false)
+                  setImportFile(null)
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : 'Error al importar clientes')
+                } finally {
+                  setImporting(false)
+                }
+              }}
+            >
+              {importing ? 'Importando...' : 'Importar clientes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Dialog */}
       <Dialog open={showCreate || !!editId} onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditId(null); form.reset() } }}>

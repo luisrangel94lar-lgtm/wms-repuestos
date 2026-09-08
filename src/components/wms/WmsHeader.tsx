@@ -34,7 +34,7 @@ const breadcrumbs: Record<WmsPage, { path: string; description: string }> = {
   userManagement: { path: 'Sistema / Usuarios', description: 'Administración de usuarios y permisos' },
   license: { path: 'Sistema / Licencia', description: 'Gestión de licencias del sistema' },
   empresas: { path: 'Super Admin / Empresas', description: 'Gestión de empresas registradas en el sistema' },
-  almacenes: { path: 'Super Admin / Almacenes', description: 'Gestión de almacenes por empresa' },
+  almacenes: { path: 'Administración / Almacenes', description: 'Gestión de almacenes y sucursales de la empresa' },
 }
 
 interface NotificationItem {
@@ -92,7 +92,7 @@ const pageMapping: Record<string, WmsPage> = {
 }
 
 export function WmsHeader() {
-  const { currentPage, toggleSidebar, searchQuery, setSearchQuery, setCurrentPage, session } = useWmsStore()
+  const { currentPage, toggleSidebar, searchQuery, setSearchQuery, setCurrentPage, session, logout } = useWmsStore()
   const [localQuery, setLocalQuery] = useState(searchQuery)
   const [showResults, setShowResults] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
@@ -106,6 +106,17 @@ export function WmsHeader() {
   const avatarRef = useRef<HTMLDivElement>(null)
   const notifRef = useRef<HTMLDivElement>(null)
   const { theme, setTheme } = useTheme()
+  const displayName = session?.user?.nombre || 'Usuario'
+  const displayEmail = session?.user?.email || ''
+  const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'U'
+  const roleLabels: Record<string, string> = {
+    super_admin: 'Superadministrador',
+    admin: 'Dueño de empresa',
+    gerente: 'Gerente de almacén',
+    cajero: 'Cajero',
+    vendedor: 'Vendedor',
+    tecnico: 'Técnico',
+  }
 
   const { data: notifications = [] } = useQuery<NotificationItem[]>({
     queryKey: ['notifications'],
@@ -397,9 +408,9 @@ export function WmsHeader() {
             )}
           >
             <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-sm shadow-primary/30">
-              A
+              {initials}
             </div>
-            <span className="hidden sm:inline text-sm font-medium">Admin</span>
+            <span className="hidden sm:inline text-sm font-medium">{displayName}</span>
             {session?.user?.empresaId && (
               <Badge variant="outline" className="text-[10px] h-5 px-1.5 ml-1">
                 Empresa #{session.user.empresaId}
@@ -410,8 +421,9 @@ export function WmsHeader() {
           {avatarOpen && (
             <div className="absolute right-0 top-full mt-1.5 w-48 rounded-lg border bg-popover p-1 shadow-lg z-50">
               <div className="px-3 py-2 border-b mb-1">
-                <p className="text-sm font-medium">Admin</p>
-                <p className="text-xs text-muted-foreground">admin@wms.local</p>
+                <p className="text-sm font-medium">{displayName}</p>
+                <p className="text-xs text-muted-foreground">{displayEmail}</p>
+                <p className="text-[10px] text-primary mt-1 font-medium">{roleLabels[session?.user?.rol ?? ''] ?? session?.user?.rol}</p>
               </div>
               <button
                 className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors"
@@ -421,7 +433,7 @@ export function WmsHeader() {
               </button>
               <button
                 className="w-full text-left px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors"
-                onClick={() => { toast.info('Sesión cerrada (demo)'); setAvatarOpen(false) }}
+                onClick={() => { setAvatarOpen(false); logout() }}
               >
                 Cerrar Sesión
               </button>

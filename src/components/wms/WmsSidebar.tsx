@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/sheet'
 import { useQuery } from '@tanstack/react-query'
 import { subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot } from '@/lib/settings-store'
+import { getRolePermissions } from '@/lib/auth-helpers'
 
 interface NavItemConfig {
   id: WmsPage
@@ -99,9 +100,10 @@ const baseNavSections: NavSection[] = [
 ]
 
 const adminSection: NavSection = {
-  title: 'ADMIN',
+  title: 'ADMINISTRACIÓN DE EMPRESA',
   titleColor: 'bg-emerald-500',
   items: [
+    { id: 'almacenes', label: 'Almacenes', icon: <Warehouse className="h-4 w-4" /> },
     { id: 'userManagement', label: 'Usuarios', icon: <UserCog className="h-4 w-4" /> },
     { id: 'license', label: 'Licencia', icon: <KeyRound className="h-4 w-4" /> },
   ],
@@ -284,11 +286,18 @@ export function WmsSidebar() {
   const userRol = session?.user?.rol
   const isSuperAdmin = userRol === 'super_admin'
   const isAdmin = userRol === 'admin' || isSuperAdmin
+  const allowedPages = new Set(getRolePermissions(userRol ?? ''))
+  const roleBaseSections = baseNavSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => allowedPages.has(item.id)),
+    }))
+    .filter((section) => section.items.length > 0)
   const navSections = isSuperAdmin
-    ? [...baseNavSections, superAdminSection]
+    ? [...roleBaseSections, superAdminSection]
     : isAdmin
-      ? [...baseNavSections, adminSection]
-      : baseNavSections
+      ? [...roleBaseSections, adminSection]
+      : roleBaseSections
   const [isMobile, setIsMobile] = useState(false)
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
   const warehouseName = (settings as any).warehouseName || 'WMS Repuestos'

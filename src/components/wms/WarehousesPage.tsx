@@ -148,7 +148,7 @@ export function WarehousesPage() {
           <h2 className="text-2xl font-bold tracking-tight">Gestión de Almacenes</h2>
           <p className="text-sm text-muted-foreground">Administra los almacenes de la empresa</p>
         </div>
-        <Button onClick={() => { setForm({ ...defaultForm, empresaId: (selectedEmpresaId ?? '').toString() }); setShowCreate(true) }} className="gap-2">
+        <Button onClick={() => { setForm({ ...defaultForm, empresaId: (isSuperAdmin ? selectedEmpresaId : session?.user?.empresaId)?.toString() ?? '' }); setShowCreate(true) }} className="gap-2">
           <Plus className="h-4 w-4" />
           Nuevo Almacén
         </Button>
@@ -343,7 +343,7 @@ export function WarehousesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-            <Button onClick={() => createMutation.mutate(form)} disabled={!form.nombre.trim() || (isSuperAdmin && !form.empresaId) || isMutating}>
+            <Button onClick={() => createMutation.mutate(form)} disabled={!form.nombre.trim() || !form.empresaId || isMutating}>
               {createMutation.isPending ? 'Creando...' : 'Crear Almacén'}
             </Button>
           </DialogFooter>

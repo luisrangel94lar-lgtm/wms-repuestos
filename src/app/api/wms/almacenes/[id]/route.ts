@@ -17,8 +17,15 @@ export async function GET(
     const { id } = await params
     const almacenId = parseInt(id, 10)
 
-    const almacen = await db.almacen.findUnique({
-      where: { id: almacenId },
+    const operationalRole = ['gerente', 'cajero', 'vendedor', 'tecnico'].includes(user.rol)
+    if (operationalRole && almacenId !== user.almacenId) {
+      return NextResponse.json({ error: 'Almacén no encontrado' }, { status: 404 })
+    }
+    const almacen = await db.almacen.findFirst({
+      where: {
+        id: almacenId,
+        ...(user.rol === 'super_admin' ? {} : { empresaId: user.empresaId ?? -1 }),
+      },
       include: {
         empresa: { select: { id: true, nombre: true } },
         _count: {
@@ -61,7 +68,7 @@ export async function PUT(
     const { nombre, direccion, telefono, encargado, activo } = body
 
     // Check ownership for admin
-    if (user.rol === 'admin' && user.empresaId) {
+    if (user.rol === 'admin') {
       const almacen = await db.almacen.findUnique({ where: { id: almacenId } })
       if (!almacen || almacen.empresaId !== user.empresaId) {
         return NextResponse.json({ error: 'Sin permisos para este almacén' }, { status: 403 })
@@ -105,7 +112,7 @@ export async function DELETE(
     const almacenId = parseInt(id, 10)
 
     // Check ownership for admin
-    if (user.rol === 'admin' && user.empresaId) {
+    if (user.rol === 'admin') {
       const almacen = await db.almacen.findUnique({ where: { id: almacenId } })
       if (!almacen || almacen.empresaId !== user.empresaId) {
         return NextResponse.json({ error: 'Sin permisos para este almacén' }, { status: 403 })

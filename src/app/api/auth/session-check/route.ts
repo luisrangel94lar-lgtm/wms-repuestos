@@ -24,6 +24,7 @@ export async function GET() {
 
     // Get license info
     const licencia = await db.licencia.findFirst({
+      where: user.rol === 'super_admin' ? undefined : { empresaId: user.empresaId ?? -1 },
       orderBy: { fechaCreacion: 'desc' },
     })
 
@@ -57,10 +58,12 @@ export async function GET() {
       authenticated: true,
       session: {
         user: {
-          id: user.id,
+          id: Number(user.id),
           nombre: user.name,
           email: user.email,
           rol: user.rol,
+          empresaId: user.empresaId,
+          almacenId: user.almacenId,
         },
         expires: session.expires || new Date(Date.now() + 86400000).toISOString(),
       },
