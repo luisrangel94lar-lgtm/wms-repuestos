@@ -34,6 +34,17 @@ interface AlmacenFormData {
   empresaId: string
 }
 
+interface WarehouseLimitInfo {
+  plan: string
+  limit: number
+  used: number
+}
+
+interface WarehouseQueryData {
+  items: Almacen[]
+  limitInfo: WarehouseLimitInfo | null
+}
+
 const defaultForm: AlmacenFormData = { nombre: '', direccion: '', telefono: '', encargado: '', empresaId: '' }
 
 export function WarehousesPage() {
@@ -61,17 +72,26 @@ export function WarehousesPage() {
   // Filter by empresa if super_admin
   const filterEmpresaId: string = isSuperAdmin ? String(selectedEmpresaId ?? '') : ''
 
-  const { data: almacenes = [], isLoading } = useQuery<Almacen[]>({
+  const { data: warehouseData, isLoading } = useQuery<WarehouseQueryData>({
     queryKey: ['almacenes', filterEmpresaId],
     queryFn: () => {
       const params = filterEmpresaId ? `?empresaId=${filterEmpresaId}` : ''
       return fetch(`/api/wms/almacenes${params}`).then(async (response) => {
         if (!response.ok) throw new Error('No se pudieron cargar los almacenes')
         const data = await response.json()
-        return Array.isArray(data) ? data : []
+        const limit = Number(response.headers.get('X-Warehouse-Limit'))
+        const used = Number(response.headers.get('X-Warehouse-Used'))
+        const plan = response.headers.get('X-Warehouse-Plan')
+        return {
+          items: Array.isArray(data) ? data : [],
+          limitInfo: plan && Number.isFinite(limit) && Number.isFinite(used) ? { plan, limit, used } : null,
+        }
       })
     },
   })
+  const almacenes = warehouseData?.items ?? []
+  const limitInfo = warehouseData?.limitInfo ?? null
+  const warehouseLimitReached = Boolean(limitInfo && limitInfo.used >= limitInfo.limit)
 
   const createMutation = useMutation({
     mutationFn: (values: AlmacenFormData) =>
@@ -148,11 +168,23 @@ export function WarehousesPage() {
           <h2 className="text-2xl font-bold tracking-tight">Gestión de Almacenes</h2>
           <p className="text-sm text-muted-foreground">Administra los almacenes de la empresa</p>
         </div>
-        <Button onClick={() => { setForm({ ...defaultForm, empresaId: (isSuperAdmin ? selectedEmpresaId : session?.user?.empresaId)?.toString() ?? '' }); setShowCreate(true) }} className="gap-2">
+        <Button
+          onClick={() => { setForm({ ...defaultForm, empresaId: (isSuperAdmin ? selectedEmpresaId : session?.user?.empresaId)?.toString() ?? '' }); setShowCreate(true) }}
+          className="gap-2"
+          disabled={warehouseLimitReached}
+          title={warehouseLimitReached ? 'Tu plan alcanzó el límite de almacenes' : undefined}
+        >
           <Plus className="h-4 w-4" />
           Nuevo Almacén
         </Button>
       </div>
+
+      {limitInfo && (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${warehouseLimitReached ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200' : 'bg-muted/40 text-muted-foreground'}`}>
+          Plan <span className="font-semibold capitalize">{limitInfo.plan}</span>: {limitInfo.used} de {limitInfo.limit} almacén{limitInfo.limit === 1 ? '' : 'es'} utilizado{limitInfo.used === 1 ? '' : 's'}.
+          {warehouseLimitReached && ' Has alcanzado el límite; actualiza el plan para crear otro.'}
+        </div>
+      )}
 
       {/* Empresa filter for super_admin */}
       {isSuperAdmin && (
