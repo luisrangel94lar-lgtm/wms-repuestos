@@ -157,13 +157,20 @@ export function CompaniesPage() {
 
   const isMutating = createMutation.isPending || updateMutation.isPending || deactivateMutation.isPending || licenseMutation.isPending
 
+  const licenseStatusLabel = (estado?: string) => {
+    if (estado === 'activa') return 'Activa'
+    if (estado === 'revocada') return 'Inactiva'
+    if (estado === 'vencida') return 'Vencida'
+    return 'Sin licencia'
+  }
+
   return (
     <div className="space-y-6">
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Gestión de Empresas</h2>
-          <p className="text-sm text-muted-foreground">Administra las empresas que usan el sistema WMS</p>
+          <p className="text-sm text-muted-foreground">Administra empresas, propietarios y el estado de sus licencias.</p>
         </div>
         <Button onClick={() => { setForm(defaultForm); setShowCreate(true) }} className="gap-2">
           <Plus className="h-4 w-4" />
@@ -277,7 +284,7 @@ export function CompaniesPage() {
                         <div className="flex flex-col items-start gap-1">
                           <PlanBadge plan={empresa.plan} />
                           <Badge variant="outline" className={empresa.licencias?.[0]?.estado === 'activa' ? 'text-emerald-600 border-emerald-300' : 'text-red-600 border-red-300'}>
-                            Licencia {empresa.licencias?.[0]?.estado ?? 'sin licencia'}
+                            Licencia {licenseStatusLabel(empresa.licencias?.[0]?.estado)}
                           </Badge>
                         </div>
                       </TableCell>
@@ -302,20 +309,24 @@ export function CompaniesPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           {empresa.licencias?.[0] && (
                             <Button
-                              variant="ghost" size="icon" className="h-8 w-8"
-                              title={empresa.licencias[0].estado === 'activa' ? 'Revocar licencia' : 'Activar licencia'}
+                              variant={empresa.licencias[0].estado === 'activa' ? 'destructive' : 'default'}
+                              size="sm"
+                              className="h-8 gap-1.5 whitespace-nowrap"
+                              title={empresa.licencias[0].estado === 'activa' ? 'Inactivar licencia' : 'Activar licencia'}
                               onClick={() => licenseMutation.mutate({
                                 id: empresa.licencias![0].id,
                                 estado: empresa.licencias![0].estado === 'activa' ? 'revocada' : 'activa',
                               })}
+                              disabled={licenseMutation.isPending}
                             >
-                              {empresa.licencias[0].estado === 'activa' ? <ShieldX className="h-3.5 w-3.5 text-red-500" /> : <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />}
+                              {empresa.licencias[0].estado === 'activa' ? <ShieldX className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                              {empresa.licencias[0].estado === 'activa' ? 'Inactivar licencia' : 'Activar licencia'}
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(empresa)}>
+                          <Button variant="outline" size="icon" className="h-8 w-8" title="Editar empresa" onClick={() => openEdit(empresa)}>
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
                           {empresa.activa && (
