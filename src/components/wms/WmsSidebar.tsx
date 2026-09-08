@@ -21,6 +21,7 @@ import {
   UserCog,
   KeyRound,
   Building2,
+  ChevronDown,
 } from 'lucide-react'
 import {
   Select,
@@ -76,19 +77,17 @@ const baseNavSections: NavSection[] = [
       { id: 'inventory', label: 'Inventario', icon: <Warehouse className="h-4 w-4" /> },
       { id: 'locations', label: 'Ubicaciones', icon: <MapPin className="h-4 w-4" /> },
       { id: 'physicalInventory', label: 'Inventario Físico', icon: <ClipboardCheck className="h-4 w-4" /> },
+      { id: 'clients', label: 'Clientes', icon: <Users className="h-4 w-4" /> },
+      { id: 'movements', label: 'Movimientos', icon: <ArrowLeftRight className="h-4 w-4" /> },
     ],
   },
   {
-    items: [{ id: 'clients', label: 'Clientes', icon: <Users className="h-4 w-4" /> }],
-  },
-  {
-    items: [{ id: 'movements', label: 'Movimientos', icon: <ArrowLeftRight className="h-4 w-4" /> }],
-  },
-  {
-    items: [{ id: 'reports', label: 'Reportes', icon: <BarChart3 className="h-4 w-4" /> }],
-  },
-  {
-    items: [{ id: 'alerts', label: 'Alertas', icon: <AlertTriangle className="h-4 w-4" /> }],
+    title: 'ANÁLISIS',
+    titleColor: 'bg-blue-500',
+    items: [
+      { id: 'reports', label: 'Reportes', icon: <BarChart3 className="h-4 w-4" /> },
+      { id: 'alerts', label: 'Alertas', icon: <AlertTriangle className="h-4 w-4" /> },
+    ],
   },
   {
     title: 'SISTEMA',
@@ -100,7 +99,7 @@ const baseNavSections: NavSection[] = [
 ]
 
 const adminSection: NavSection = {
-  title: 'ADMINISTRACIÓN DE EMPRESA',
+  title: 'ADMIN EMPRESA',
   titleColor: 'bg-emerald-500',
   items: [
     { id: 'almacenes', label: 'Almacenes', icon: <Warehouse className="h-4 w-4" /> },
@@ -299,6 +298,7 @@ export function WmsSidebar() {
       ? [...roleBaseSections, adminSection]
       : roleBaseSections
   const [isMobile, setIsMobile] = useState(false)
+  const [sectionOverrides, setSectionOverrides] = useState<Record<string, boolean>>({})
   const settings = useSyncExternalStore(subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot)
   const warehouseName = (settings as any).warehouseName || 'WMS Repuestos'
   const warehouseSubtitle = (settings as any).warehouseAddress
@@ -328,6 +328,79 @@ export function WmsSidebar() {
     setSidebarOpen(false)
   }
 
+  function isSectionExpanded(section: NavSection) {
+    if (!section.title) return true
+    return sectionOverrides[section.title] ?? section.items.some((item) => item.id === currentPage)
+  }
+
+  function toggleSection(section: NavSection) {
+    if (!section.title) return
+    const expanded = isSectionExpanded(section)
+    setSectionOverrides((current) => ({ ...current, [section.title!]: !expanded }))
+  }
+
+  function renderNavigationSections(mobile = false) {
+    return navSections.map((section, si) => {
+      const expanded = isSectionExpanded(section)
+      const sectionHasAlerts = section.items.some((item) => item.id === 'alerts')
+
+      return (
+        <div key={section.title ?? `main-${si}`} className="mb-1">
+          {section.title && (
+            <button
+              type="button"
+              onClick={() => toggleSection(section)}
+              className={cn(
+                'w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-sidebar-accent/70',
+                section.items.some((item) => item.id === currentPage) && 'bg-primary/5 text-foreground',
+              )}
+              aria-expanded={expanded}
+            >
+              <span className={cn('h-2 w-2 rounded-full shrink-0', section.titleColor || 'bg-primary')} />
+              <span className="flex-1 text-[10px] font-bold text-muted-foreground tracking-[0.1em]">
+                {section.title}
+              </span>
+              {!expanded && sectionHasAlerts && alertCount > 0 && (
+                <Badge variant="destructive" className="h-5 min-w-5 px-1 text-[10px]">{alertCount}</Badge>
+              )}
+              <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
+            </button>
+          )}
+
+          {expanded && (
+            <div className={cn(section.title && 'ml-2 border-l border-sidebar-border/70 pl-1.5 pt-1')}>
+              {section.items.map((item) => {
+                const isActive = currentPage === item.id
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNav(item.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 text-sm font-medium transition-all duration-200 mb-0.5 relative group rounded-r-lg',
+                      mobile ? 'py-2.5' : 'py-2',
+                      isActive
+                        ? 'text-primary bg-primary/8'
+                        : 'hover:text-foreground text-muted-foreground hover:bg-sidebar-accent/60',
+                    )}
+                  >
+                    {isActive && <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-primary shadow-sm shadow-primary/40" />}
+                    <span className="relative z-10">{item.icon}</span>
+                    <span className="relative z-10">{item.label}</span>
+                    {item.id === 'alerts' && alertCount > 0 && (
+                      <Badge variant="destructive" className="relative z-10 ml-auto h-5 min-w-5 px-1 text-[10px]">
+                        {alertCount}
+                      </Badge>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )
+    })
+  }
+
   function renderNav() {
     return (
       <div className="flex flex-col h-full">
@@ -347,55 +420,7 @@ export function WmsSidebar() {
         </div>
 
         <ScrollArea className="flex-1 px-3 py-2">
-          {navSections.map((section, si) => (
-            <div key={si} className={cn('mb-1', section.title === 'SISTEMA' && 'mt-2 pt-2 border-t border-sidebar-border')}>
-              {section.title && (
-                <div className="flex items-center gap-2 px-3 py-2">
-                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', section.titleColor || 'bg-primary')} />
-                  <p className="text-[10px] font-bold text-muted-foreground/70 tracking-[0.12em]">
-                    {section.title}
-                  </p>
-                </div>
-              )}
-              {(section.title === 'CATÁLOGO' || section.title === 'OPERACIONES') && (
-                <div className="my-1 h-px bg-sidebar-border/60" />
-              )}
-              {section.items.map((item) => {
-                const isActive = currentPage === item.id
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNav(item.id)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-200 mb-0.5 relative group',
-                      isActive
-                        ? 'text-primary'
-                        : 'hover:text-foreground text-muted-foreground hover:bg-sidebar-accent/60'
-                    )}
-                  >
-                    {/* Active indicator: left accent bar */}
-                    {isActive && (
-                      <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-primary shadow-sm shadow-primary/40" />
-                    )}
-                    {/* Subtle background on active */}
-                    {isActive && (
-                      <span className="absolute inset-0 bg-primary/8 rounded-r-lg" />
-                    )}
-                    <span className="relative z-10">{item.icon}</span>
-                    <span className="relative z-10">{item.label}</span>
-                    {item.id === 'alerts' && alertCount > 0 && (
-                      <Badge
-                        variant="destructive"
-                        className="relative z-10 ml-auto h-5 min-w-[20px] flex items-center justify-center text-[10px] px-1"
-                      >
-                        {alertCount}
-                      </Badge>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          ))}
+          {renderNavigationSections()}
         </ScrollArea>
 
         <SidebarFooter />
@@ -432,53 +457,7 @@ export function WmsSidebar() {
               </div>
 
               <ScrollArea className="flex-1 px-3 py-2">
-                {navSections.map((section, si) => (
-                  <div key={si} className={cn('mb-1', section.title === 'SISTEMA' && 'mt-2 pt-2 border-t border-sidebar-border')}>
-                    {section.title && (
-                      <div className="flex items-center gap-2 px-3 py-2">
-                        <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', section.titleColor || 'bg-primary')} />
-                        <p className="text-[10px] font-bold text-muted-foreground/70 tracking-[0.12em]">
-                          {section.title}
-                        </p>
-                      </div>
-                    )}
-                    {(section.title === 'CATÁLOGO' || section.title === 'OPERACIONES') && (
-                      <div className="my-1 h-px bg-sidebar-border/60" />
-                    )}
-                    {section.items.map((item) => {
-                      const isActive = currentPage === item.id
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => handleNav(item.id)}
-                          className={cn(
-                            'w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200 mb-0.5 relative group',
-                            isActive
-                              ? 'text-primary'
-                              : 'hover:text-foreground text-muted-foreground hover:bg-sidebar-accent/60'
-                          )}
-                        >
-                          {isActive && (
-                            <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full bg-primary shadow-sm shadow-primary/40" />
-                          )}
-                          {isActive && (
-                            <span className="absolute inset-0 bg-primary/8 rounded-r-lg" />
-                          )}
-                          <span className="relative z-10">{item.icon}</span>
-                          <span className="relative z-10">{item.label}</span>
-                          {item.id === 'alerts' && alertCount > 0 && (
-                            <Badge
-                              variant="destructive"
-                              className="relative z-10 ml-auto h-5 min-w-[20px] flex items-center justify-center text-[10px] px-1 badge-pop"
-                            >
-                              {alertCount}
-                            </Badge>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))}
+                {renderNavigationSections(true)}
               </ScrollArea>
 
               <SidebarFooter />
