@@ -336,7 +336,11 @@ export function WmsSidebar() {
   function toggleSection(section: NavSection) {
     if (!section.title) return
     const expanded = isSectionExpanded(section)
-    setSectionOverrides((current) => ({ ...current, [section.title!]: !expanded }))
+    const nextState: Record<string, boolean> = {}
+    for (const navSection of navSections) {
+      if (navSection.title) nextState[navSection.title] = navSection.title === section.title ? !expanded : false
+    }
+    setSectionOverrides(nextState)
   }
 
   function renderNavigationSections(mobile = false) {
