@@ -113,9 +113,9 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         rol,
         activo: activo !== false,
-        creadoPor: user.id,
+        creadoPor: Number(user.id),
         empresaId,
-        almacenId: body.almacenId ?? null,
+        almacenId: Number(body.almacenId),
       },
       select: {
         id: true,

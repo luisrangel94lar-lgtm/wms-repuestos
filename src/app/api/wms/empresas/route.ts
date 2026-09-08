@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         data: {
           nombre: normalizedAdminName, email: normalizedAdminEmail,
           password: hashPassword(String(adminPassword)), rol: 'admin', empresaId: created.id,
-          almacenId: almacen.id, creadoPor: user.id,
+          almacenId: almacen.id, creadoPor: Number(user.id),
         },
       })
       const expires = new Date()
