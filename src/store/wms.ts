@@ -62,7 +62,18 @@ export const useWmsStore = create<WmsState>((set) => ({
   showLogin: false,
   selectedEmpresaId: null,
   selectedAlmacenId: null,
-  setCurrentPage: (page) => set({ currentPage: page }),
+  setCurrentPage: (page) => {
+    set({ currentPage: page })
+
+    // Keep navigation shareable and stable after the mobile sidebar closes.
+    // This also makes refreshing a Super Admin page return to the same module.
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      if (page === 'dashboard') url.searchParams.delete('page')
+      else url.searchParams.set('page', page)
+      window.history.replaceState({ ...window.history.state, wmsPage: page }, '', url)
+    }
+  },
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setSearchQuery: (query) => set({ searchQuery: query }),

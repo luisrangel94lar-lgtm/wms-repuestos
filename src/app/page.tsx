@@ -31,6 +31,7 @@ import { Sun, Moon } from 'lucide-react'
 import { COPYRIGHT_NOTICE } from '@/lib/ownership'
 import { subscribeSettings, getSettingsSnapshot, getSettingsServerSnapshot, stableSubscribe } from '@/lib/settings-store'
 import { hasPageAccess } from '@/lib/auth-helpers'
+import { PwaInstallBanner } from '@/components/PwaInstallBanner'
 
 const pageComponents: Record<WmsPage, React.ComponentType> = {
   dashboard: DashboardPage,
@@ -100,10 +101,14 @@ export default function Home() {
   }, [setSession, setLicenseInfo, setShowLogin])
 
   useEffect(() => {
-    const requestedPage = new URLSearchParams(window.location.search).get('page') as WmsPage | null
-    if (requestedPage && requestedPage in pageComponents) {
-      setCurrentPage(requestedPage)
+    function syncPageFromUrl() {
+      const requestedPage = new URLSearchParams(window.location.search).get('page') as WmsPage | null
+      setCurrentPage(requestedPage && requestedPage in pageComponents ? requestedPage : 'dashboard')
     }
+
+    syncPageFromUrl()
+    window.addEventListener('popstate', syncPageFromUrl)
+    return () => window.removeEventListener('popstate', syncPageFromUrl)
   }, [setCurrentPage])
 
   useEffect(() => {
@@ -132,6 +137,7 @@ export default function Home() {
           <WmsSidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <WmsHeader />
+            <PwaInstallBanner />
             <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-page-transition">
               <PageComponent />
             </main>
