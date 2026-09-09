@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Building2, Plus, Edit, Trash2, Users, Warehouse, ShieldCheck, ShieldX } from 'lucide-react'
+import { Building2, Plus, Edit, Trash2, Users, Warehouse, ShieldCheck, ShieldX, Link2, Copy, Check } from 'lucide-react'
 import type { Empresa, EmpresaStats } from '@/types/wms'
 
 interface EmpresaFormData {
@@ -42,6 +42,7 @@ const defaultForm: EmpresaFormData = {
 function PlanBadge({ plan }: { plan: string | null | undefined }) {
   const config: Record<string, { label: string; className: string }> = {
     mensual: { label: 'Mensual', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+    trial: { label: 'Prueba', className: 'bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300' },
     anual: { label: 'Anual', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
     vitalicio: { label: 'Vitalicio', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
   }
@@ -56,6 +57,10 @@ export function CompaniesPage() {
   const [deactivateId, setDeactivateId] = useState<number | null>(null)
   const [form, setForm] = useState<EmpresaFormData>(defaultForm)
   const [createError, setCreateError] = useState('')
+  const [showInvite, setShowInvite] = useState(false)
+  const [invitePlan, setInvitePlan] = useState('trial')
+  const [inviteUrl, setInviteUrl] = useState('')
+  const [inviteCopied, setInviteCopied] = useState(false)
 
   const { data: empresas = [], isLoading } = useQuery<Empresa[]>({
     queryKey: ['empresas'],
@@ -148,6 +153,28 @@ export function CompaniesPage() {
     onError: (err: any) => toast.error(err.error ?? 'Error al actualizar licencia'),
   })
 
+  const inviteMutation = useMutation({
+    mutationFn: () => fetch('/api/wms/invitaciones', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan: invitePlan }),
+    }).then(async (response) => {
+      const data = await response.json()
+      if (!response.ok) throw data
+      return data as { url: string }
+    }),
+    onSuccess: (data) => {
+      setInviteUrl(data.url)
+      toast.success('Enlace de registro creado')
+    },
+    onError: (err: any) => toast.error(err.error ?? 'No se pudo crear el enlace'),
+  })
+
+  async function copyInvite() {
+    await navigator.clipboard.writeText(inviteUrl)
+    setInviteCopied(true)
+    toast.success('Enlace copiado')
+    window.setTimeout(() => setInviteCopied(false), 2000)
+  }
+
   function openEdit(empresa: Empresa) {
     setForm({
       nombre: empresa.nombre,
@@ -196,11 +223,51 @@ export function CompaniesPage() {
           <h2 className="text-2xl font-bold tracking-tight">Gestión de Empresas</h2>
           <p className="text-sm text-muted-foreground">Administra empresas, propietarios y el estado de sus licencias.</p>
         </div>
-        <Button onClick={() => { setForm(defaultForm); setCreateError(''); setShowCreate(true) }} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nueva Empresa
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => { setInviteUrl(''); setInviteCopied(false); setShowInvite(true) }} className="gap-2">
+            <Link2 className="h-4 w-4" /> Compartir registro
+          </Button>
+          <Button onClick={() => { setForm(defaultForm); setCreateError(''); setShowCreate(true) }} className="gap-2">
+            <Plus className="h-4 w-4" /> Nueva Empresa
+          </Button>
+        </div>
       </div>
+
+      <Dialog open={showInvite} onOpenChange={setShowInvite}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Compartir registro de empresa</DialogTitle>
+            <DialogDescription>Genera un enlace de un solo uso, válido durante 7 días.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="invite-plan">Plan asignado</Label>
+              <select id="invite-plan" value={invitePlan} onChange={(e) => { setInvitePlan(e.target.value); setInviteUrl('') }} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="trial">Prueba — 30 días</option>
+                <option value="mensual">Mensual</option>
+                <option value="anual">Anual</option>
+                <option value="vitalicio">Vitalicio</option>
+              </select>
+            </div>
+            {inviteUrl && (
+              <div className="space-y-2">
+                <Label>Enlace para el propietario</Label>
+                <div className="flex gap-2">
+                  <Input value={inviteUrl} readOnly className="font-mono text-xs" />
+                  <Button type="button" variant="outline" size="icon" onClick={copyInvite} title="Copiar enlace">
+                    {inviteCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Al finalizar el registro, el enlace no podrá volver a utilizarse.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInvite(false)}>Cerrar</Button>
+            {!inviteUrl && <Button onClick={() => inviteMutation.mutate()} disabled={inviteMutation.isPending}>{inviteMutation.isPending ? 'Generando...' : 'Generar enlace'}</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

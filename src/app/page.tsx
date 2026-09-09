@@ -22,6 +22,7 @@ import { LicensePage } from '@/components/wms/LicensePage'
 import { CompaniesPage } from '@/components/wms/CompaniesPage'
 import { WarehousesPage } from '@/components/wms/WarehousesPage'
 import { LoginPage } from '@/components/wms/LoginPage'
+import { CompanyRegistrationPage } from '@/components/wms/CompanyRegistrationPage'
 import { Toaster } from '@/components/ui/sonner'
 import type { WmsPage } from '@/types/wms'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -62,6 +63,7 @@ export default function Home() {
       },
     },
   }))
+  const [registrationToken, setRegistrationToken] = useState<string | null>(null)
   const { currentPage, isAuthenticated, session, setSession, setLicenseInfo, showLogin, setShowLogin, setCurrentPage } = useWmsStore()
   const { theme } = useTheme()
   const mounted = useSyncExternalStore(stableSubscribe, () => true, () => false)
@@ -102,7 +104,9 @@ export default function Home() {
 
   useEffect(() => {
     function syncPageFromUrl() {
-      const requestedPage = new URLSearchParams(window.location.search).get('page') as WmsPage | null
+      const params = new URLSearchParams(window.location.search)
+      setRegistrationToken(params.get('r'))
+      const requestedPage = params.get('page') as WmsPage | null
       setCurrentPage(requestedPage && requestedPage in pageComponents ? requestedPage : 'dashboard')
     }
 
@@ -116,6 +120,15 @@ export default function Home() {
       setCurrentPage('dashboard')
     }
   }, [currentPage, session, setCurrentPage])
+
+  if (registrationToken) {
+    return (
+      <SessionProvider>
+        <CompanyRegistrationPage token={registrationToken} />
+        <Toaster richColors position="top-right" />
+      </SessionProvider>
+    )
+  }
 
   // Show login page if not authenticated
   if (!isAuthenticated || showLogin) {
