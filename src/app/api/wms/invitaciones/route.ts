@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({
-      url: `${request.nextUrl.origin}/?r=${token}`,
+      path: `/?r=${token}`,
       plan,
       expiresAt: expiresAt.toISOString(),
     }, { status: 201 })
@@ -44,4 +44,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No se pudo crear el enlace de registro' }, { status: 500 })
   }
 }
-

@@ -159,10 +159,10 @@ export function CompaniesPage() {
     }).then(async (response) => {
       const data = await response.json()
       if (!response.ok) throw data
-      return data as { url: string }
+      return data as { path: string }
     }),
     onSuccess: (data) => {
-      setInviteUrl(data.url)
+      setInviteUrl(new URL(data.path, window.location.origin).toString())
       toast.success('Enlace de registro creado')
     },
     onError: (err: any) => toast.error(err.error ?? 'No se pudo crear el enlace'),
