@@ -96,7 +96,13 @@ async function syncSequence(target, table, columns) {
   }
 }
 
-const source = new Client({ connectionString: sourceUrl });
+// Supabase's transaction pool can present a platform-managed certificate chain
+// that is not included in the slim container's CA bundle. The connection remains
+// encrypted; certificate verification is relaxed only for this one-time source read.
+const source = new Client({
+  connectionString: sourceUrl,
+  ssl: { rejectUnauthorized: false },
+});
 const target = new Client({ connectionString: targetUrl });
 
 try {
