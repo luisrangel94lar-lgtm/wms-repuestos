@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,12 +22,15 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle, ClipboardList, MapPin, Target, Filter } from 'lucide-react'
+import { Plus, Trash2, ShoppingCart, Eye, Printer, XCircle, ClipboardList, MapPin, Target, Filter, CreditCard, ExternalLink, Copy } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { formatCurrency, formatDate, formatDateTime } from './lib/format'
 import { SortableHeader } from './lib/SortableHeader'
 import { printReceipt, getWarehouseSettings } from './lib/print-receipt'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { getQzPrinterSettings, printQzReceipt } from './lib/qz-printer'
+import type { ReceiptData } from './lib/print-receipt'
 
 interface SaleLine {
   idProducto: number
@@ -35,6 +38,26 @@ interface SaleLine {
   sku: string
   precioUnitario: number
   cantidad: number
+}
+
+function receiptFromSale(sale: any): ReceiptData {
+  const warehouse = getWarehouseSettings()
+  return {
+    warehouseName: warehouse.name,
+    warehouseAddress: warehouse.address,
+    warehousePhone: warehouse.phone,
+    folio: sale.folio,
+    fecha: formatDateTime(sale.fecha),
+    cliente: { nombre: sale.cliente?.nombre ?? 'N/A', telefono: sale.cliente?.telefono ?? null },
+    detalles: (sale.detalles ?? []).map((detail: any) => ({
+      producto: detail.producto ? { nombre: detail.producto.nombre, sku: detail.producto.sku } : null,
+      cantidad: detail.cantidad,
+      precioUnitario: detail.precioUnitario,
+    })),
+    subtotal: sale.subtotal ?? sale.total ?? 0,
+    total: sale.total ?? 0,
+    estado: 'COMPLETADA',
+  }
 }
 
 export function SalesPage() {
@@ -58,6 +81,9 @@ export function SalesPage() {
   const [cancelId, setCancelId] = useState<number | null>(null)
   const [pickingId, setPickingId] = useState<number | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'WOMPI'>('EFECTIVO')
+  const [paymentSale, setPaymentSale] = useState<any>(null)
+  const printedPaymentRef = useRef<number | null>(null)
 
   // Sorting state
   const [sortField, setSortField] = useState<string>('fecha')
@@ -92,6 +118,30 @@ export function SalesPage() {
     enabled: !!pickingId,
   })
 
+  const { data: paymentStatus } = useQuery({
+    queryKey: ['sale-payment', paymentSale?.id],
+    queryFn: () => fetch(`/api/wms/ventas/${paymentSale.id}/pago`).then(async response => {
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'No se pudo consultar el pago')
+      return data
+    }),
+    enabled: Boolean(paymentSale?.id),
+    refetchInterval: (query) => query.state.data?.ventaEstado === 'COMPLETADA' ? false : 3000,
+  })
+
+  useEffect(() => {
+    if (!paymentSale || paymentStatus?.ventaEstado !== 'COMPLETADA' || printedPaymentRef.current === paymentSale.id) return
+    printedPaymentRef.current = paymentSale.id
+    toast.success('Pago aprobado por Wompi. Venta e inventario confirmados.')
+    queryClient.invalidateQueries({ queryKey: ['ventas'] })
+    queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+    const settings = getQzPrinterSettings()
+    if (settings.autoPrint && settings.printerName) {
+      printQzReceipt(receiptFromSale(paymentSale), settings.printerName, settings.openDrawer)
+        .catch(() => toast.error('El pago fue aprobado, pero QZ Tray no pudo imprimir'))
+    }
+  }, [paymentSale, paymentStatus?.ventaEstado, queryClient])
+
   const createMutation = useMutation({
     mutationFn: () => {
       if (!selectedCliente) return Promise.reject({ error: 'Seleccione un cliente' })
@@ -101,17 +151,29 @@ export function SalesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idCliente: Number(selectedCliente),
+          metodoPago: paymentMethod,
           detalles: lines.map((l) => ({ idProducto: l.idProducto, cantidad: l.cantidad, precioUnitario: l.precioUnitario })),
         }),
       }).then((r) => { if (!r.ok) return r.json().then((e) => Promise.reject(e)); return r.json() })
     },
-    onSuccess: () => {
-      toast.success('Venta registrada correctamente')
+    onSuccess: (sale: any) => {
       queryClient.invalidateQueries({ queryKey: ['ventas'] })
-      queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
       setShowCreate(false)
       setSelectedCliente('')
       setLines([])
+      if (paymentMethod === 'WOMPI') {
+        printedPaymentRef.current = null
+        setPaymentSale(sale)
+        toast.info('Venta pendiente: muestre el QR o abra Wompi para pagar')
+      } else {
+        toast.success('Venta registrada correctamente')
+        queryClient.invalidateQueries({ queryKey: ['products-inventory'] })
+        const settings = getQzPrinterSettings()
+        if (settings.autoPrint && settings.printerName) {
+          printQzReceipt(receiptFromSale(sale), settings.printerName, settings.openDrawer)
+            .catch(() => toast.error('Venta guardada, pero QZ Tray no pudo imprimir'))
+        }
+      }
     },
     onError: (err: any) => toast.error(err.error ?? 'Error al registrar venta'),
   })
@@ -181,6 +243,7 @@ export function SalesPage() {
     { value: '', label: 'Todas' },
     { value: 'COMPLETADA', label: 'COMPLETADA' },
     { value: 'PENDIENTE', label: 'PENDIENTE' },
+    { value: 'PENDIENTE_PAGO', label: 'PENDIENTE PAGO' },
     { value: 'CANCELADA', label: 'CANCELADA' },
   ]
 
@@ -384,6 +447,14 @@ export function SalesPage() {
             <div className="flex justify-end text-sm font-semibold">
               Total: {formatCurrency(subtotal)}
             </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Forma de pago</Label>
+              <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'EFECTIVO' | 'WOMPI')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="EFECTIVO">Efectivo / pago confirmado</SelectItem><SelectItem value="WOMPI">Wompi: QR, tarjeta o método en línea</SelectItem></SelectContent>
+              </Select>
+              {paymentMethod === 'WOMPI' && <p className="text-xs text-muted-foreground">La venta quedará pendiente hasta recibir la confirmación segura de Wompi.</p>}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowCreate(false); setLines([]); setSelectedCliente('') }}>Cancelar</Button>
@@ -391,6 +462,22 @@ export function SalesPage() {
               {createMutation.isPending ? 'Registrando...' : 'Registrar Venta'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(paymentSale)} onOpenChange={(open) => { if (!open) setPaymentSale(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" /> Cobro con Wompi</DialogTitle><DialogDescription>El cliente puede escanear el QR o abrir el enlace de pago.</DialogDescription></DialogHeader>
+          {paymentSale?.pagos?.[0] && (
+            <div className="space-y-4">
+              <div className="mx-auto w-fit rounded-xl border bg-white p-4"><QRCodeSVG value={paymentSale.pagos[0].checkoutUrl} size={220} level="M" /></div>
+              <div className="text-center"><p className="text-2xl font-bold">{formatCurrency(paymentSale.total ?? 0)}</p><p className="text-xs font-mono text-muted-foreground">{paymentSale.pagos[0].referencia}</p></div>
+              <div className="flex items-center justify-between rounded-lg border p-3"><span className="text-sm">Estado</span><Badge variant={paymentStatus?.ventaEstado === 'COMPLETADA' ? 'default' : 'outline'}>{paymentStatus?.pago?.estado ?? 'PENDIENTE'}</Badge></div>
+              {paymentStatus?.pago?.estado === 'REQUIERE_REVISION' && <p className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">Wompi aprobó el pago, pero la venta requiere revisión de inventario. No entregue el pedido hasta corregirlo.</p>}
+              <div className="grid grid-cols-2 gap-2"><Button asChild><a href={paymentSale.pagos[0].checkoutUrl} target="_blank" rel="noreferrer">Abrir pago <ExternalLink className="ml-1 h-4 w-4" /></a></Button><Button variant="outline" onClick={() => navigator.clipboard.writeText(paymentSale.pagos[0].checkoutUrl).then(() => toast.success('Enlace copiado'))}><Copy className="mr-1 h-4 w-4" /> Copiar</Button></div>
+              <p className="text-center text-[11px] text-muted-foreground">La pantalla se actualiza automáticamente. Cerrar esta ventana no cancela el pago.</p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

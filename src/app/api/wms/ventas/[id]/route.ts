@@ -17,6 +17,7 @@ export async function GET(
       include: {
         cliente: true,
         detalles: { include: { producto: true } },
+        pagos: { orderBy: { fechaCreacion: 'desc' }, take: 1 },
       },
     })
     if (!venta) {
@@ -43,6 +44,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         include: { detalles: true },
       })
       if (!venta) return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 })
+      if (venta.estado !== 'COMPLETADA') return NextResponse.json({ error: 'Solo se pueden cancelar ventas completadas' }, { status: 400 })
       
       await db.$transaction(async (tx) => {
         // Create DEVOLUCION movements and restore stock for each detail

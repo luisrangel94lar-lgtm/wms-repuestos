@@ -1,6 +1,6 @@
 import { COPYRIGHT_NOTICE } from '@/lib/ownership'
 
-interface ReceiptData {
+export interface ReceiptData {
   warehouseName: string
   warehouseAddress: string
   warehousePhone: string

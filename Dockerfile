@@ -15,4 +15,4 @@ RUN bunx prisma generate && bun run build
 USER bun
 EXPOSE 3000
 
-CMD ["bun", ".next/standalone/server.js"]
+CMD ["sh", "-c", "bunx prisma migrate deploy && bun .next/standalone/server.js"]

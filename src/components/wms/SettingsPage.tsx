@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { Save, Building2, Globe, Palette, Info, Download, Upload, Database, AlertTriangle } from 'lucide-react'
 import { getSettingsSnapshot, updateSettings as updateSettingsStore } from '@/lib/settings-store'
+import { IntegrationsSettings } from './IntegrationsSettings'
 
 interface WmsSettings {
   warehouseName: string
@@ -129,7 +130,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-4xl">
       <div className="mb-4">
         <p className="text-sm text-muted-foreground">Personalizar el sistema según tus necesidades</p>
       </div>
@@ -218,6 +219,8 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <IntegrationsSettings />
 
       {/* Respaldo de Datos */}
       <Card className="rounded-xl shadow-sm">

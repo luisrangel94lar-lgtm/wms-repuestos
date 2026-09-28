@@ -190,6 +190,7 @@ model Venta {
   almacen   Almacen?       @relation(fields: [almacenId], references: [id])
   cliente   Cliente        @relation(fields: [idCliente], references: [id])
   detalles  VentaDetalle[]
+  pagos     Pago[]
   empresa   Empresa        @relation(fields: [empresaId], references: [id])
 
   @@unique([empresaId, folio])
@@ -197,6 +198,30 @@ model Venta {
   @@index([fecha], map: "idx_ventas_fecha")
   @@index([almacenId, fecha])
   @@map("ventas")
+}
+
+model Pago {
+  id                 Int       @id @default(autoincrement())
+  empresaId          Int
+  ventaId            Int
+  referencia         String    @unique
+  proveedor          String    @default("WOMPI")
+  metodo             String    @default("WOMPI")
+  estado             String    @default("PENDIENTE")
+  montoCentavos      Int
+  moneda             String    @default("COP")
+  transaccionId      String?   @unique
+  checkoutUrl        String?
+  estadoProveedor    String?
+  fechaCreacion      DateTime  @default(now())
+  fechaActualizacion DateTime  @updatedAt
+  fechaAprobacion    DateTime?
+  venta              Venta     @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  empresa            Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId, estado])
+  @@index([ventaId])
+  @@map("pagos")
 }
 
 model VentaDetalle {
@@ -242,23 +267,29 @@ model Usuario {
 // ============================================
 
 model Empresa {
-  id            Int          @id @default(autoincrement())
-  nombre        String
-  nit           String?      @unique
-  direccion     String?
-  telefono      String?
-  email         String?
-  logo          String?
-  activa        Boolean      @default(true)
-  plan          String       @default("mensual") // mensual, anual, vitalicio
-  fechaCreacion DateTime     @default(now())
-  usuarios      Usuario[]
-  almacenes     Almacen[]
-  licencias     Licencia[]
-  productos     Producto[]
-  clientes      Cliente[]
-  ventas        Venta[]
-  movimientos   Movimiento[]
+  id                      Int          @id @default(autoincrement())
+  nombre                  String
+  nit                     String?      @unique
+  direccion               String?
+  telefono                String?
+  email                   String?
+  logo                    String?
+  activa                  Boolean      @default(true)
+  plan                    String       @default("mensual") // mensual, anual, vitalicio
+  fechaCreacion           DateTime     @default(now())
+  wompiPublicKey          String?
+  wompiPrivateKeyEnc      String?
+  wompiIntegritySecretEnc String?
+  wompiEventsSecretEnc    String?
+  wompiSandbox            Boolean      @default(true)
+  usuarios                Usuario[]
+  almacenes               Almacen[]
+  licencias               Licencia[]
+  productos               Producto[]
+  clientes                Cliente[]
+  ventas                  Venta[]
+  movimientos             Movimiento[]
+  pagos                   Pago[]
 
   @@map("empresas")
 }

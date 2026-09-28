@@ -33,6 +33,7 @@ Variables obligatorias:
 ```dotenv
 DATABASE_URL="postgresql://usuario:password@host:5432/postgres?sslmode=require"
 NEXTAUTH_SECRET="secreto-aleatorio-largo"
+PAYMENTS_ENCRYPTION_KEY="clave-aleatoria-exclusiva-para-cifrar-credenciales"
 NEXTAUTH_URL="http://localhost:3000"
 ```
 
@@ -59,6 +60,14 @@ El script `prisma/migrate-data.ts` sirve únicamente para una migración control
 ## Despliegue en Railway
 
 Railway usa `Dockerfile` y comprueba `/api/health`. Configure `DATABASE_URL`, `NEXTAUTH_SECRET` y `NEXTAUTH_URL` como variables privadas del servicio. La URL de PostgreSQL debe usar SSL.
+
+## Pagos Wompi e impresión térmica
+
+- Cada empresa configura sus propias llaves en **Configuración → Pagos con Wompi**. Empiece con el ambiente de pruebas.
+- Registre en Wompi la URL de eventos que muestra esa pantalla. La venta solo se completa después de validar la firma del evento y consultar la transacción directamente en Wompi.
+- `PAYMENTS_ENCRYPTION_KEY` cifra las credenciales privadas en la base de datos. Si no existe, se usa `NEXTAUTH_SECRET`, aunque se recomienda una clave separada.
+- En cada computador de caja instale [QZ Tray](https://qz.io/download/), déjelo abierto y seleccione la impresora en **Configuración → Impresora térmica y caja**.
+- La impresión silenciosa requiere un certificado de firma de QZ. Sin certificado, QZ puede pedir confirmación local antes de imprimir.
 
 ## PWA
 

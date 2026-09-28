@@ -24,6 +24,9 @@ export async function POST(
     if (venta.estado === 'CANCELADA') {
       return NextResponse.json({ error: 'La venta ya está cancelada' }, { status: 400 })
     }
+    if (venta.estado !== 'COMPLETADA') {
+      return NextResponse.json({ error: 'Solo se pueden cancelar ventas completadas. Los pagos pendientes deben vencer en Wompi.' }, { status: 400 })
+    }
 
     // Find DEVOLUCION movement type
     const tipoDevolucion = await db.tipoMovimiento.findFirst({
