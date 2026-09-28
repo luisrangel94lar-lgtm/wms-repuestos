@@ -108,7 +108,7 @@ const source = new Client({
 const target = new Client({ connectionString: targetUrl });
 
 try {
-  await Promise.all([source.connect(), target.connect()]);
+  await target.connect();
   await target.query(`
     CREATE TABLE IF NOT EXISTS public._data_migrations (
       id TEXT PRIMARY KEY,
@@ -123,6 +123,7 @@ try {
   if (existing.rowCount) {
     console.log(`[data-migration] ${migrationId} was already applied.`);
   } else {
+    await source.connect();
     await target.query("BEGIN");
     const totals = {};
     const deferredUpdates = [];
