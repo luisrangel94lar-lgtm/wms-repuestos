@@ -26,7 +26,6 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Search, Pencil, Trash2, Eye, History, ChevronDown, ChevronRight, Users, Wallet, TrendingUp, UserCircle, Contact, BadgeCheck, Upload, Download, FileSpreadsheet } from 'lucide-react'
 import { formatCurrency, formatDate } from './lib/format'
-import { downloadCsvTemplate } from '@/lib/download-csv'
 import { useWmsStore } from '@/store/wms'
 
 const clienteSchema = z.object({
@@ -225,26 +224,22 @@ export function ClientsPage() {
         <DialogContent className="max-w-md">
           <DialogHeader className="dialog-header-accent">
             <DialogTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" /> Importar clientes</DialogTitle>
-            <DialogDescription>Carga varios clientes usando la plantilla CSV.</DialogDescription>
+            <DialogDescription>Carga varios clientes con una plantilla de Excel sencilla.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => downloadCsvTemplate('plantilla-clientes.csv', [
-                ['nombre', 'telefono', 'email', 'tipoCliente'],
-                ['Cliente de ejemplo', '3001234567', 'cliente@ejemplo.com', 'Tecnico'],
-              ])}
-            >
-              <Download className="h-4 w-4 mr-2" /> Descargar plantilla de clientes
+            <Button type="button" variant="outline" className="w-full" asChild>
+              <a href="/downloads/plantilla-clientes.xlsx" download>
+                <Download className="h-4 w-4 mr-2" /> Descargar plantilla Excel sencilla
+              </a>
             </Button>
             <div className="space-y-2">
-              <Label>Archivo CSV diligenciado</Label>
-              <Input type="file" accept=".csv,text/csv" onChange={(event) => setImportFile(event.target.files?.[0] ?? null)} />
+              <Label>Archivo Excel o CSV diligenciado</Label>
+              <Input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" onChange={(event) => setImportFile(event.target.files?.[0] ?? null)} />
             </div>
             <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-              <p><strong>tipoCliente:</strong> Tecnico, Empresa o Particular.</p>
+              <p>Reemplaza la fila verde de ejemplo y agrega un cliente por fila.</p>
+              <p><strong>Tipo de cliente:</strong> Técnico, Empresa o Particular.</p>
+              <p>Máximo 5.000 registros por archivo.</p>
               <p>Los clientes repetidos por email —o por nombre y teléfono— se omitirán.</p>
             </div>
           </div>

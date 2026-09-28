@@ -52,7 +52,6 @@ import { formatCurrency } from './lib/format'
 import { cn } from '@/lib/utils'
 import { BarcodeScanner } from './BarcodeScanner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { downloadCsvTemplate } from '@/lib/download-csv'
 import {
   Tooltip as RechartsTooltip,
   AreaChart,
@@ -962,38 +961,28 @@ export function ProductsPage() {
         <DialogContent className="max-w-md">
           <DialogHeader className="dialog-header-accent">
             <DialogTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5" /> Importar CSV
+              <FileSpreadsheet className="h-5 w-5" /> Importar productos
             </DialogTitle>
-            <DialogDescription className="sr-only">Importar productos desde un archivo CSV</DialogDescription>
+            <DialogDescription>Carga una plantilla de Excel o un archivo CSV anterior.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Archivo CSV</Label>
+              <Label className="text-sm font-medium">Archivo Excel o CSV</Label>
               <Input
                 type="file"
-                accept=".csv"
+                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                 onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
               />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => downloadCsvTemplate('plantilla-productos.csv', [
-                ['sku', 'nombre', 'descripcion', 'categoria', 'marca', 'codigoBarras', 'unidadMedida', 'costoUnitario', 'precioVenta', 'stockMinimo', 'stockMaximo', 'activo'],
-                ['REP-001', 'Compresor 1/4 HP', 'Compresor para refrigeración', 'Compresores', 'Embraco', '770000000001', 'unidad', '250000', '350000', '2', '20', 'true'],
-              ])}
-            >
-              <Download className="h-4 w-4 mr-2" /> Descargar plantilla de productos
+            <Button type="button" variant="outline" className="w-full" asChild>
+              <a href="/downloads/plantilla-productos.xlsx" download>
+                <Download className="h-4 w-4 mr-2" /> Descargar plantilla Excel sencilla
+              </a>
             </Button>
             <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-              <p className="text-xs font-medium">Formato esperado (columnas del CSV):</p>
-              <div className="flex flex-wrap gap-1">
-                {['sku', 'nombre', 'descripcion', 'categoria', 'marca', 'codigoBarras', 'unidadMedida', 'costoUnitario', 'precioVenta', 'stockMinimo', 'stockMaximo', 'activo'].map((col) => (
-                  <code key={col} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{col}</code>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Los SKUs existentes se omitirán. Categorías y marcas deben existir previamente (se buscan por nombre).</p>
+              <p className="text-xs font-medium">La plantilla ya viene organizada.</p>
+              <p className="text-[11px] text-muted-foreground">Reemplaza la fila verde de ejemplo y agrega un producto por fila. Los campos con asterisco son obligatorios.</p>
+              <p className="text-[10px] text-muted-foreground">Máximo 5.000 registros. Los SKU repetidos se omiten. Las categorías y marcas deben existir previamente.</p>
             </div>
           </div>
           <DialogFooter>

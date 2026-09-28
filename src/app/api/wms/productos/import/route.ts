@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { canManageCatalog, getTenantUser, resolveEmpresaId } from '@/lib/tenant'
+import { readImportTable } from '@/lib/import-spreadsheet'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,18 +18,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No se proporcionó archivo' }, { status: 400 })
     }
 
-    const text = await file.text()
-    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '')
-    if (lines.length < 2) {
-      return NextResponse.json({ error: 'CSV vacío o sin datos' }, { status: 400 })
+    let importTable
+    try {
+      importTable = await readImportTable(file)
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'No se pudo leer el archivo' },
+        { status: 400 },
+      )
     }
 
-    const headers = parseCsvLine(lines[0]).map((h, index) => (index === 0 ? h.replace(/^\uFEFF/, '') : h).trim().toLowerCase())
+    const { headers, rows } = importTable
     const expectedHeaders = ['sku', 'nombre']
     for (const expected of expectedHeaders) {
       if (!headers.includes(expected)) {
         return NextResponse.json(
-          { error: `Columna faltante en CSV: ${expected}` },
+          { error: `Columna obligatoria faltante: ${expected}` },
           { status: 400 }
         )
       }
@@ -38,13 +43,8 @@ export async function POST(request: NextRequest) {
     let skipped = 0
     const errors: string[] = []
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseCsvLine(lines[i])
-      if (values.length !== headers.length) {
-        errors.push(`Fila ${i + 1}: número de columnas incorrecto (${values.length} vs ${headers.length})`)
-        continue
-      }
-
+    for (let i = 0; i < rows.length; i++) {
+      const values = rows[i]
       const row: Record<string, string> = {}
       headers.forEach((h, idx) => {
         row[h] = (values[idx] ?? '').trim()
@@ -52,7 +52,11 @@ export async function POST(request: NextRequest) {
 
       const sku = row['sku']
       if (!sku) {
-        errors.push(`Fila ${i + 1}: SKU vacío`)
+        errors.push(`Fila ${i + 2}: SKU vacío`)
+        continue
+      }
+      if (sku.toUpperCase() === 'EJEMPLO-BORRAR') {
+        skipped++
         continue
       }
 
@@ -84,7 +88,8 @@ export async function POST(request: NextRequest) {
       const costoUnitario = parseFloat(row['costounitario'] || '0') || 0
       const precioVenta = parseFloat(row['precioventa'] || '0') || 0
       const stockMinimo = parseInt(row['stockminimo'] || '0', 10) || 0
-      const activo = row['activo']?.toLowerCase() !== 'false' && row['activo'] !== '0'
+      const activeValue = row['activo']?.trim().toLowerCase()
+      const activo = !['false', '0', 'no', 'inactivo'].includes(activeValue)
 
       await db.producto.create({
         data: {
@@ -108,38 +113,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ imported, skipped, errors })
   } catch (error) {
-    console.error('CSV import error:', error)
-    return NextResponse.json({ error: 'Error al importar CSV' }, { status: 500 })
+    console.error('Spreadsheet import error:', error)
+    return NextResponse.json({ error: 'Error al importar el archivo' }, { status: 500 })
   }
-}
-
-function parseCsvLine(line: string): string[] {
-  const result: string[] = []
-  let current = ''
-  let inQuotes = false
-
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i]
-    if (inQuotes) {
-      if (ch === '"' && line[i + 1] === '"') {
-        current += '"'
-        i++
-      } else if (ch === '"') {
-        inQuotes = false
-      } else {
-        current += ch
-      }
-    } else {
-      if (ch === '"') {
-        inQuotes = true
-      } else if (ch === ',') {
-        result.push(current)
-        current = ''
-      } else {
-        current += ch
-      }
-    }
-  }
-  result.push(current)
-  return result
 }
